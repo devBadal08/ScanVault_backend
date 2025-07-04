@@ -4,15 +4,15 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
         <div class="bg-white shadow rounded-lg p-6 text-center">
             <div class="text-3xl font-bold">{{ $totalAdmins }}</div>
-            <div class="text-gray-600 mt-2">Admins</div>
+            <div class="text-gray-600 mt-2">Total Admins</div>
         </div>
         <div class="bg-white shadow rounded-lg p-6 text-center">
             <div class="text-3xl font-bold">{{ $totalManagers }}</div>
-            <div class="text-gray-600 mt-2">Managers</div>
+            <div class="text-gray-600 mt-2">Total Managers</div>
         </div>
         <div class="bg-white shadow rounded-lg p-6 text-center">
             <div class="text-3xl font-bold">{{ $totalUsers }}</div>
-            <div class="text-gray-600 mt-2">Users</div>
+            <div class="text-gray-600 mt-2">Total Users</div>
         </div>
     </div>
 
@@ -22,12 +22,20 @@
         </div>
     @endif
 
-    <div class="bg-white shadow rounded-lg p-6">
+    @if (session()->has('error'))
+        <div class="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    <div class="bg-white shadow rounded-lg p-6 mt-6">
         <form wire:submit.prevent="createUser">
             {{ $form }}
-            <x-filament::button type="submit" class="mt-4">
-                Create User
-            </x-filament::button>
+            <div class="mt-4">
+                <x-filament::button type="submit">
+                    Create User
+                </x-filament::button>
+            </div>
         </form>
     </div>
 </x-filament-panels::page>

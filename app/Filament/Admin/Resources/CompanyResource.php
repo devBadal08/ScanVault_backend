@@ -1,17 +1,14 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Filament\Admin\Resources;
 
-use App\Filament\Resources\CompanyResource\Pages;
-use App\Filament\Resources\CompanyResource\RelationManagers;
+use App\Filament\Admin\Resources\CompanyResource\Pages;
 use App\Models\Company;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Navigation\NavigationItem;
@@ -25,13 +22,13 @@ class CompanyResource extends Resource
     protected static ?string $navigationGroup = 'Administration';
     protected static ?int $navigationSort = 1;
 
-
-    public static function form(Forms\Form $form): Forms\Form
+    public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 TextInput::make('company_name')
                     ->required()
+                    ->unique(ignoreRecord: true)
                     ->label('Company Name'),
                 TextInput::make('admin_name')
                     ->required()
@@ -45,9 +42,6 @@ class CompanyResource extends Resource
             ->columns([
                 TextColumn::make('company_name')->label('Company Name')->sortable()->searchable(),
                 TextColumn::make('admin_name')->label('Admin Name')->sortable()->searchable(),
-            ])
-            ->filters([
-                //
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -71,13 +65,6 @@ class CompanyResource extends Resource
                 ->url(static::getUrl('company-list'))
                 ->icon('heroicon-o-document')
                 ->group('Administration'),
-        ];
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
         ];
     }
 
