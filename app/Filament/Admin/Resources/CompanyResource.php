@@ -78,4 +78,9 @@ class CompanyResource extends Resource
             'dashboard' => Pages\CompanyDashboard::route('/{record}/dashboard'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('Super Admin');
+    }
 }

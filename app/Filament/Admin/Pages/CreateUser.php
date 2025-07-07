@@ -19,6 +19,12 @@ class CreateUser extends Page implements Forms\Contracts\HasForms
     protected static ?int $navigationSort = 3;
 
     public ?array $data = [];
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && (auth()->user()->hasRole('manager') || auth()->user()->hasRole('Super Admin'));
+    }
+
     public $name;
     public $email;
     public $password;
@@ -58,12 +64,15 @@ class CreateUser extends Page implements Forms\Contracts\HasForms
         // Filament automatically validates based on your getFormSchema
         $data = $this->form->getState();
 
-        User::create([
+        $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => $data['role'],
+            'created_by' => auth()->id(),
         ]);
+
+        $user->assignRole($data['role']);
 
         $this->form->fill([]); // reset the form
 

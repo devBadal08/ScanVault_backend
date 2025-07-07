@@ -20,14 +20,8 @@ class LoginController extends Controller
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
 
-            if ($user->role === 'Super Admin') {
-                return redirect('/admin/login');
-            } elseif ($user->role === 'admin') {
-                return redirect()->route('filament.admin.pages.admin-dashboard');
-            } elseif ($user->role === 'manager') {
-                return redirect()->route('filament.admin.pages.manager-dashboard');
-            } elseif ($user->role === 'user') {
-                return redirect()->route('user.dashboard');
+            if ($user->role === 'Super Admin' || $user->role === 'admin' || $user->role === 'manager') {
+                return redirect('/admin');
             } else {
                 Auth::logout();
                 return redirect()->route('login')->withErrors([

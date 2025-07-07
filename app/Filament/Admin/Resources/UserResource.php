@@ -23,11 +23,11 @@ class UserResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
     protected static ?string $navigationLabel = 'Create Users';
     protected static ?string $navigationGroup = 'Admin';
-    protected static ?int $navigationSort = 2;
-    public static function getNavigationSort(): ?int
-    {
-        return 1; // appear first in the Admin group
-    }
+    protected static ?int $navigationSort = 1;
+    // public static function getNavigationSort(): ?int
+    // {
+    //     return 1; // appear first in the Admin group
+    // }
 
     public static function form(Form $form): Form
     {
@@ -52,7 +52,6 @@ class UserResource extends Resource
                     ->label('Role')
                     ->options(fn () => 
                         collect([
-                            'admin' => 'Admin',
                             'manager' => 'Manager',
                             'user' => 'User',
                         ])
@@ -70,6 +69,10 @@ class UserResource extends Resource
                 TextColumn::make('name')->searchable(),
                 TextColumn::make('email')->searchable(),
                 TextColumn::make('role')->badge(),
+                TextColumn::make('createdBy.name')
+                    ->label('Created By')
+                    ->sortable()
+                    ->searchable(),
             ])
             ->filters([
                 //
@@ -98,5 +101,13 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->check() && (
+            auth()->user()->hasRole('admin') ||
+            auth()->user()->hasRole('Super Admin')
+        );
     }
 }

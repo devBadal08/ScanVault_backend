@@ -17,22 +17,46 @@ class UserList extends Page
         return 2; // appear second in the Admin group
     }
 
-    public $totalManagers;
-    public $totalUsers;
+    // public $totalManagers;
+    // public $totalUsers;
 
-    public function mount(): void
-    {
-        $this->totalManagers = User::where('role', 'manager')->count();
-        $this->totalUsers = User::where('role', 'user')->count();
-    }
+    // public function mount(): void
+    // {
+    //     $queryManagers = User::where('role', 'manager');
+    //     $queryUsers = User::where('role', 'user');
+
+    //     if (auth()->user()?->hasRole('admin')) {
+    //         $queryManagers->where('created_by', auth()->id());
+    //         $queryUsers->where('created_by', auth()->id());
+    //     }
+
+    //     $this->totalManagers = User::where('role', 'manager')->count();
+    //     $this->totalUsers = User::where('role', 'user')->count();
+    // }
 
     protected function getViewData(): array
     {
+        $queryManagers = User::query()->where('role', 'manager');
+        $queryUsers = User::query()->where('role', 'user');
+
+        if (auth()->user()?->hasRole('admin')) {
+            $queryManagers->where('created_by', auth()->id());
+            $queryUsers->where('created_by', auth()->id());
+        }
+
         return [
             'totals' => [
-                'managers' => $this->totalManagers,
-                'users' => $this->totalUsers,
-            ]
+                'managers' => $queryManagers->count(),
+                'users' => $queryUsers->count(),
+            ],
         ];
+    }
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && (
+            auth()->user()->hasRole('admin') ||
+            auth()->user()->hasRole('Super Admin')
+        );
     }
 }

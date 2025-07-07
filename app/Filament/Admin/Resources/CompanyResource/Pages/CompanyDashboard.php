@@ -13,7 +13,6 @@ use App\Models\User;
 class CompanyDashboard extends Page
 {
     protected static string $resource = CompanyResource::class;
-
     protected static string $view = 'filament.admin.resources.company-resource.pages.company-dashboard';
 
     public $company;
@@ -21,12 +20,14 @@ class CompanyDashboard extends Page
     public $totalManagers;
     public $totalUsers;
 
-    // ✅ public properties for form binding
     public $name;
     public $email;
     public $password;
     public $role;
     public $max_limit;
+
+    public bool $showForm = false;
+    public ?int $editingUserId = null;
 
     public function mount($record): void
     {
@@ -45,20 +46,9 @@ class CompanyDashboard extends Page
     protected function getFormSchema(): array
     {
         return [
-            Forms\Components\TextInput::make('name')
-                ->label('Name')
-                ->required(),
-
-            Forms\Components\TextInput::make('email')
-                ->label('Email')
-                ->email()
-                ->required(),
-
-            Forms\Components\TextInput::make('password')
-                ->label('Password')
-                ->password()
-                ->required(),
-
+            Forms\Components\TextInput::make('name')->label('Name')->required(),
+            Forms\Components\TextInput::make('email')->label('Email')->email()->required(),
+            Forms\Components\TextInput::make('password')->label('Password')->password(),
             Forms\Components\Select::make('role')
                 ->label('Role')
                 ->options([
@@ -67,24 +57,54 @@ class CompanyDashboard extends Page
                     'user' => 'User',
                 ])
                 ->required(),
-
-            Forms\Components\TextInput::make('max_limit')
-                ->label('Max Limit')
-                ->numeric()
-                ->required(),
+            Forms\Components\TextInput::make('max_limit')->label('Max Limit')->numeric()->required(),
         ];
     }
 
-    public function createUser()
+    public function startCreatingUser()
+    {
+        $this->editingUserId = null;
+        $this->showForm = true;
+
+        $this->form->fill([
+            'name' => '',
+            'email' => '',
+            'password' => '',
+            'role' => '',
+            'max_limit' => '',
+        ]);
+    }
+
+    public function editUser($userId)
+    {
+        $user = User::findOrFail($userId);
+        $this->editingUserId = $userId;
+        $this->showForm = true;
+
+        $this->form->fill([
+            'name' => $user->name,
+            'email' => $user->email,
+            'password' => '',
+            'role' => $user->role,
+            'max_limit' => $user->max_limit,
+        ]);
+    }
+
+    public function createOrUpdateUser()
     {
         $data = $this->form->getState();
 
-        $currentUser = auth()->user();
-        $createdCount = User::where('created_by', $currentUser->id)->count();
+        $this->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $this->editingUserId,
+            'role' => 'required|string',
+            'max_limit' => 'required|integer|min:1',
+        ]);
 
-        // ✅ Only apply limit for admin or manager
+        $currentUser = auth()->user();
         if (in_array($currentUser->role, ['admin', 'manager'])) {
-            if ($createdCount >= $currentUser->max_limit) {
+            $createdCount = User::where('created_by', $currentUser->id)->count();
+            if (is_null($this->editingUserId) && $createdCount >= $currentUser->max_limit) {
                 Notification::make()
                     ->title('Limit Reached')
                     ->body('You have reached your max user creation limit.')
@@ -94,39 +114,39 @@ class CompanyDashboard extends Page
             }
         }
 
-        // Laravel validate can be used if needed
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'role' => 'required|string',
-            'max_limit' => 'required|integer|min:1',
-        ]);
+        if ($this->editingUserId) {
+            $user = User::findOrFail($this->editingUserId);
+            $user->update([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'role' => $data['role'],
+                'max_limit' => $data['max_limit'],
+                'password' => $data['password'] ? Hash::make($data['password']) : $user->password,
+            ]);
+        } else {
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'company_id' => $this->company->id,
+                'role' => $data['role'],
+                'max_limit' => $data['max_limit'],
+                'created_by' => $currentUser->id,
+            ]);
+        }
 
-        User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'company_id' => $this->company->id,
-            'role' => $data['role'],
-            'max_limit' => $data['max_limit'],
-            'created_by' => $currentUser->id,
-        ]);
+        $user->syncRoles([$data['role']]);
+        $this->form->fill([]);
+        $this->editingUserId = null;
+        $this->showForm = false;
 
-        $this->form->fill([
-            'name' => '',
-            'email' => '',
-            'password' => '',
-            'role' => '',
-            'max_limit' => '',
-        ]);
         $this->refreshCounts();
 
         Notification::make()
-        ->title('User Created')
-        ->body('The user has been created successfully.')
-        ->success()
-        ->send();
+            ->title('Saved')
+            ->body('The user has been saved successfully.')
+            ->success()
+            ->send();
     }
 
     protected function refreshCounts()
@@ -144,6 +164,7 @@ class CompanyDashboard extends Page
             'totalAdmins' => $this->totalAdmins,
             'totalManagers' => $this->totalManagers,
             'totalUsers' => $this->totalUsers,
+            'showForm' => $this->showForm,
         ];
     }
 }
