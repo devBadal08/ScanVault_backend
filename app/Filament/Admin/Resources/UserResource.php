@@ -57,7 +57,7 @@ class UserResource extends Resource
                         ])
                     )
                     ->searchable()
-                    //->allowCustomValues()
+                    ->disabled(fn (string $context) => $context === 'edit')
                     ->required(),
             ]);
     }
@@ -101,6 +101,51 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $currentUser = auth()->user();
+
+        // Only enforce for admin (skip Super Admin or adapt if needed)
+        if ($currentUser && $currentUser->hasRole('admin')) {
+            $createdCount = User::where('created_by', $currentUser->id)->count();
+            $maxLimit = $currentUser->max_limit ?? 0;
+
+            if ($createdCount >= $maxLimit) {
+                // Use Filament's Notification
+                \Filament\Notifications\Notification::make()
+                    ->title('Limit Reached')
+                    ->body('You have reached your maximum user creation limit.')
+                    ->danger()
+                    ->send();
+
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'name' => ['You have reached your maximum user creation limit.'],
+                ]);
+            }
+        }
+
+        // Automatically attach who created this user
+        $data['created_by'] = $currentUser->id;
+        $data['company_id'] = $currentUser->company_id ?? null; // optional if you have it
+        // Hash the password manually
+        $data['password'] = \Illuminate\Support\Facades\Hash::make($data['password']);
+
+        return $data;
+    }
+
+    public static function canCreate(): bool
+    {
+        $currentUser = auth()->user();
+
+        if ($currentUser && $currentUser->hasRole('admin')) {
+            $createdCount = User::where('created_by', $currentUser->id)->count();
+            $maxLimit = $currentUser->max_limit ?? 0;
+            return $createdCount < $maxLimit;
+        }
+
+        return true;
     }
 
     public static function canViewAny(): bool

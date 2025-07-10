@@ -16,6 +16,9 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Filament\Widgets\TotalCompanies;
+use App\Filament\Admin\Widgets\UsagePieChart;
+
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -38,9 +41,10 @@ class AdminPanelProvider extends PanelProvider
                 // Make sure UserResource actually exists, otherwise comment it out too
                 // \App\Filament\Admin\Resources\UserResource::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
+            //->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
             ->widgets([
-                \App\Filament\Widgets\TotalCompanies::class,
+                TotalCompanies::class,
+                UsagePieChart::class,
             ])
             ->middleware([
                 EncryptCookies::class,
