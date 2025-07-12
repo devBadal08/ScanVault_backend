@@ -25,8 +25,10 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
+            ->brandName('Scanner App')
             ->id('admin')
             ->path('admin')
+            ->darkMode(true)
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -34,6 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->pages([
                 Pages\Dashboard::class,
+                \App\Filament\Admin\Pages\UserPermissions::class,
                 //\App\Filament\Pages\UserList::class,
             ])
             ->resources([

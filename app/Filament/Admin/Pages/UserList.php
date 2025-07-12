@@ -52,11 +52,11 @@ class UserList extends Page
         ];
     }
 
-    public static function canAccess(): bool
-    {
-        return auth()->check() && (
-            auth()->user()->hasRole('admin') ||
-            auth()->user()->hasRole('Super Admin')
-        );
-    }
+    // public static function canAccess(): bool
+    // {
+    //     return auth()->check() && (
+    //         auth()->user()->hasRole('admin') ||
+    //         auth()->user()->hasRole('Super Admin')
+    //     );
+    // }
 }

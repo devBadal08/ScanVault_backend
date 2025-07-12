@@ -61,4 +61,23 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function userPermission()
+    {
+        return $this->hasOne(\App\Models\UserPermission::class);
+    }
+
+    public function canShow($type): bool
+    {
+        if (!$this->userPermission) {
+            return false;
+        }
+
+        return match ($type) {
+            'total_users' => (bool) $this->userPermission->show_total_users,
+            'total_managers' => (bool) $this->userPermission->show_total_managers,
+            'total_admins' => (bool) $this->userPermission->show_total_admins,
+            'total_limit' => (bool) $this->userPermission->show_total_limit,
+            default => false,
+        };
+    }
 }
