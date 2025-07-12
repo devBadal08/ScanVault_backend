@@ -148,11 +148,11 @@ class UserResource extends Resource
         return true;
     }
 
-    // public static function canViewAny(): bool
-    // {
-    //     return auth()->check() && (
-    //         auth()->user()->hasRole('admin') ||
-    //         auth()->user()->hasRole('Super Admin')
-    //     );
-    // }
+    public static function canViewAny(): bool
+    {
+        return auth()->check() && (
+            auth()->user()->hasRole('admin') ||
+            auth()->user()->hasRole('Super Admin')
+        );
+    }
 }

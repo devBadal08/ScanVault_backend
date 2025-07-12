@@ -37,15 +37,17 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
     protected function loadUsers()
     {
         $currentUser = auth()->user();
-        if ($currentUser?->hasRole('manager')) {
+
+        if ($currentUser?->hasRole('Super Admin')) {
+            // Super Admin sees ALL users
+            $this->users = User::where('role', 'user')->get();
+        } else {
+            // Managers or Admins see only users they created
             $this->users = User::where('role', 'user')
                 ->where('created_by', $currentUser->id)
                 ->get();
-        } elseif ($currentUser?->hasRole('Super Admin')) {
-            $this->users = User::where('role', 'user')->get();
-        } else {
-            $this->users = collect();
         }
+
         $this->totalUsers = $this->users->count();
     }
 
