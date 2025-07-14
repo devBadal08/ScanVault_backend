@@ -22,6 +22,7 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
     public ?int $editingUserId = null;
     public $users;
     public int $totalUsers = 0;
+    public ?int $remainingLimit = null;
 
     public $name;
     public $email;
@@ -37,18 +38,32 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
     protected function loadUsers()
     {
         $currentUser = auth()->user();
+        $adminId = $currentUser->id;
 
         if ($currentUser?->hasRole('Super Admin')) {
-            // Super Admin sees ALL users
             $this->users = User::where('role', 'user')->get();
         } else {
-            // Managers or Admins see only users they created
+            $managerIds = User::where('created_by', $adminId)
+                            ->where('role', 'manager')
+                            ->pluck('id')
+                            ->toArray();
+
             $this->users = User::where('role', 'user')
-                ->where('created_by', $currentUser->id)
+                ->where(function($query) use ($adminId, $managerIds) {
+                    $query->where('created_by', $adminId)
+                        ->orWhereIn('created_by', $managerIds);
+                })
                 ->get();
         }
 
         $this->totalUsers = $this->users->count();
+
+        $maxLimit = $currentUser->max_limit;
+        if (!is_null($maxLimit)) {
+            $this->remainingLimit = max($maxLimit - $this->totalUsers, 0);
+        } else {
+            $this->remainingLimit = null;
+        }
     }
 
     protected function getFormSchema(): array
@@ -131,6 +146,8 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
             'showFormPage' => $this->showFormPage,
             'editingUserId' => $this->editingUserId,
             'form' => $this->form,
+            'remainingLimit' => $this->remainingLimit,
+            'totalUsers' => $this->totalUsers,
         ];
     }
 }

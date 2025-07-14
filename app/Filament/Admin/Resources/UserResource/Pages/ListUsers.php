@@ -38,12 +38,22 @@ class ListUsers extends ListRecords
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery();
+        $currentUser = auth()->user();
 
-        if (auth()->check() && auth()->user()->hasRole('admin')) {
-            return $query->where('created_by', auth()->id());
+        if ($currentUser && $currentUser->hasRole('admin')) {
+            $adminId = $currentUser->id;
+
+            $managerIds = User::where('created_by', $adminId)
+                            ->where('role', 'manager')
+                            ->pluck('id')
+                            ->toArray();
+
+            return $query->where(function($query) use ($adminId, $managerIds) {
+                $query->where('created_by', $adminId)
+                    ->orWhereIn('created_by', $managerIds);
+            });
         }
 
-        // Super Admin sees all
         return $query;
     }
 }

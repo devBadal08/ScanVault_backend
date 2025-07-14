@@ -22,10 +22,22 @@
     @else
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold">Users</h2>
-            <x-filament::button wire:click="createNewUserPage" color="primary">
-                New User
-            </x-filament::button>
+            @if (is_null($remainingLimit) || $remainingLimit > 0)
+                <x-filament::button wire:click="createNewUserPage" color="primary">
+                    New User
+                </x-filament::button>
+            @else
+                <x-filament::button color="gray" disabled title="You have reached your maximum user creation limit.">
+                    New User
+                </x-filament::button>
+            @endif
         </div>
+
+        @if (!is_null($remainingLimit))
+            <div class="mb-4 {{ $remainingLimit <= 0 ? 'text-red-600' : 'text-green-600' }}">
+                You have created {{ $totalUsers }} of your {{ auth()->user()->max_limit }} allowed users.
+            </div>
+        @endif
 
         <table class="min-w-full bg-white rounded-lg shadow overflow-hidden mb-6">
             <thead>

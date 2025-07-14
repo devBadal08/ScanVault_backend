@@ -20,10 +20,7 @@ class UsagePieChart extends ChartWidget
     protected function getData(): array
     {
         $currentUser = auth()->user();
-        $totalCreated = 0;
-        $maxLimit = 10;
-        $remaining = 10;
-        // DOUBLE CHECK: stop even if Filament tries to render
+
         if (!$currentUser || $currentUser->hasRole('Super Admin')) {
             return [
                 'datasets' => [],
@@ -31,7 +28,21 @@ class UsagePieChart extends ChartWidget
             ];
         }
 
-        $totalCreated = User::where('created_by', $currentUser->id)->count();
+        $adminId = $currentUser->id;
+
+        // get managers created by this admin
+        $managerIds = User::where('created_by', $adminId)
+                        ->where('role', 'manager')
+                        ->pluck('id')
+                        ->toArray();
+
+        // count users created by managers
+        $managerUsersCount = User::whereIn('created_by', $managerIds)->count();
+
+        // count users created directly by this admin
+        $directUserCount = User::where('created_by', $adminId)->count();
+
+        $totalCreated = $directUserCount + $managerUsersCount;
         $maxLimit = $currentUser->max_limit ?? 10;
         $remaining = max($maxLimit - $totalCreated, 0);
 

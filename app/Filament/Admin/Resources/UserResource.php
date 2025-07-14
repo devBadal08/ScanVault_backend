@@ -31,6 +31,19 @@ class UserResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $currentUser = auth()->user();
+        $adminMaxLimit = null;
+        $availableLimit = null;
+
+        if ($currentUser && $currentUser->hasRole('admin')) {
+            $adminMaxLimit = $currentUser->max_limit ?? 0;
+
+            $totalCreatedUsers = User::where('created_by', $currentUser->id)
+                                    ->count();
+
+            $availableLimit = max($adminMaxLimit - $totalCreatedUsers, 0);
+        }
+
         return $form
             ->schema([
                 TextInput::make('name')
@@ -58,7 +71,20 @@ class UserResource extends Resource
                     )
                     ->searchable()
                     ->disabled(fn (string $context) => $context === 'edit')
-                    ->required(),
+                    ->required()
+                    ->reactive(),
+
+                TextInput::make('max_limit')
+                    ->label('Max Limit')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue($availableLimit)
+                    ->helperText(
+                        ($currentUser && $currentUser->hasRole('admin'))
+                            ? "Total Max Limit: {$adminMaxLimit} | Available Max Limit: {$availableLimit}"
+                            : null
+                    )
+                    ->disabled(fn ($get) => $get('role') === 'user'),
             ]);
     }
 
