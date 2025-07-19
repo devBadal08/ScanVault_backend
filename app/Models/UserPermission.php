@@ -15,5 +15,6 @@ class UserPermission extends Model
         'show_total_users',
         'show_total_managers',
         'show_total_admins',
+        'show_total_limit',
     ];
 }

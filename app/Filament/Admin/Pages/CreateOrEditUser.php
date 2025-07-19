@@ -56,7 +56,15 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 ->get();
         }
 
-        $this->totalUsers = $this->users->count();
+        // Count all users and managers created by this admin or their managers
+        $allCreatedUserIds = User::where(function ($query) use ($adminId, $managerIds) {
+            $query->where('created_by', $adminId)
+                ->orWhereIn('created_by', $managerIds);
+        })
+        ->whereIn('role', ['user', 'manager'])
+        ->count();
+
+        $this->totalUsers = $allCreatedUserIds;
 
         $maxLimit = $currentUser->max_limit;
         if (!is_null($maxLimit)) {
@@ -114,6 +122,15 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 
     public function saveUser()
     {
+        if (!$this->editingUserId && !is_null($this->remainingLimit) && $this->remainingLimit <= 0) {
+            Notification::make()
+                ->title('User creation limit reached.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $data = $this->form->getState();
 
         if ($this->editingUserId) {

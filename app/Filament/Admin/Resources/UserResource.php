@@ -135,7 +135,17 @@ class UserResource extends Resource
 
         // Only enforce for admin (skip Super Admin or adapt if needed)
         if ($currentUser && $currentUser->hasRole('admin')) {
-            $createdCount = User::where('created_by', $currentUser->id)->count();
+            // Get IDs of users created by this admin (level 1)
+            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
+
+            // Count users created by those users (level 2, e.g., managers)
+            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
+
+            // Count direct users (managers + users)
+            $directCount = count($directUserIds);
+
+            // Total users created (direct + indirect)
+            $createdCount = $directCount + $indirectCount;
             $maxLimit = $currentUser->max_limit ?? 0;
 
             if ($createdCount >= $maxLimit) {
@@ -166,7 +176,9 @@ class UserResource extends Resource
         $currentUser = auth()->user();
 
         if ($currentUser && $currentUser->hasRole('admin')) {
-            $createdCount = User::where('created_by', $currentUser->id)->count();
+            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
+            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
+            $createdCount = count($directUserIds) + $indirectCount;
             $maxLimit = $currentUser->max_limit ?? 0;
             return $createdCount < $maxLimit;
         }

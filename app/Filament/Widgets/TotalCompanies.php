@@ -58,7 +58,20 @@ class TotalCompanies extends BaseWidget
 
         // total_limit card for Admins (not for Super Admin)
         if (!$currentUser->hasRole('Super Admin') && $currentUser?->canShow('total_limit')) {
-            $createdCount = User::where('created_by', $currentUser->id)->count();
+            // Get manager IDs created by this admin
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $currentUser->id)
+                ->pluck('id')
+                ->toArray();
+
+            // Count users created by those managers
+            $usersByManagers = User::whereIn('created_by', $managerIds)->count();
+
+            // Count direct creations by admin (managers + users)
+            $directlyCreated = User::where('created_by', $currentUser->id)->count();
+
+            // Total usage: direct + indirect
+            $createdCount = $directlyCreated + $usersByManagers;
             $maxLimit = $currentUser->max_limit ?? 0;
 
             if ($createdCount >= $maxLimit) {
@@ -74,7 +87,6 @@ class TotalCompanies extends BaseWidget
                     ->color('success');
             }
         }
-
         return $cards;
     }
 }

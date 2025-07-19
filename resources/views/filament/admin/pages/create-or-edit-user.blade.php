@@ -35,7 +35,7 @@
 
         @if (!is_null($remainingLimit))
             <div class="mb-4 {{ $remainingLimit <= 0 ? 'text-red-600' : 'text-green-600' }}">
-                You have created {{ $totalUsers }} of your {{ auth()->user()->max_limit }} allowed users.
+                You have created {{ $totalUsers }} of your {{ auth()->user()->max_limit }} allowed users and managers.
             </div>
         @endif
 

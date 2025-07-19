@@ -66,6 +66,23 @@ class User extends Authenticatable
         return $this->hasOne(\App\Models\UserPermission::class);
     }
 
+    public function createdUsers()
+    {
+        return $this->hasMany(User::class, 'created_by');
+    }
+
+    public function getAllDescendantUsers()
+    {
+        $all = collect();
+
+        foreach ($this->createdUsers as $user) {
+            $all->push($user);
+            $all = $all->merge($user->getAllDescendantUsers());
+        }
+
+        return $all;
+    }
+
     public function canShow($type): bool
     {
         if (!$this->userPermission) {
