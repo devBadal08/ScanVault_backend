@@ -9,36 +9,40 @@ use Illuminate\Support\Facades\File;
 class FolderWisePhotos extends Page
 {
     protected static string $view = 'filament.admin.pages.folder-wise-photos';
+    protected static ?string $navigationIcon = 'heroicon-o-photo';
+    protected static ?string $navigationGroup = 'Photos';
+    protected static ?string $navigationLabel = 'Folder Wise Photos';
+    protected static ?int $navigationSort = 6;
 
     public ?string $selectedFolder = null;
     public array $folders = [];
     public array $images = [];
+    public array $subfolders = [];
 
     public function mount(): void
     {
         $this->selectedFolder = request()->get('folder');
 
-        // Use Laravel's storage disk correctly
-        $uploadPath = Storage::disk('public')->path('uploads');
-
-        // Ensure base upload directory exists
-        if (!File::exists($uploadPath)) {
-            File::makeDirectory($uploadPath, 0755, true);
-        }
-
         if ($this->selectedFolder === null) {
-            // List all folders inside /storage/app/public/uploads
-            $this->folders = collect(File::directories($uploadPath))
-                ->map(fn ($dir) => basename($dir))
-                ->toArray();
-        } else {
-            // List image files from selected folder inside uploads
-            $folderPath = $uploadPath . '/' . $this->selectedFolder;
+            // List only top-level folders in "uploads"
+            $allFolders = Storage::disk('public')->directories('uploads');
 
-            if (File::exists($folderPath)) {
-                $this->images = collect(File::files($folderPath))
-                    ->filter(fn ($file) => in_array($file->getExtension(), ['jpg', 'jpeg', 'png', 'gif']))
-                    ->map(fn ($file) => $file->getFilename())
+            // Remove "uploads/" prefix
+            $this->folders = array_map(fn ($dir) => str_replace('uploads/', '', $dir), $allFolders);
+        } else {
+            $folderPath = 'uploads/' . $this->selectedFolder;
+
+            // List subfolders inside the selected folder
+            $this->subfolders = Storage::disk('public')->directories($folderPath);
+            $this->subfolders = array_map(
+                fn ($dir) => str_replace('uploads/', '', $dir),
+                $this->subfolders
+            );
+            // List image files in this folder
+            if (Storage::disk('public')->exists($folderPath)) {
+                $this->images = collect(Storage::disk('public')->files($folderPath))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif']))
+                    ->map(fn ($file) => basename($file))
                     ->toArray();
             }
         }

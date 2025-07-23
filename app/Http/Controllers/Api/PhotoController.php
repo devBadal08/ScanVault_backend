@@ -51,7 +51,6 @@ class PhotoController extends Controller
                 'image_url' => asset('storage/' . $photo->path),
             ];
         });
-
         return response()->json($photos);
     }
 }
