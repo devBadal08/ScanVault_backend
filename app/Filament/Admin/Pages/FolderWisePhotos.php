@@ -24,25 +24,32 @@ class FolderWisePhotos extends Page
         $this->selectedFolder = request()->get('folder');
 
         if ($this->selectedFolder === null) {
-            // List only top-level folders in "uploads"
+            // Get all top-level folders under "uploads" and sort by date
             $allFolders = Storage::disk('public')->directories('uploads');
 
-            // Remove "uploads/" prefix
-            $this->folders = array_map(fn ($dir) => str_replace('uploads/', '', $dir), $allFolders);
+            // Remove "uploads/" prefix and sort descending by date
+            $this->folders = collect($allFolders)
+                ->map(fn ($dir) => str_replace('uploads/', '', $dir))
+                ->sortByDesc(function ($folder) {
+                    return strtotime($folder); // assumes folder names are date strings
+                })
+                ->values()
+                ->toArray();
         } else {
             $folderPath = 'uploads/' . $this->selectedFolder;
 
-            // List subfolders inside the selected folder
-            $this->subfolders = Storage::disk('public')->directories($folderPath);
-            $this->subfolders = array_map(
-                fn ($dir) => str_replace('uploads/', '', $dir),
-                $this->subfolders
-            );
-            // List image files in this folder
+            // Subfolders inside selected folder
+            $this->subfolders = collect(Storage::disk('public')->directories($folderPath))
+                ->map(fn ($dir) => str_replace('uploads/', '', $dir))
+                ->values()
+                ->toArray();
+
+            // Image files in selected folder
             if (Storage::disk('public')->exists($folderPath)) {
                 $this->images = collect(Storage::disk('public')->files($folderPath))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif']))
-                    ->map(fn ($file) => basename($file))
+                    ->map(fn ($file) => str_replace('uploads/', '', $file))
+                    ->values()
                     ->toArray();
             }
         }

@@ -1,60 +1,40 @@
 <x-filament::page>
-    @if ($selectedFolder)
-        {{-- ✅ Show Back button --}}
+    <h2 class="text-xl font-bold mb-4">Folder Wise Photos</h2>
+
+    @if (!$selectedFolder)
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            @foreach ($folders as $folder)
+                <a href="?folder={{ urlencode($folder) }}" class="p-4 bg-gray-100 rounded shadow hover:bg-gray-200">
+                    📁 {{ $folder }}
+                </a>
+            @endforeach
+        </div>
+    @else
         <div class="mb-4">
-            <x-filament::button
-                color="primary"
-                icon="heroicon-o-arrow-left"
-                tag="a"
-                href="{{ route('filament.admin.pages.folder-wise-photos', ['folder' => dirname($selectedFolder)]) }}">
-                Back
-            </x-filament::button>
+            <a href="{{ url()->current() }}" class="text-blue-500 hover:underline">← Back to folders</a>
         </div>
 
-        <h3 class="text-xl font-semibold mb-4">📁 {{ $selectedFolder }}</h3>
-
-        {{-- ✅ Subfolders --}}
-        @if (!empty($subfolders))
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                @foreach ($subfolders as $sub)
-                    <a href="{{ route('filament.admin.pages.folder-wise-photos', ['folder' => $sub]) }}"
-                       class="bg-yellow-50 border border-yellow-300 p-4 rounded shadow hover:bg-yellow-100 text-center font-medium transition">
-                        📁 {{ basename($sub) }}
-                    </a>
+        @if ($subfolders)
+            <h3 class="text-lg font-semibold mb-2">Subfolders:</h3>
+            <ul class="mb-4">
+                @foreach ($subfolders as $subfolder)
+                    <li>📁 {{ $subfolder }}</li>
                 @endforeach
-            </div>
+            </ul>
         @endif
 
-        {{-- ✅ Images --}}
-        @if (count($images) > 0)
-            <div class="flex space-x-4 overflow-x-auto pb-4">
+        @if ($images)
+            <h3 class="text-lg font-semibold mb-2">Images:</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 @foreach ($images as $image)
-                    <div class="flex-none bg-white p-2 rounded shadow text-center">
-                        <img src="{{ asset('storage/uploads/' . $selectedFolder . '/' . $image) }}"
-                             alt="{{ $image }}"
-                             class="w-32 h-32 object-cover rounded border">
+                    <div class="border rounded shadow p-2">
+                        <img src="{{ asset('storage/uploads/' . $selectedFolder . '/' . basename($image)) }}" alt="Image" class="w-full h-auto rounded">
+                        <p class="text-sm mt-1 truncate">{{ basename($image) }}</p>
                     </div>
                 @endforeach
             </div>
         @else
-            <p class="text-gray-600">No images found in this folder.</p>
-        @endif
-
-    @else
-        {{-- ✅ Root Folders View --}}
-        <h3 class="text-xl font-semibold mb-4">📁 Folders</h3>
-
-        @if (!empty($folders))
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                @foreach ($folders as $folder)
-                    <a href="{{ route('filament.admin.pages.folder-wise-photos', ['folder' => $folder]) }}"
-                       class="bg-blue-50 border border-blue-300 p-4 rounded shadow hover:bg-blue-100 text-center font-medium transition">
-                        📁 {{ basename($folder) }}
-                    </a>
-                @endforeach
-            </div>
-        @else
-            <p class="text-gray-600">No folders found in uploads directory.</p>
+            <p>No images found in this folder.</p>
         @endif
     @endif
 </x-filament::page>

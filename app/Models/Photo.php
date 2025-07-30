@@ -9,10 +9,20 @@ use Illuminate\Support\Facades\Storage;
 class Photo extends Model
 {
     use HasFactory;
-    protected $fillable = ['path'];
+    protected $fillable = ['path', 'user_id'];
 
     public function getUrlAttribute()
     {
-        return Storage::url($this->path); // Auto prepends /storage/
+        return asset('storage/' . $this->path);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function folder()
+    {
+        return $this->belongsTo(Folder::class);
     }
 }

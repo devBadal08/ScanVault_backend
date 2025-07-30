@@ -7,6 +7,7 @@ use Filament\Forms;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Filament\Notifications\Notification;
+use Filament\Facades\Filament;
 
 class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 {
@@ -37,8 +38,10 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 
     protected function loadUsers()
     {
-        $currentUser = auth()->user();
+        $currentUser = Filament::auth()->user();
         $adminId = $currentUser->id;
+
+        $managerIds = []; // ✅ Define default empty array
 
         if ($currentUser?->hasRole('Super Admin')) {
             $this->users = User::where('role', 'user')->get();
@@ -56,7 +59,7 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 ->get();
         }
 
-        // Count all users and managers created by this admin or their managers
+        // ✅ $managerIds is always defined now
         $allCreatedUserIds = User::where(function ($query) use ($adminId, $managerIds) {
             $query->where('created_by', $adminId)
                 ->orWhereIn('created_by', $managerIds);
@@ -166,5 +169,13 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
             'remainingLimit' => $this->remainingLimit,
             'totalUsers' => $this->totalUsers,
         ];
+    }
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && (
+            auth()->user()->hasRole('manager') ||
+            auth()->user()->hasRole('Super Admin')
+        );
     }
 }

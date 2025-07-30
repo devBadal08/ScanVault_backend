@@ -3,16 +3,18 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PhotoController;
-
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
-// Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//     return $request->user();
-// });
+use App\Http\Controllers\Api\LoginController;
 
 // Your custom API route
-Route::get('/photos', [PhotoController::class, 'index']);
-Route::post('/photos', [PhotoController::class, 'store']);
-Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);
+// Route::get('/photos', [PhotoController::class, 'index']);
+// Route::post('/photos', [PhotoController::class, 'store']);
+Route::post('/login', [LoginController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);
+    Route::post('/photos/uploadAll', [PhotoController::class, 'uploadAll']);
+    //Route::get('/user/photos', [PhotoController::class, 'getUserPhotos']);
+    Route::post('/photos', [PhotoController::class, 'store']);
+    Route::get('/photos', [PhotoController::class, 'getUserPhotos']);
+});
+
