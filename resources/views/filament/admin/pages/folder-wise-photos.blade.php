@@ -1,5 +1,4 @@
 <x-filament::page>
-    <h2 class="text-xl font-bold mb-4">Folder Wise Photos</h2>
 
     @if (!$selectedFolder)
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">

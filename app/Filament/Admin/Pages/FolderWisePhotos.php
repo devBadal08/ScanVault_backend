@@ -5,6 +5,9 @@ namespace App\Filament\Admin\Pages;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use App\Models\Photo;
 
 class FolderWisePhotos extends Page
 {
@@ -21,33 +24,31 @@ class FolderWisePhotos extends Page
 
     public function mount(): void
     {
+        $managerId = Auth::id(); // Get currently logged-in manager/admin ID
+
+        // Step 1: Get user IDs under this manager
+        $userIds = User::where('created_by', $managerId)->pluck('id');
+
+        // Step 2: Get unique folder paths from photos of these users
+        $photoPaths = Photo::whereIn('user_id', $userIds)->pluck('path');
+
+        // Step 3: Extract unique folder names from photo paths
+        $folderPaths = $photoPaths
+            ->map(function ($path) {
+                return dirname($path);
+            })
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // Step 4: Assign to folders property for Filament to show
+        $this->folders = $folderPaths;
+
+        // Step 5: Handle selected folder view
         $this->selectedFolder = request()->get('folder');
-        $user = Auth::user();
 
-        // Get users created by current admin or manager
-        $createdUserIds = \App\Models\User::where('created_by', $user->id)->pluck('id')->toArray();
-
-        // Generate folder paths like "user_5", "user_6" etc.
-        $allowedFolders = collect($createdUserIds)->map(fn($id) => "user_{$id}");
-
-        if ($this->selectedFolder === null) {
-            // Get all folders
-            $allFolders = Storage::disk('public')->directories();
-
-            // Filter only folders that match the allowed user folders
-            $this->folders = collect($allFolders)
-                ->filter(fn($folder) => $allowedFolders->contains(explode('/', $folder)[0]))
-                ->values()
-                ->toArray();
-
-        } else {
+        if ($this->selectedFolder !== null) {
             $folderPath = $this->selectedFolder;
-
-            // Check if folder belongs to a user created by this manager/admin
-            $baseFolder = explode('/', $folderPath)[0];
-            if (! $allowedFolders->contains($baseFolder)) {
-                abort(403, 'Unauthorized access to folder.');
-            }
 
             $this->subfolders = collect(Storage::disk('public')->directories($folderPath))
                 ->values()
