@@ -22,18 +22,32 @@ class FolderWisePhotos extends Page
     public function mount(): void
     {
         $this->selectedFolder = request()->get('folder');
+        $user = Auth::user();
+
+        // Get users created by current admin or manager
+        $createdUserIds = \App\Models\User::where('created_by', $user->id)->pluck('id')->toArray();
+
+        // Generate folder paths like "user_5", "user_6" etc.
+        $allowedFolders = collect($createdUserIds)->map(fn($id) => "user_{$id}");
 
         if ($this->selectedFolder === null) {
+            // Get all folders
             $allFolders = Storage::disk('public')->directories();
 
+            // Filter only folders that match the allowed user folders
             $this->folders = collect($allFolders)
-                ->sortByDesc(function ($folder) {
-                    return strtotime(basename($folder)); // Optional sorting by date string
-                })
+                ->filter(fn($folder) => $allowedFolders->contains(explode('/', $folder)[0]))
                 ->values()
                 ->toArray();
+
         } else {
             $folderPath = $this->selectedFolder;
+
+            // Check if folder belongs to a user created by this manager/admin
+            $baseFolder = explode('/', $folderPath)[0];
+            if (! $allowedFolders->contains($baseFolder)) {
+                abort(403, 'Unauthorized access to folder.');
+            }
 
             $this->subfolders = collect(Storage::disk('public')->directories($folderPath))
                 ->values()
