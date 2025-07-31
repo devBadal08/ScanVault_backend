@@ -24,31 +24,24 @@ class FolderWisePhotos extends Page
         $this->selectedFolder = request()->get('folder');
 
         if ($this->selectedFolder === null) {
-            // Get all top-level folders under "uploads" and sort by date
-            $allFolders = Storage::disk('public')->directories('uploads');
+            $allFolders = Storage::disk('public')->directories();
 
-            // Remove "uploads/" prefix and sort descending by date
             $this->folders = collect($allFolders)
-                ->map(fn ($dir) => str_replace('uploads/', '', $dir))
                 ->sortByDesc(function ($folder) {
-                    return strtotime($folder); // assumes folder names are date strings
+                    return strtotime(basename($folder)); // Optional sorting by date string
                 })
                 ->values()
                 ->toArray();
         } else {
-            $folderPath = 'uploads/' . $this->selectedFolder;
+            $folderPath = $this->selectedFolder;
 
-            // Subfolders inside selected folder
             $this->subfolders = collect(Storage::disk('public')->directories($folderPath))
-                ->map(fn ($dir) => str_replace('uploads/', '', $dir))
                 ->values()
                 ->toArray();
 
-            // Image files in selected folder
             if (Storage::disk('public')->exists($folderPath)) {
                 $this->images = collect(Storage::disk('public')->files($folderPath))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif']))
-                    ->map(fn ($file) => str_replace('uploads/', '', $file))
                     ->values()
                     ->toArray();
             }

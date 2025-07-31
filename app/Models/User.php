@@ -72,6 +72,11 @@ class User extends Authenticatable
         return $this->hasMany(User::class, 'created_by');
     }
 
+    public function photos()
+    {
+        return $this->hasMany(Photo::class);
+    }
+
     public function getAllDescendantUsers()
     {
         $all = collect();

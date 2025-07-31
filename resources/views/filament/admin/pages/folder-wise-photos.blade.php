@@ -11,30 +11,40 @@
         </div>
     @else
         <div class="mb-4">
-            <a href="{{ url()->current() }}" class="text-blue-500 hover:underline">← Back to folders</a>
+            <x-filament::button tag="a" href="{{ url()->current() }}" color="primary" icon="heroicon-o-arrow-left">
+                Back to folders
+            </x-filament::button>
         </div>
 
-        @if ($subfolders)
-            <h3 class="text-lg font-semibold mb-2">Subfolders:</h3>
-            <ul class="mb-4">
-                @foreach ($subfolders as $subfolder)
-                    <li>📁 {{ $subfolder }}</li>
+        @if (!empty($subfolders))
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-2">
+                @foreach ($subfolders as $sub)
+                    <a href="{{ route('filament.admin.pages.folder-wise-photos', ['folder' => $sub]) }}"
+                       class="bg-yellow-50 border border-yellow-300 p-4 rounded shadow hover:bg-yellow-100 text-center font-medium transition">
+                        📁 {{ basename($sub) }}
+                    </a>
                 @endforeach
-            </ul>
+            </div>
         @endif
 
         @if ($images)
-            <h3 class="text-lg font-semibold mb-2">Images:</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                @foreach ($images as $image)
-                    <div class="border rounded shadow p-2">
-                        <img src="{{ asset('storage/uploads/' . $selectedFolder . '/' . basename($image)) }}" alt="Image" class="w-full h-auto rounded">
-                        <p class="text-sm mt-1 truncate">{{ basename($image) }}</p>
-                    </div>
-                @endforeach
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    @foreach ($images as $image)
+                        <div>
+                            <a href="{{ asset('storage/' . $image) }}" target="_blank">
+                                <img src="{{ asset('storage/' . $image) }}"
+                                    alt="Image"
+                                    style="width: 150px; height: 150px;"
+                                    class="w-full h-40 object-cover rounded shadow hover:scale-105 transition-transform duration-200">
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         @else
             <p>No images found in this folder.</p>
         @endif
+
     @endif
 </x-filament::page>
