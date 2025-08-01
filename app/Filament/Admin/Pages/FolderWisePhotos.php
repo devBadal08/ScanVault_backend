@@ -4,10 +4,7 @@ namespace App\Filament\Admin\Pages;
 
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Models\Photo;
 
 class FolderWisePhotos extends Page
 {
@@ -17,46 +14,63 @@ class FolderWisePhotos extends Page
     protected static ?string $navigationLabel = 'Folder Wise Photos';
     protected static ?int $navigationSort = 6;
 
-    public ?string $selectedFolder = null;
-    public array $folders = [];
-    public array $images = [];
-    public array $subfolders = [];
+    public $selectedManager = null;
+    public $selectedUser = null;
+    public $selectedFolder = null;
+    public $selectedSubfolder = null;
+
+    public $managers = [];
+    public $users = [];
+    public $folders = [];
+    public $subfolders = [];
+    public $images = [];
 
     public function mount(): void
     {
-        $managerId = Auth::id(); // Get currently logged-in manager/admin ID
+        $authUser = Auth::user();
+        $managerId = request()->get('manager');
+        $userId = request()->get('user');
+        $folder = request()->get('folder');
+        $subfolder = request()->get('subfolder');
 
-        // Step 1: Get user IDs under this manager
-        $userIds = User::where('created_by', $managerId)->pluck('id');
+        if ($authUser->role === 'admin') {
+            $adminId = $authUser->id;
+            $this->managers = \App\Models\User::where('role', 'manager')->where('created_by', $adminId)->get();
 
-        // Step 2: Get unique folder paths from photos of these users
-        $photoPaths = Photo::whereIn('user_id', $userIds)->pluck('path');
+            if ($managerId) {
+                $this->selectedManager = $this->managers->firstWhere('id', $managerId);
+                $this->users = \App\Models\User::where('role', 'user')->where('created_by', $managerId)->get();
+            }
 
-        // Step 3: Extract unique folder names from photo paths
-        $folderPaths = $photoPaths
-            ->map(function ($path) {
-                return dirname($path);
-            })
-            ->unique()
-            ->values()
-            ->toArray();
+        } elseif ($authUser->role === 'manager') {
+            $this->selectedManager = $authUser;
+            $this->users = \App\Models\User::where('role', 'user')->where('created_by', $authUser->id)->get();
+        }
 
-        // Step 4: Assign to folders property for Filament to show
-        $this->folders = $folderPaths;
+        if ($userId) {
+            $this->selectedUser = \App\Models\User::find($userId);
+            if (!$this->selectedUser) return;
 
-        // Step 5: Handle selected folder view
-        $this->selectedFolder = request()->get('folder');
+            $baseUserPath = $userId;
 
-        if ($this->selectedFolder !== null) {
-            $folderPath = $this->selectedFolder;
+            if (!$folder) {
+                $this->folders = Storage::disk('public')->directories($baseUserPath);
 
-            $this->subfolders = collect(Storage::disk('public')->directories($folderPath))
-                ->values()
-                ->toArray();
+            } elseif (!$subfolder) {
+                $this->selectedFolder = $folder;
 
-            if (Storage::disk('public')->exists($folderPath)) {
-                $this->images = collect(Storage::disk('public')->files($folderPath))
-                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif']))
+                $this->subfolders = Storage::disk('public')->directories($folder);
+                $this->images = collect(Storage::disk('public')->files($folder))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+                    ->values()
+                    ->toArray();
+
+            } else {
+                $this->selectedFolder = $folder;
+                $this->selectedSubfolder = $subfolder;
+
+                $this->images = collect(Storage::disk('public')->files($subfolder))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
                     ->values()
                     ->toArray();
             }

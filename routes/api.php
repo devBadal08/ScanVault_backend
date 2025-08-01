@@ -16,5 +16,8 @@ Route::middleware('auth:sanctum')->group(function () {
     //Route::get('/user/photos', [PhotoController::class, 'getUserPhotos']);
     Route::post('/photos', [PhotoController::class, 'store']);
     Route::get('/photos', [PhotoController::class, 'getUserPhotos']);
+    Route::get('/download-folder/{path}', [PhotoController::class, 'downloadFolderZip'])
+        ->where('path', '.*')
+        ->name('download.folder');
 });
 

@@ -48,26 +48,29 @@ class PhotoController extends Controller
     public function uploadAll(Request $request)
     {
         $folders = $request->input('folders'); // e.g. ['test1', 'test1/test1_1', 'test2', ...]
+        $userId = Auth::id(); // Get logged-in user ID
 
         if ($request->hasFile('images')) {
             $images = $request->file('images');
 
-            // Make sure images and folders count match
             if (count($images) !== count($folders)) {
                 return response()->json(['error' => 'Folders count must match images count'], 422);
             }
 
             foreach ($images as $index => $image) {
-                $folder = $folders[$index]; // Now get the folder for each image
+                $originalFolder = $folders[$index];
                 $filename = $image->getClientOriginalName();
 
-                // Store under correct subfolder
-                $image->storeAs($folder, $filename, 'public');
+                // Prefix the folder with user ID
+                $userFolder = "$userId/$originalFolder";
 
-                // Save relative path in DB
+                // Store under public disk at path: storage/app/public/{userId}/{folder}
+                $image->storeAs($userFolder, $filename, 'public');
+
+                // Save full relative path in DB: e.g., 21/test1/image.jpg
                 Photo::create([
-                    'path' => "$folder/$filename",
-                    'user_id' => Auth::id(),
+                    'path' => "$userFolder/$filename",
+                    'user_id' => $userId,
                 ]);
             }
 
