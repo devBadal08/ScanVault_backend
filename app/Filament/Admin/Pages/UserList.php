@@ -17,41 +17,30 @@ class UserList extends Page
         return 2; // appear second in the Admin group
     }
 
-    // public $totalManagers;
-    // public $totalUsers;
-
-    // public function mount(): void
-    // {
-    //     $queryManagers = User::where('role', 'manager');
-    //     $queryUsers = User::where('role', 'user');
-
-    //     if (auth()->user()?->hasRole('admin')) {
-    //         $queryManagers->where('created_by', auth()->id());
-    //         $queryUsers->where('created_by', auth()->id());
-    //     }
-
-    //     $this->totalManagers = User::where('role', 'manager')->count();
-    //     $this->totalUsers = User::where('role', 'user')->count();
-    // }
-
     protected function getViewData(): array
     {
-        $adminId = auth()->id();
+        $user = auth()->user();
 
-        // Step 1: Get all manager IDs created by this admin
-        $managerIds = User::where('role', 'manager')
-            ->where('created_by', $adminId)
-            ->pluck('id');
+        if ($user->hasRole('Super Admin')) {
+            //Super Admin can see everything
+            $totalManagers = User::where('role', 'manager')->count();
+            $totalUsers = User::where('role', 'user')->count();
+        } else {
+            //Admin can only see their own + their managers' users
+            $adminId = $user->id;
 
-        // Step 2: Count all managers created by this admin
-        $totalManagers = $managerIds->count();
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $adminId)
+                ->pluck('id');
 
-        // Step 3: Count all users created by admin or any of these managers
-        $totalUsers = User::where('role', 'user')
-            ->where(function ($query) use ($adminId, $managerIds) {
-                $query->where('created_by', $adminId)
-                    ->orWhereIn('created_by', $managerIds);
-            })->count();
+            $totalManagers = $managerIds->count();
+
+            $totalUsers = User::where('role', 'user')
+                ->where(function ($query) use ($adminId, $managerIds) {
+                    $query->where('created_by', $adminId)
+                        ->orWhereIn('created_by', $managerIds);
+                })->count();
+        }
 
         return [
             'totals' => [

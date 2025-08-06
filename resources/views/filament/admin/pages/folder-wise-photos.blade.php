@@ -8,7 +8,7 @@
                 @foreach ($managers as $manager)
                     <div onclick="window.location.href='?manager={{ $manager->id }}'"
                         class="flex flex-col items-center justify-center w-32 h-32 bg-white rounded-lg shadow hover:shadow-md transition border hover:bg-orange-100 cursor-pointer text-center overflow-hidden group">
-                        <div class="text-xl">👨‍💼</div>
+                        <div class="text-3xl">👨‍💼</div>
                         <div class="mt-1 text-[10px] font-semibold text-gray-800 truncate w-full px-1">
                             {{ $manager->name }}
                         </div>
@@ -27,12 +27,16 @@
                 </div>
             @endif
             <h2 class="text-xl font-bold mb-4">Select User</h2>
-            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
                 @foreach ($users as $user)
                     <a href="?manager={{ $selectedManager->id }}&user={{ $user->id }}"
-                       class="flex flex-col items-center justify-center w-32 h-32 bg-green-100 rounded shadow hover:bg-green-200 text-center text-xs font-medium">
-                        👤
-                        <div class="mt-1 truncate px-1">{{ $user->name }}</div>
+                    class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
+
+                    {{-- User Icon --}}
+                    <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;"/>
+
+                    {{-- User Name --}}
+                    <span class="mt-1 text-sm text-black truncate w-24">{{ $user->name }}</span>
                     </a>
                 @endforeach
             </div>
