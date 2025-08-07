@@ -49,7 +49,7 @@
                 </x-filament::button>
             </div>
             <h2 class="text-xl font-bold mb-4">Folders of {{ $selectedUser->name }}</h2>
-            <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
+            <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                 @foreach ($folders as $folder)
                     <div class="flex flex-col items-center justify-center text-center">
                         {{-- Download Icon (top-right of folder) --}}
@@ -62,12 +62,13 @@
                         {{-- Folder Link --}}
                         <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder }}"
                         class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                            
-                            {{-- Apply color here --}}
-                            <x-heroicon-s-folder class="w-24 h-24 text-yellow-500" style="color: #facc15;" />
-
+                            <div class="w-24 h-24 flex items-center justify-center">
+                                <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;" />
+                            </div>
                             {{-- Folder Name --}}
-                            <span class="mt-1 text-sm text-black truncate w-24">{{ basename($folder) }}</span>
+                            <span class="mt-1 text-sm text-black truncate w-24" title="{{ basename($folder) }}">
+                                {{ Str::limit(basename($folder), 20) }}
+                            </span>
                         </a>
                     </div>
                 @endforeach
@@ -108,7 +109,9 @@
                         <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder }}"
                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                             📁
-                            <div class="mt-1 truncate px-1 w-full">{{ basename($subfolder) }}</div>
+                            <div class="mt-1 truncate px-1 w-full" title="{{ basename($subfolder) }}">
+                                {{ Str::limit(basename($subfolder), 20) }}
+                            </div>
                         </a>
                     </div>
                 @endforeach
