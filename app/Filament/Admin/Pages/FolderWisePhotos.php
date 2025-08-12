@@ -69,6 +69,9 @@ class FolderWisePhotos extends Page
                 $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolder;
 
+                // ✅ Fetch deeper subfolders here
+                $this->subfolders = Storage::disk('public')->directories($subfolder);
+                
                 $this->images = collect(Storage::disk('public')->files($subfolder))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
                     ->values()

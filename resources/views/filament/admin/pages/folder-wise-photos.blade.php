@@ -21,6 +21,7 @@
             
             @if (Auth::user()->role === 'admin')
                 <div class="mb-4">
+                    {{-- Back to Managers --}}
                     <x-filament::button tag="a" href="{{ url()->current() }}" color="primary" icon="heroicon-o-arrow-left">
                         Back to Managers
                     </x-filament::button>
@@ -44,6 +45,7 @@
         {{-- Step 3: Show Folders --}}
         @elseif (!$selectedFolder)
             <div class="mb-4">
+                {{-- Back to Users --}}
                 <x-filament::button tag="a" href="?manager={{ $selectedManager->id }}" color="primary" icon="heroicon-o-arrow-left">
                     Back to Users
                 </x-filament::button>
@@ -73,13 +75,9 @@
                     </div>
                 @endforeach
             </div>
+
         {{-- Step 4: Show Subfolders & Images --}}
         @elseif ($selectedFolder && !$selectedSubfolder)
-            <div class="mb-4">
-                <x-filament::button tag="a" href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}" color="primary" icon="heroicon-o-arrow-left">
-                    Back to Folders
-                </x-filament::button>
-            </div>
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedFolder) }}</h2>
 
             {{-- Select All and Download Button --}}
@@ -135,48 +133,58 @@
                 @endforeach
             </div>
 
-        {{-- Step 5: Show Images in Subfolder --}}
+        {{-- Step 5: Show Images and subfolder in Subfolder --}}
         @elseif ($selectedSubfolder)
-            <div class="mb-4">
-                <x-filament::button 
-                    tag="a"
-                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}"
-                    color="primary"
-                    icon="heroicon-o-arrow-left"
-                >
-                    Back to Subfolders
-                </x-filament::button>
-            </div>
-            <h2 class="text-xl font-bold mb-4">Images in {{ basename($selectedSubfolder) }}</h2>
+            <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedSubfolder) }}</h2>
+
             {{-- Select All and Download Buttons --}}
-        <div class="flex items-center justify-between mb-2">
-            <label class="flex items-center space-x-2">
-                <input type="checkbox" id="select-all-subfolder" class="form-checkbox">
-                <span class="text-sm font-medium text-gray-700">Select All</span>
-            </label>
-            <button id="download-selected-subfolder"
-                class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
-                Download
-            </button>
-        </div>
+            <div class="flex items-center justify-between mb-2">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="select-all-subfolder" class="form-checkbox">
+                    <span class="text-sm font-medium text-gray-700">Select All</span>
+                </label>
+                <button id="download-selected-subfolder"
+                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
+                    Download
+                </button>
+            </div>
 
-        <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-            @forelse ($images as $image)
-                <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                    {{-- Checkbox --}}
-                    <input type="checkbox" class="absolute top-1 left-1 z-10 image-checkbox-subfolder" value="{{ asset('storage/' . $image) }}">
+            {{-- Combined grid for subfolders + images --}}
+            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+                {{-- Subfolders inside this subfolder --}}
+                @if (!empty($subfolders))
+                    @foreach ($subfolders as $sf)
+                        <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
+                            {{-- Download ZIP icon for subfolder --}}
+                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf) }}"
+                                class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20"
+                                title="Download Subfolder">
+                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                            </a>
 
-                    {{-- Image --}}
-                    <a href="{{ asset('storage/' . $image) }}" target="_blank"
-                        class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                            <img src="{{ asset('storage/' . $image) }}"
-                                class="w-full h-full object-cover" alt="Image">
-                    </a>
-                </div>
-            @empty
-                <p>No images found.</p>
-            @endforelse
-        </div>
+                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf }}"
+                                class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                📁
+                                <div class="mt-1 truncate px-1 w-full" title="{{ basename($sf) }}">
+                                    {{ Str::limit(basename($sf), 20) }}
+                                </div>
+                            </a>
+                        </div>
+                    @endforeach
+                @endif
+
+                {{-- Images --}}
+                @forelse ($images as $image)
+                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                        <input type="checkbox" class="absolute top-1 left-1 z-10 image-checkbox-subfolder" value="{{ asset('storage/' . $image) }}">
+                        <a href="{{ asset('storage/' . $image) }}" target="_blank"
+                            class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                            <img src="{{ asset('storage/' . $image) }}" class="w-full h-full object-cover" alt="Image">
+                        </a>
+                    </div>
+                @empty
+                @endforelse
+            </div>
         @endif
     </div>
 </x-filament::page>
