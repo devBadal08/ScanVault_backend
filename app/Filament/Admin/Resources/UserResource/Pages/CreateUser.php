@@ -62,4 +62,10 @@ class CreateUser extends CreateRecord
     {
         $this->record->assignRole($this->record->role);
     }
+
+    protected function getRedirectUrl(): string
+    {
+        // Redirect to the list page instead of edit page
+        return $this->getResource()::getUrl('index');
+    }
 }

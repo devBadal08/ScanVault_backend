@@ -85,6 +85,7 @@
                 <label class="flex items-center space-x-8">
                     <input type="checkbox" id="select-all" class="form-checkbox">
                     <span>Select All</span>
+                    (<span id="selected-count">0</span> )
                 </label>
                 <button id="download-selected"
                     class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
@@ -166,6 +167,7 @@
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" id="select-all-subfolder" class="form-checkbox">
                     <span class="text-sm font-medium text-gray-700">Select All</span>
+                    (<span id="selected-count-subfolder">0</span> )
                 </label>
                 <button id="download-selected-subfolder"
                     class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
@@ -239,16 +241,35 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Select All in folder
+    const updateCount = (checkboxSelector, countElementId) => {
+        const count = document.querySelectorAll(`${checkboxSelector}:checked`).length;
+        document.getElementById(countElementId).textContent = `${count} selected`;
+    };
+
+    // Folder
+    const folderCheckboxes = document.querySelectorAll('.image-checkbox');
     document.getElementById('select-all')?.addEventListener('change', function () {
-        document.querySelectorAll('.image-checkbox').forEach(cb => cb.checked = this.checked);
+        folderCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox', 'selected-count');
+    });
+    folderCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => updateCount('.image-checkbox', 'selected-count'));
     });
 
-    // Download selected in folder
+    // Subfolder
+    const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder');
+    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
+        subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
+    });
+    subfolderCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder', 'selected-count-subfolder'));
+    });
+
+    // Download logic (unchanged)
     document.getElementById('download-selected')?.addEventListener('click', function () {
         const selected = [...document.querySelectorAll('.image-checkbox:checked')].map(cb => cb.value);
         if (selected.length === 0) return alert('Please select at least one image to download.');
-
         selected.forEach(url => {
             const a = document.createElement('a');
             a.href = url;
@@ -260,16 +281,9 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Select All in subfolder
-    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
-        document.querySelectorAll('.image-checkbox-subfolder').forEach(cb => cb.checked = this.checked);
-    });
-
-    // Download selected in subfolder
     document.getElementById('download-selected-subfolder')?.addEventListener('click', function () {
         const selected = [...document.querySelectorAll('.image-checkbox-subfolder:checked')].map(cb => cb.value);
         if (selected.length === 0) return alert('Please select at least one image to download.');
-
         selected.forEach(url => {
             const a = document.createElement('a');
             a.href = url;

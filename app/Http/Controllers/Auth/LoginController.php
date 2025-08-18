@@ -15,24 +15,35 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
+        // Step 1: Validate inputs
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required',
+        ]);
+
         $credentials = $request->only('email', 'password');
 
+        // Step 2: Attempt login
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
 
-            if ($user->role === 'Super Admin' || $user->role === 'admin' || $user->role === 'manager') {
+            // Step 3: Validate role
+            $allowedRoles = ['Super Admin', 'admin', 'manager'];
+
+            if (in_array($user->role, $allowedRoles)) {
                 return redirect('/admin');
             } else {
                 Auth::logout();
-                return redirect()->route('login')->withErrors([
-                    'email' => 'Your account does not have a valid role.',
-                ]);
+                return back()->withErrors([
+                    'email' => 'Your account does not have permission to access this system.',
+                ])->withInput($request->only('email'));
             }
         }
 
+        // Step 4: Invalid email/password
         return back()->withErrors([
-            'email' => 'Invalid email or password',
-        ]);
+            'password' => 'Invalid email or password.',
+        ])->withInput($request->only('email'));
     }
 
     public function logout(Request $request)

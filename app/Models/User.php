@@ -89,6 +89,16 @@ class User extends Authenticatable
         return $all;
     }
 
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function assignedUsers()
+    {
+        return $this->hasMany(User::class, 'assigned_to');
+    }
+
     public function canShow($type): bool
     {
         if (!$this->userPermission) {
