@@ -25,6 +25,11 @@ class FolderWisePhotos extends Page
     public $subfolders = [];
     public $images = [];
 
+    // 👇 pagination properties
+    public int $perPage = 550; // images per page
+    public int $page = 1;     // current page
+    public int $total = 0;    // total images
+
     public function mount(): void
     {
         $authUser = Auth::user();
@@ -60,23 +65,40 @@ class FolderWisePhotos extends Page
                 $this->selectedFolder = $folder;
 
                 $this->subfolders = Storage::disk('public')->directories($folder);
-                $this->images = collect(Storage::disk('public')->files($folder))
+
+                // ✅ Paginate images here
+                $allImages = collect(Storage::disk('public')->files($folder))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
-                    ->values()
+                    ->values();
+
+                $this->total = $allImages->count();
+                $this->images = $allImages
+                    ->forPage($this->page, $this->perPage)
                     ->toArray();
 
             } else {
                 $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolder;
 
-                // ✅ Fetch deeper subfolders here
+                // ✅ Fetch deeper subfolders
                 $this->subfolders = Storage::disk('public')->directories($subfolder);
-                
-                $this->images = collect(Storage::disk('public')->files($subfolder))
+
+                // ✅ Paginate images here
+                $allImages = collect(Storage::disk('public')->files($subfolder))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
-                    ->values()
+                    ->values();
+
+                $this->total = $allImages->count();
+                $this->images = $allImages
+                    ->forPage($this->page, $this->perPage)
                     ->toArray();
             }
         }
+    }
+
+    // 👇 When page changes, reload images
+    public function updatedPage()
+    {
+        $this->mount(); // re-run mount to refresh images
     }
 }

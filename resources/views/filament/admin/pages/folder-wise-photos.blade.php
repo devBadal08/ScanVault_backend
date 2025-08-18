@@ -131,6 +131,30 @@
                         </a>
                     </div>
                 @endforeach
+
+                @if ($total > $perPage)
+                    <div class="mt-4 flex justify-center space-x-2">
+                        {{-- Previous --}}
+                        @if ($page > 1)
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}"
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
+                        @endif
+
+                        {{-- Page numbers --}}
+                        @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
+                            class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">
+                                {{ $i }}
+                            </a>
+                        @endfor
+
+                        {{-- Next --}}
+                        @if ($page < ceil($total / $perPage))
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}"
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+                        @endif
+                    </div>
+                @endif
             </div>
 
         {{-- Step 5: Show Images and subfolder in Subfolder --}}
@@ -184,6 +208,30 @@
                     </div>
                 @empty
                 @endforelse
+
+                @if ($total > $perPage)
+                    <div class="mt-4 flex justify-center space-x-2">
+                        {{-- Previous --}}
+                        @if ($page > 1)
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}"
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
+                        @endif
+
+                        {{-- Page numbers --}}
+                        @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
+                            class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">
+                                {{ $i }}
+                            </a>
+                        @endfor
+
+                        {{-- Next --}}
+                        @if ($page < ceil($total / $perPage))
+                            <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}"
+                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+                        @endif
+                    </div>
+                @endif
             </div>
         @endif
     </div>
