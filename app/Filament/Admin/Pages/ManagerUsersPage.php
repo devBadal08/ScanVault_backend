@@ -28,7 +28,7 @@ class ManagerUsersPage extends Page
 
         // ✅ Users created by this manager
         $this->managerUsers = User::where('role', 'user')
-            ->where('assigned_to', $authUser->id)
+            ->where('created_by', $authUser->id)
             ->get();
     }
 }

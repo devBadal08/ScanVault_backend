@@ -41,6 +41,7 @@ class FolderWisePhotos extends Page
         if ($authUser->role === 'admin') {
             $adminId = $authUser->id;
             $this->managers = \App\Models\User::where('role', 'manager')->where('created_by', $adminId)->get();
+            $this->adminUsers = \App\Models\User::where('role', 'user')->where('created_by', $adminId)->get();
 
             if ($managerId) {
                 $this->selectedManager = $this->managers->firstWhere('id', $managerId);
