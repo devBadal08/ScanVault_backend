@@ -125,6 +125,8 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 
     public function saveUser()
     {
+        $currentUser = Filament::auth()->user();
+
         if (!$this->editingUserId && !is_null($this->remainingLimit) && $this->remainingLimit <= 0) {
             Notification::make()
                 ->title('User creation limit reached.')
@@ -150,7 +152,8 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'role' => 'user',
-                'created_by' => auth()->id(),
+                'created_by' => $currentUser->id,
+                'assigned_to'=> $currentUser->id,
             ]);
             $user->assignRole('user');
             Notification::make()->title('User Created')->success()->send();

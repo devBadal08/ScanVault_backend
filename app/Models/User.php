@@ -26,7 +26,8 @@ class User extends Authenticatable
         'role',
         'company_id',
         'max_limit',
-        'created_by'
+        'created_by',
+        'assigned_to',
     ];
 
     /**
@@ -60,6 +61,11 @@ class User extends Authenticatable
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function userPermission()

@@ -22,6 +22,7 @@ class AdminUsersPage extends Page
     public $folders = [];
     public $subfolders = [];
     public $images = [];
+    public $users = [];
 
     public $selectedManager = null;
     public $selectedUser = null;
@@ -29,7 +30,7 @@ class AdminUsersPage extends Page
     public $selectedSubfolder = null;
 
     // pagination properties
-    public int $perPage = 50; // number of images per page
+    public int $perPage = 550; // number of images per page
     public int $page = 1;     // current page
     public int $total = 0;    // total images
 
@@ -47,16 +48,41 @@ class AdminUsersPage extends Page
 
         if ($authUser->role === 'admin') {
             $adminId = $authUser->id;
-            $this->managers = \App\Models\User::where('role', 'manager')->where('created_by', $adminId)->get();
-            $this->adminUsers = User::where('role', 'user')->where('created_by', $authUser->id)->get();
 
-            if ($managerId) {
+            // Managers under this admin
+            $this->managers = User::where('role', 'manager')
+                ->where('created_by', $adminId)
+                ->get();
+
+            // Collect manager IDs
+            $managerIds = $this->managers->pluck('id')->toArray();
+
+            // 🔹 Users directly created by this admin
+            $this->adminUsers = User::where('role', 'user')
+                ->where('created_by', $adminId)
+                ->get();
+
+            // 🔹 If a manager is selected, show their users
+            if (request()->has('manager')) {
+                $managerId = request()->get('manager');
+
                 $this->selectedManager = $this->managers->firstWhere('id', $managerId);
-                $this->users = \App\Models\User::where('role', 'user')->where('created_by', $managerId)->get();
+
+                $this->users = User::where('role', 'user')
+                    ->where('assigned_to', $managerId)
+                    ->get();
+            } else {
+                // If no manager selected → show only admin’s users
+                $this->users = $this->adminUsers;
             }
+
         } elseif ($authUser->role === 'manager') {
+            // Manager sees only their assigned users
             $this->selectedManager = $authUser;
-            $this->users = \App\Models\User::where('role', 'user')->where('created_by', $authUser->id)->get();
+
+            $this->users = User::where('role', 'user')
+                ->where('assigned_to', $authUser->id)
+                ->get();
         }
 
         if ($userId) {
@@ -102,6 +128,15 @@ class AdminUsersPage extends Page
             }
         }
     }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+
+        // Only show to admins
+        return $user && $user->role === 'admin';
+    }
+
      // When page changes, reload images
     public function updatedPage()
     {

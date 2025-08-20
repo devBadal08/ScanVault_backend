@@ -99,6 +99,11 @@ class UserResource extends Resource
                     ->label('Created By')
                     ->sortable()
                     ->searchable(),
+                TextColumn::make('assignedTo.name')
+                    ->label('Assigned To')
+                    ->sortable()
+                    ->searchable(),
+
             ])
             ->filters([
                 //
@@ -131,7 +136,7 @@ class UserResource extends Resource
 
     public static function mutateFormDataBeforeCreate(array $data): array
     {
-        $currentUser = auth()->user();
+        $currentUser = \Filament\Facades\Filament::auth()->user();
 
         // Only enforce for admin (skip Super Admin or adapt if needed)
         if ($currentUser && $currentUser->hasRole('admin')) {
@@ -164,6 +169,7 @@ class UserResource extends Resource
 
         // Automatically attach who created this user
         $data['created_by'] = $currentUser->id;
+        $data['assigned_to'] = $currentUser->id;
         $data['company_id'] = $currentUser->company_id ?? null; // optional if you have it
         // Hash the password manually
         $data['password'] = \Illuminate\Support\Facades\Hash::make($data['password']);

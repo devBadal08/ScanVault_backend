@@ -16,19 +16,111 @@ class ManagerUsersPage extends Page
     protected static ?string $navigationLabel = 'Manager Users';
     protected static ?int $navigationSort = 8;
 
+    public $managers = [];
     public $managerUsers = [];
+    public $folders = [];
+    public $subfolders = [];
+    public $images = [];
+    public $users = [];
+
+    public $selectedManager = null;
+    public $selectedUser = null;
+    public $selectedFolder = null;
+    public $selectedSubfolder = null;
+
+    // pagination properties
+    public int $perPage = 550; // number of images per page
+    public int $page = 1;     // current page
+    public int $total = 0;   // total images
 
     public function mount(): void
     {
         $authUser = Auth::user();
+        $managerId = request()->get('manager');
+        $userId = request()->get('user');
+        $folder = request()->get('folder');
+        $subfolder = request()->get('subfolder');
 
         if (!in_array($authUser->role, ['manager', 'admin'])) {
             abort(403, 'Unauthorized');
         }
 
-        // ✅ Users created by this manager
-        $this->managerUsers = User::where('role', 'user')
-            ->where('created_by', $authUser->id)
-            ->get();
+        if ($managerId) {
+            $this->selectedManager = User::find($managerId);
+        }
+
+        if ($authUser->role === 'manager') {
+            // Manager sees only their own users
+            $this->managerUsers = User::where('role', 'user')
+                ->where('assigned_to', $authUser->id)
+                ->get();
+
+        } elseif ($authUser->role === 'admin') {
+            // Admin sees all users under managers they created
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $authUser->id)
+                ->pluck('id');
+
+            $this->managerUsers = User::where('role', 'user')
+                ->whereIn('assigned_to', $managerIds)
+                ->get();
+        }
+
+        if ($userId) {
+            $this->selectedUser = \App\Models\User::find($userId);
+            if (!$this->selectedUser) return;
+
+            $baseUserPath = $userId;
+
+            if (!$folder) {
+                $this->folders = Storage::disk('public')->directories($baseUserPath);
+
+            } elseif (!$subfolder) {
+                $this->selectedFolder = $folder;
+
+                $this->subfolders = Storage::disk('public')->directories($folder);
+
+                // ✅ Paginate images here
+                $allImages = collect(Storage::disk('public')->files($folder))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+                    ->values();
+
+                $this->total = $allImages->count();
+                $this->images = $allImages
+                    ->forPage($this->page, $this->perPage)
+                    ->toArray();
+
+            } else {
+                $this->selectedFolder = $folder;
+                $this->selectedSubfolder = $subfolder;
+
+                // ✅ Fetch deeper subfolders
+                $this->subfolders = Storage::disk('public')->directories($subfolder);
+
+                // ✅ Paginate images here
+                $allImages = collect(Storage::disk('public')->files($subfolder))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+                    ->values();
+
+                $this->total = $allImages->count();
+                $this->images = $allImages
+                    ->forPage($this->page, $this->perPage)
+                    ->toArray();
+            }
+        }
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+
+        // Managers and admins can see it
+        return $user && in_array($user->role, ['manager', 'admin']);
+    }
+
+    // When page changes, reload images
+    public function updatedPage()
+    {
+        $this->mount(); // re-run mount to refresh images
     }
 }
