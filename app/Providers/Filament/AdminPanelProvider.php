@@ -18,6 +18,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use App\Filament\Widgets\TotalCompanies;
 use App\Filament\Admin\Widgets\UsagePieChart;
+use App\Filament\Widgets\ManagerUsageList;
 
 
 class AdminPanelProvider extends PanelProvider
@@ -48,6 +49,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 TotalCompanies::class,
                 UsagePieChart::class,
+                ManagerUsageList::class,
             ])
             ->middleware([
                 EncryptCookies::class,
