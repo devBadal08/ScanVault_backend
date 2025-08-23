@@ -4,12 +4,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\UserLoginController;
+use App\Http\Controllers\Api\UserController;
+use Illuminate\Support\Facades\Broadcast;
 
 // Your custom API route
 // Route::get('/photos', [PhotoController::class, 'index']);
 // Route::post('/photos', [PhotoController::class, 'store']);
 Route::post('/login', [UserLoginController::class, 'login']);
 
+Route::middleware('auth:sanctum')->get('/check-user', [UserController::class, 'checkUser']);
+Route::get('/check-user', [UserController::class, 'checkUser']);
+
+Route::middleware('auth:sanctum')->delete('/users/{id}', [UserController::class, 'destroy']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);

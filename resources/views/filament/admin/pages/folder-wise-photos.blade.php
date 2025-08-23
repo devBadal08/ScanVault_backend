@@ -62,15 +62,16 @@
                         </a>
 
                         {{-- Folder Link --}}
-                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder }}"
+                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder['name'] }}"
                         class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
                             <div class="w-24 h-24 flex items-center justify-center">
                                 <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;" />
                             </div>
                             {{-- Folder Name --}}
-                            <span class="mt-1 text-sm text-black truncate w-24" title="{{ basename($folder) }}">
-                                {{ Str::limit(basename($folder), 20) }}
+                            <span class="mt-1 text-sm text-black truncate w-24" title="{{ basename($folder['name']) }}">
+                                {{ Str::limit(basename($folder['name']), 20) }}
                             </span>
+                            <span class="text-xs text-gray-500 mt-1">Created: {{ $folder['created_at'] }}</span>
                         </a>
                     </div>
                 @endforeach
@@ -79,6 +80,16 @@
         {{-- Step 4: Show Subfolders & Images --}}
         @elseif ($selectedFolder && !$selectedSubfolder)
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedFolder) }}</h2>
+
+            <div class="mb-4">
+                <x-filament::button 
+                    tag="a" 
+                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}" 
+                    color="primary" 
+                    icon="heroicon-o-arrow-left">
+                    Back to Folders
+                </x-filament::button>
+            </div>
 
             {{-- Select All and Download Button --}}
             <div class="flex items-center justify-between mb-2 ">
@@ -99,18 +110,19 @@
                     <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                         
                         {{-- 📥 Download subfolder --}}
-                        <a href="{{ route('download-folder', ['path' => $subfolder]) }}"
+                        <a href="{{ route('download-folder', ['path' => $subfolder['name']]) }}"
                         class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
                         title="Download Subfolder">
                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                         </a>
 
-                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder }}"
+                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder['name'] }}"
                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                             📁
-                            <div class="mt-1 truncate px-1 w-full" title="{{ basename($subfolder) }}">
-                                {{ Str::limit(basename($subfolder), 20) }}
+                            <div class="mt-1 truncate px-1 w-full" title="{{ basename($subfolder['name']) }}">
+                                {{ Str::limit(basename($subfolder['name']), 20) }}
                             </div>
+                            <div class="text-xs text-gray-500 mt-1">Created: {{ $subfolder['created_at'] }}</div>
                         </a>
                     </div>
                 @endforeach
@@ -162,6 +174,16 @@
         @elseif ($selectedSubfolder)
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedSubfolder) }}</h2>
 
+            <div class="mb-4">
+                <x-filament::button 
+                    tag="a" 
+                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}" 
+                    color="primary" 
+                    icon="heroicon-o-arrow-left">
+                    Back to {{ basename($selectedFolder) }}
+                </x-filament::button>
+            </div>
+
             {{-- Select All and Download Buttons --}}
             <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center space-x-2">
@@ -182,18 +204,19 @@
                     @foreach ($subfolders as $sf)
                         <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                             {{-- Download ZIP icon for subfolder --}}
-                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf) }}"
+                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf['name']) }}"
                                 class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20"
                                 title="Download Subfolder">
                                 <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                             </a>
 
-                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf }}"
+                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf['name'] }}"
                                 class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                 📁
-                                <div class="mt-1 truncate px-1 w-full" title="{{ basename($sf) }}">
-                                    {{ Str::limit(basename($sf), 20) }}
+                                <div class="mt-1 truncate px-1 w-full" title="{{ basename($sf['name']) }}">
+                                    {{ Str::limit(basename($sf['name']), 20) }}
                                 </div>
+                                <div class="text-xs text-gray-500 mt-1">Created: {{ $sf['created_at'] }}</div>
                             </a>
                         </div>
                     @endforeach

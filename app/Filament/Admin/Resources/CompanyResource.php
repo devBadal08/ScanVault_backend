@@ -12,6 +12,8 @@ use Filament\Tables\Table;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Navigation\NavigationItem;
+use Filament\Forms\Components\FileUpload;
+use Filament\Tables\Columns\ImageColumn;
 
 class CompanyResource extends Resource
 {
@@ -33,6 +35,20 @@ class CompanyResource extends Resource
                 TextInput::make('admin_name')
                     ->required()
                     ->label('Admin Name'),
+                FileUpload::make('company_logo')
+                    ->label('Company Logo')
+                    ->image() // ensures only image files
+                    ->disk('public')
+                    ->columns(1)
+                    ->directory('company-logos') // optional: folder to store logos
+                    ->storeFileNamesIn('company-logos') // store filename in 'logo' column
+                    ->maxSize(1024) // optional: max file size in KB
+                    ->required()
+                    ->visibility('public')         // make file public
+                    ->preserveFilenames()          // keep original file name (optional)
+                    ->downloadable()               // allow download
+                    ->openable()                   // allow opening
+                    ->previewable(true),
             ]);
     }
 
@@ -42,6 +58,11 @@ class CompanyResource extends Resource
             ->columns([
                 TextColumn::make('company_name')->label('Company Name')->sortable()->searchable(),
                 TextColumn::make('admin_name')->label('Admin Name')->sortable()->searchable(),
+                ImageColumn::make('company_logo')
+                    ->label('Logo')
+                    ->visibility('visible')
+                    ->url(fn ($record) => asset('storage/' . $record->logo)) // clickable
+                    ->square(), 
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

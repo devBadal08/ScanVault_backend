@@ -25,7 +25,7 @@ class FolderWisePhotos extends Page
     public $subfolders = [];
     public $images = [];
 
-    // 👇 pagination properties
+    // pagination properties
     public int $perPage = 550; // images per page
     public int $page = 1;     // current page
     public int $total = 0;    // total images
@@ -60,12 +60,22 @@ class FolderWisePhotos extends Page
             $baseUserPath = $userId;
 
             if (!$folder) {
-                $this->folders = Storage::disk('public')->directories($baseUserPath);
+                $this->folders = collect(Storage::disk('public')->directories($baseUserPath))
+                ->map(fn($dir) => [
+                    'name' => $dir,
+                    'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
+                ])
+                ->toArray();
 
             } elseif (!$subfolder) {
                 $this->selectedFolder = $folder;
 
-                $this->subfolders = Storage::disk('public')->directories($folder);
+                $this->subfolders = collect(Storage::disk('public')->directories($folder))
+                    ->map(fn($dir) => [
+                        'name' => $dir,
+                        'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
+                    ])
+                    ->toArray();
 
                 // ✅ Paginate images here
                 $allImages = collect(Storage::disk('public')->files($folder))
@@ -82,7 +92,12 @@ class FolderWisePhotos extends Page
                 $this->selectedSubfolder = $subfolder;
 
                 // ✅ Fetch deeper subfolders
-                $this->subfolders = Storage::disk('public')->directories($subfolder);
+                $this->subfolders = collect(Storage::disk('public')->directories($subfolder))
+                    ->map(fn($dir) => [
+                        'name' => $dir,
+                        'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
+                    ])
+                    ->toArray();
 
                 // ✅ Paginate images here
                 $allImages = collect(Storage::disk('public')->files($subfolder))
