@@ -56,13 +56,15 @@ class CompanyResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('company_name')->label('Company Name')->sortable()->searchable(),
-                TextColumn::make('admin_name')->label('Admin Name')->sortable()->searchable(),
+                TextColumn::make('company_name')->label('Company Name')->sortable()->searchable()->alignLeft(),
+                TextColumn::make('admin_name')->label('Admin Name')->sortable()->searchable()->alignLeft(),
                 ImageColumn::make('company_logo')
                     ->label('Logo')
                     ->visibility('visible')
-                    ->url(fn ($record) => asset('storage/' . $record->logo)) // clickable
-                    ->square(), 
+                    ->url(fn ($record) => asset('storage/' . $record->company_logo)) // clickable
+                    ->openUrlInNewTab()
+                    ->square()
+                    ->alignCenter(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

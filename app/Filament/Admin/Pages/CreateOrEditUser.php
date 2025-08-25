@@ -82,7 +82,12 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
         return [
             Forms\Components\TextInput::make('name')->required(),
             Forms\Components\TextInput::make('email')->email()->required(),
-            Forms\Components\TextInput::make('password')->password()->nullable()->minLength(6),
+            Forms\Components\TextInput::make('password')->password()
+            ->revealable()
+            ->minLength(6)
+            ->maxLength(255)
+            ->rule('regex:/^(?=.*[A-Za-z])(?=.*\d).+$/')
+            ->helperText('Password must be at least 6 characters and contain both letters and numbers.'),
             Forms\Components\Select::make('role')
                 ->options([
                     'user' => 'User',

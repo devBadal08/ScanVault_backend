@@ -58,8 +58,12 @@ class UserResource extends Resource
 
                 TextInput::make('password')
                     ->password()
+                    ->revealable()
                     ->required(fn (string $context) => $context === 'create')
-                    ->maxLength(255),
+                    ->minLength(6)
+                    ->maxLength(255)
+                    ->rule('regex:/^(?=.*[A-Za-z])(?=.*\d).+$/')
+                    ->helperText('Password must be at least 6 characters and contain both letters and numbers.'),
 
                 Select::make('role')
                     ->label('Role')
