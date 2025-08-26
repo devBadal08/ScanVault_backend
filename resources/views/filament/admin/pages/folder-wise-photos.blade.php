@@ -51,43 +51,57 @@
                 </x-filament::button>
             </div>
             <h2 class="text-xl font-bold mb-4">Folders of {{ $selectedUser->name }}</h2>
-            <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
-                @foreach ($folders as $folder)
-                    <div class="flex flex-col items-center justify-center text-center">
-                        {{-- Download Icon (top-right of folder) --}}
-                        <a href="{{ route('download-folder', ['path' => $folder]) }}"
-                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
-                        title="Download Folder">
-                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-                        </a>
 
-                        {{-- Folder Link --}}
-                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder['name'] }}"
-                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                            <div class="w-24 h-24 flex items-center justify-center">
-                                <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;" />
-                            </div>
-                            {{-- Folder Name --}}
-                            <span class="mt-1 text-sm text-black truncate w-24" title="{{ basename($folder['name']) }}">
-                                {{ Str::limit(basename($folder['name']), 20) }}
-                            </span>
-                            <span class="text-xs text-gray-500 mt-1">Created: {{ $folder['created_at'] }}</span>
-                        </a>
+            @foreach ($folders as $group => $items)
+                {{-- Accordion Section --}}
+                <div class="mb-2 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 hover:bg-gray-200 focus:outline-none flex justify-between items-center accordion-header">
+                        <span class="text-sm font-semibold">{{ $group }}</span>
+                        <span class="text-sm">▼</span>
+                    </button>
+                    <div class="accordion-content hidden px-4 py-2">
+                        <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
+                            @foreach ($items as $folder)
+                                <div class="flex flex-col items-center justify-center text-center">
+                                    {{-- Download Icon --}}
+                                    <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
+                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
+                                        title="Download Folder">
+                                        <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                    </a>
+
+                                    {{-- Folder Link --}}
+                                    <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder['path'] }}"
+                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
+                                        <div class="w-24 h-24 flex items-center justify-center">
+                                            <x-heroicon-s-folder class="w-16 h-16 text-yellow-500" style="color: #facc15;" />
+                                        </div>
+                                        <span class="mt-1 text-xs text-black truncate w-24" title="{{ basename($folder['name']) }}">
+                                            {{ Str::limit(basename($folder['name']), 20) }}
+                                        </span>
+                                    </a>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                @endforeach
-            </div>
+                </div>
+            @endforeach
 
         {{-- Step 4: Show Subfolders & Images --}}
         @elseif ($selectedFolder && !$selectedSubfolder)
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedFolder) }}</h2>
 
             <div class="mb-4">
-                <x-filament::button 
-                    tag="a" 
-                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}" 
-                    color="primary" 
+                @php
+                    $parentPath = $selectedFolder ? dirname($selectedFolder) : null;
+                @endphp
+
+                <x-filament::button
+                    tag="a"
+                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}"
+                    color="primary"
                     icon="heroicon-o-arrow-left">
-                    Back to Folders
+                    Back
                 </x-filament::button>
             </div>
 
@@ -110,19 +124,18 @@
                     <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                         
                         {{-- 📥 Download subfolder --}}
-                        <a href="{{ route('download-folder', ['path' => $subfolder['name']]) }}"
+                        <a href="{{ route('download-folder', ['path' => $subfolder['path']]) }}"
                         class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
                         title="Download Subfolder">
                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                         </a>
 
-                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder['name'] }}"
+                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder['path'] }}"
                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                             📁
                             <div class="mt-1 truncate px-1 w-full" title="{{ basename($subfolder['name']) }}">
                                 {{ Str::limit(basename($subfolder['name']), 20) }}
                             </div>
-                            <div class="text-xs text-gray-500 mt-1">Created: {{ $subfolder['created_at'] }}</div>
                         </a>
                     </div>
                 @endforeach
@@ -175,12 +188,16 @@
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedSubfolder) }}</h2>
 
             <div class="mb-4">
-                <x-filament::button 
-                    tag="a" 
-                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}" 
-                    color="primary" 
+                @php
+                    $parentPath = dirname($selectedSubfolder);
+                @endphp
+
+                <x-filament::button
+                    tag="a"
+                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($parentPath) }}"
+                    color="primary"
                     icon="heroicon-o-arrow-left">
-                    Back to {{ basename($selectedFolder) }}
+                    Back to {{ basename($parentPath) }}
                 </x-filament::button>
             </div>
 
@@ -204,19 +221,18 @@
                     @foreach ($subfolders as $sf)
                         <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                             {{-- Download ZIP icon for subfolder --}}
-                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf['name']) }}"
+                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf['path']) }}"
                                 class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20"
                                 title="Download Subfolder">
                                 <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                             </a>
 
-                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf['name'] }}"
+                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf['path'] }}"
                                 class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                 📁
                                 <div class="mt-1 truncate px-1 w-full" title="{{ basename($sf['name']) }}">
                                     {{ Str::limit(basename($sf['name']), 20) }}
                                 </div>
-                                <div class="text-xs text-gray-500 mt-1">Created: {{ $sf['created_at'] }}</div>
                             </a>
                         </div>
                     @endforeach
@@ -264,6 +280,16 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const headers = document.querySelectorAll('.accordion-header');
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const content = this.nextElementSibling;
+            content.classList.toggle('hidden');
+            // Optional: rotate arrow
+            this.querySelector('span:last-child').classList.toggle('rotate-180');
+        });
+    });
+
     const updateCount = (checkboxSelector, countElementId) => {
         const count = document.querySelectorAll(`${checkboxSelector}:checked`).length;
         document.getElementById(countElementId).textContent = `${count} selected`;

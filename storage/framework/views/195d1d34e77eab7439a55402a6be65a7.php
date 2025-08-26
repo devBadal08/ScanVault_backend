@@ -11,58 +11,14 @@
 <?php $component->withAttributes([]); ?>
     <div>
         
-        <!--[if BLOCK]><![endif]--><?php if(!$selectedManager): ?>
-            <h2 class="text-xl font-bold mb-4">Select Manager</h2>
-            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $manager): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <div onclick="window.location.href='?manager=<?php echo e($manager->id); ?>'"
-                        class="flex flex-col items-center justify-center w-32 h-32 bg-white rounded-lg shadow hover:shadow-md transition border hover:bg-orange-100 cursor-pointer text-center overflow-hidden group">
-                        <div class="text-3xl">👨‍💼</div>
-                        <div class="mt-1 text-[10px] font-semibold text-gray-800 truncate w-full px-1">
-                            <?php echo e($manager->name); ?>
-
-                        </div>
-                    </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-            </div>
-
-        
-        <?php elseif(!$selectedUser): ?>
-            
-            <!--[if BLOCK]><![endif]--><?php if(Auth::user()->role === 'admin'): ?>
-                <div class="mb-4">
-                    
-                    <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(url()->current()).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => ''.e(url()->current()).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                        Back to Managers
-                     <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-                </div>
-            <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+        <!--[if BLOCK]><![endif]--><?php if(!$selectedUser): ?>
             <h2 class="text-xl font-bold mb-4">Select User</h2>
             <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <a href="?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($user->id); ?>"
-                    class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
-
-                    
-                    <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managerUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <a href="?user=<?php echo e($user->id); ?>"
+                       class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
+                        
+                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-s-user'); ?>
@@ -82,57 +38,23 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-
-                    
-                    <span class="mt-1 text-sm text-black truncate w-24"><?php echo e($user->name); ?></span>
+                        
+                        <span class="mt-1 text-sm text-black truncate w-24"><?php echo e($user->name); ?></span>
                     </a>
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
             </div>
 
         
-        <?php elseif(!$selectedFolder): ?>
-            <div class="mb-4">
-                
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?manager='.e($selectedManager->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?manager='.e($selectedManager->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back to Users
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-            </div>
+        <?php elseif($selectedUser && !$selectedFolder): ?>
             <h2 class="text-xl font-bold mb-4">Folders of <?php echo e($selectedUser->name); ?></h2>
-
-            <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $folders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $group => $items): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                
-                <div class="mb-2 border rounded">
-                    <button class="w-full text-left px-4 py-2 bg-gray-100 hover:bg-gray-200 focus:outline-none flex justify-between items-center accordion-header">
-                        <span class="text-sm font-semibold"><?php echo e($group); ?></span>
-                        <span class="text-sm">▼</span>
-                    </button>
-                    <div class="accordion-content hidden px-4 py-2">
-                        <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
-                            <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center justify-center text-center">
-                                    
-                                    <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
-                                        title="Download Folder">
-                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+            <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $folders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="flex flex-col items-center justify-center text-center">
+                        
+                        <a href="<?php echo e(route('download-folder', ['path' => $folder])); ?>"
+                            class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
+                            title="Download Folder">
+                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-o-arrow-down-tray'); ?>
@@ -152,13 +74,13 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                    </a>
+                        </a>
 
-                                    
-                                    <a href="?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($folder['path']); ?>"
-                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                                        <div class="w-24 h-24 flex items-center justify-center">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                        
+                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($folder); ?>"
+                            class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
+                            <div class="w-24 h-24 flex items-center justify-center">
+                                <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-s-folder'); ?>
@@ -167,7 +89,7 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-16 h-16 text-yellow-500','style' => 'color: #facc15;']); ?>
+<?php $component->withAttributes(['class' => 'w-20 h-20','style' => 'color: #facc15;']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
@@ -178,50 +100,19 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                        </div>
-                                        <span class="mt-1 text-xs text-black truncate w-24" title="<?php echo e(basename($folder['name'])); ?>">
-                                            <?php echo e(Str::limit(basename($folder['name']), 20)); ?>
+                            </div>
+                            <span class="mt-1 text-sm text-black truncate w-24" title="<?php echo e(basename($folder)); ?>">
+                                <?php echo e(Str::limit(basename($folder), 10)); ?>
 
-                                        </span>
-                                    </a>
-                                </div>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-                        </div>
+                            </span>
+                        </a>
                     </div>
-                </div>
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+            </div>
 
         
         <?php elseif($selectedFolder && !$selectedSubfolder): ?>
             <h2 class="text-xl font-bold mb-4">Content in <?php echo e(basename($selectedFolder)); ?></h2>
-
-            <div class="mb-4">
-                <?php
-                    $parentPath = $selectedFolder ? dirname($selectedFolder) : null;
-                ?>
-
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?manager='.e($selectedManager->id).'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?manager='.e($selectedManager->id).'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-            </div>
 
             
             <div class="flex items-center justify-between mb-2 ">
@@ -242,7 +133,7 @@
                     <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                         
                         
-                        <a href="<?php echo e(route('download-folder', ['path' => $subfolder['path']])); ?>"
+                        <a href="<?php echo e(route('download-folder', ['path' => $subfolder])); ?>"
                         class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
                         title="Download Subfolder">
                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
@@ -267,11 +158,11 @@
 <?php endif; ?>
                         </a>
 
-                        <a href="?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($selectedFolder); ?>&subfolder=<?php echo e($subfolder['path']); ?>"
+                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($selectedFolder); ?>&subfolder=<?php echo e($subfolder); ?>"
                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                             📁
-                            <div class="mt-1 truncate px-1 w-full" title="<?php echo e(basename($subfolder['name'])); ?>">
-                                <?php echo e(Str::limit(basename($subfolder['name']), 20)); ?>
+                            <div class="mt-1 truncate px-1 w-full" title="<?php echo e(basename($subfolder)); ?>">
+                                <?php echo e(Str::limit(basename($subfolder), 10)); ?>
 
                             </div>
                         </a>
@@ -326,35 +217,6 @@
         <?php elseif($selectedSubfolder): ?>
             <h2 class="text-xl font-bold mb-4">Content in <?php echo e(basename($selectedSubfolder)); ?></h2>
 
-            <div class="mb-4">
-                <?php
-                    $parentPath = dirname($selectedSubfolder);
-                ?>
-
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?manager='.e($selectedManager->id).'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?manager='.e($selectedManager->id).'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back to <?php echo e(basename($parentPath)); ?>
-
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-            </div>
-
             
             <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center space-x-2">
@@ -375,7 +237,7 @@
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $subfolders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $sf): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
                             
-                            <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($sf['path'])); ?>"
+                            <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($sf)); ?>"
                                 class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20"
                                 title="Download Subfolder">
                                 <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
@@ -400,11 +262,11 @@
 <?php endif; ?>
                             </a>
 
-                            <a href="?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($selectedFolder); ?>&subfolder=<?php echo e($sf['path']); ?>"
+                            <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e($selectedFolder); ?>&subfolder=<?php echo e($sf); ?>"
                                 class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                 📁
-                                <div class="mt-1 truncate px-1 w-full" title="<?php echo e(basename($sf['name'])); ?>">
-                                    <?php echo e(Str::limit(basename($sf['name']), 20)); ?>
+                                <div class="mt-1 truncate px-1 w-full" title="<?php echo e(basename($sf)); ?>">
+                                    <?php echo e(Str::limit(basename($sf), 10)); ?>
 
                                 </div>
                             </a>
@@ -464,16 +326,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const headers = document.querySelectorAll('.accordion-header');
-    headers.forEach(header => {
-        header.addEventListener('click', function() {
-            const content = this.nextElementSibling;
-            content.classList.toggle('hidden');
-            // Optional: rotate arrow
-            this.querySelector('span:last-child').classList.toggle('rotate-180');
-        });
-    });
-
     const updateCount = (checkboxSelector, countElementId) => {
         const count = document.querySelectorAll(`${checkboxSelector}:checked`).length;
         document.getElementById(countElementId).textContent = `${count} selected`;
@@ -528,4 +380,4 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
-</script><?php /**PATH C:\xampp\htdocs\scanner-app\resources\views/filament/admin/pages/folder-wise-photos.blade.php ENDPATH**/ ?>
+</script><?php /**PATH C:\xampp\htdocs\scanner-app\resources\views/filament/admin/pages/manager-users-page.blade.php ENDPATH**/ ?>

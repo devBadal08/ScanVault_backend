@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Pages;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class FolderWisePhotos extends Page
 {
@@ -19,6 +20,7 @@ class FolderWisePhotos extends Page
     public $selectedFolder = null;
     public $selectedSubfolder = null;
 
+    public $adminUsers = [];
     public $managers = [];
     public $users = [];
     public $folders = [];
@@ -29,6 +31,45 @@ class FolderWisePhotos extends Page
     public int $perPage = 550; // images per page
     public int $page = 1;     // current page
     public int $total = 0;    // total images
+
+    protected function groupByDate(array $folders): array
+    {
+        // Generate last 3 dates before today
+        $lastThreeDays = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
+        }
+
+        $groups = array_merge(
+            ['Today' => []],
+            array_combine($lastThreeDays, array_fill(0, 3, [])), // Yesterday, 2 days ago, 3 days ago
+            [
+                'Last Week' => [],
+                'Earlier this Month' => [],
+                'Older' => [],
+            ]
+        );
+
+        foreach ($folders as $folder) {
+            $created = Carbon::parse($folder['created_at']);
+            $createdDate = $created->format('d-m-Y');
+
+            if ($created->isToday()) {
+                $groups['Today'][] = $folder;
+            } elseif (in_array($createdDate, $lastThreeDays)) {
+                $groups[$createdDate][] = $folder;
+            } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
+                $groups['Last Week'][] = $folder;
+            } elseif ($created->month === now()->month) {
+                $groups['Earlier this Month'][] = $folder;
+            } else {
+                $groups['Older'][] = $folder;
+            }
+        }
+
+        // remove empty groups
+        return array_filter($groups);
+    }
 
     public function mount(): void
     {
@@ -60,23 +101,27 @@ class FolderWisePhotos extends Page
             $baseUserPath = $userId;
 
             if (!$folder) {
-                $this->folders = collect(Storage::disk('public')->directories($baseUserPath))
-                ->map(fn($dir) => [
-                    'name' => $dir,
-                    'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
-                ])
-                ->toArray();
+                $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
+                    ->map(fn($dir) => [
+                        'path'       => $dir,
+                        'name'       => basename($dir),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                        ->toDateTimeString(),
+                    ])
+                    ->toArray();
 
+                $this->folders = $this->groupByDate($rawFolders);
             } elseif (!$subfolder) {
                 $this->selectedFolder = $folder;
 
                 $this->subfolders = collect(Storage::disk('public')->directories($folder))
-                    ->map(fn($dir) => [
-                        'name' => $dir,
-                        'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
-                    ])
-                    ->toArray();
-
+                ->map(fn($dir) => [
+                    'path'       => $dir,
+                    'name'       => basename($dir),
+                    'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                    ->toDateTimeString(),
+                ])
+                ->toArray();
                 // ✅ Paginate images here
                 $allImages = collect(Storage::disk('public')->files($folder))
                     ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
@@ -93,11 +138,13 @@ class FolderWisePhotos extends Page
 
                 // ✅ Fetch deeper subfolders
                 $this->subfolders = collect(Storage::disk('public')->directories($subfolder))
-                    ->map(fn($dir) => [
-                        'name' => $dir,
-                        'created_at' => date('Y-m-d', Storage::disk('public')->lastModified($dir)),
-                    ])
-                    ->toArray();
+                ->map(fn($dir) => [
+                    'path'       => $dir,
+                    'name'       => basename($dir),
+                    'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                    ->toDateTimeString(),
+                ])
+                ->toArray();
 
                 // ✅ Paginate images here
                 $allImages = collect(Storage::disk('public')->files($subfolder))
