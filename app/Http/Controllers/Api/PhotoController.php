@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Photo;
+use App\Models\Folder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
@@ -47,8 +48,16 @@ class PhotoController extends Controller
 
     public function uploadAll(Request $request)
     {
-        $folders = $request->input('folders'); // e.g. ['test1', 'test1/test1_1', 'test2', ...]
-        $userId = Auth::id(); // Get logged-in user ID
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $folders = $request->input('folders'); // array of folder names
+        if (!$folders || !is_array($folders)) {
+            return response()->json(['error' => 'Folders array required'], 422);
+        }
 
         if ($request->hasFile('images')) {
             $images = $request->file('images');
@@ -57,24 +66,42 @@ class PhotoController extends Controller
                 return response()->json(['error' => 'Folders count must match images count'], 422);
             }
 
+            $uploaded = [];
+            $failed = [];
+
             foreach ($images as $index => $image) {
-                $originalFolder = $folders[$index];
-                $filename = $image->getClientOriginalName();
+                try {
+                    $originalFolder = $folders[$index];
+                    $filename = $image->getClientOriginalName();
 
-                // Prefix the folder with user ID
-                $userFolder = "$userId/$originalFolder";
+                    // ✅ ensure folder exists in DB (no duplicates)
+                    $folder = Folder::firstOrCreate(
+                        ['name' => $originalFolder, 'user_id' => $userId],
+                        ['name' => $originalFolder, 'user_id' => $userId]
+                    );
 
-                // Store under public disk at path: storage/app/public/{userId}/{folder}
-                $image->storeAs($userFolder, $filename, 'public');
+                    // store as "uploads/{userId}/{folderName}/filename"
+                    $path = $image->storeAs("uploads/$userId/$originalFolder", $filename, 'public');
 
-                // Save full relative path in DB: e.g., 21/test1/image.jpg
-                Photo::create([
-                    'path' => "$userFolder/$filename",
-                    'user_id' => $userId,
-                ]);
+                    // save photo with folder_id
+                    Photo::create([
+                        'path'      => $path,
+                        'user_id'   => $userId,
+                        'folder_id' => $folder->id,
+                    ]);
+
+                    $uploaded[] = asset('storage/' . $path);
+                } catch (\Exception $e) {
+                    \Log::error("Upload failed: " . $e->getMessage());
+                    $failed[] = $image->getClientOriginalName();
+                }
             }
 
-            return response()->json(['message' => 'Images uploaded successfully']);
+            return response()->json([
+                'message'  => 'Upload finished',
+                'uploaded' => $uploaded,
+                'failed'   => $failed
+            ]);
         }
 
         return response()->json(['error' => 'No images uploaded'], 400);

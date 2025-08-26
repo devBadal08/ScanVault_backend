@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\UserLoginController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\FolderShareController;
 use Illuminate\Support\Facades\Broadcast;
 
 // Your custom API route
@@ -26,5 +27,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/download-folder/{path}', [PhotoController::class, 'downloadFolderZip'])
         ->where('path', '.*')
         ->name('download.folder');
+
+    // 🔹 Folder Share routes
+    Route::post('/folder/share', [FolderShareController::class, 'share']);
+    Route::get('/folder/my-shared', [FolderShareController::class, 'mySharedFolders']);
+    Route::get('/folders/id', [FolderShareController::class, 'getFolderId']);
 });
 
