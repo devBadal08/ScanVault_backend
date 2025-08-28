@@ -18,66 +18,61 @@
 
         {{-- Step 2: Show Users --}}
         @elseif (!$selectedUser)
-            
             @if (Auth::user()->role === 'admin')
                 <div class="mb-4">
-                    {{-- Back to Managers --}}
                     <x-filament::button tag="a" href="{{ url()->current() }}" color="primary" icon="heroicon-o-arrow-left">
                         Back to Managers
                     </x-filament::button>
                 </div>
             @endif
+
             <h2 class="text-xl font-bold mb-4">Select User</h2>
             <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
                 @foreach ($users as $user)
                     <a href="?manager={{ $selectedManager->id }}&user={{ $user->id }}"
-                    class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
-
-                    {{-- User Icon --}}
-                    <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;"/>
-
-                    {{-- User Name --}}
-                    <span class="mt-1 text-sm text-black truncate w-24">{{ $user->name }}</span>
+                       class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
+                        <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;"/>
+                        <span class="mt-1 text-sm text-black truncate w-24">{{ $user->name }}</span>
                     </a>
                 @endforeach
             </div>
 
-        {{-- Step 3: Show Folders --}}
+        {{-- Step 3: Show Folders (grouped) --}}
         @elseif (!$selectedFolder)
             <div class="mb-4">
-                {{-- Back to Users --}}
                 <x-filament::button tag="a" href="?manager={{ $selectedManager->id }}" color="primary" icon="heroicon-o-arrow-left">
                     Back to Users
                 </x-filament::button>
             </div>
+
             <h2 class="text-xl font-bold mb-4">Folders of {{ $selectedUser->name }}</h2>
 
             @foreach ($folders as $group => $items)
-                {{-- Accordion Section --}}
                 <div class="mb-2 border rounded">
                     <button class="w-full text-left px-4 py-2 bg-gray-100 hover:bg-gray-200 focus:outline-none flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold">{{ $group }}</span>
                         <span class="text-sm">▼</span>
                     </button>
-                    <div class="accordion-content hidden px-4 py-2">
+
+                    <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             @foreach ($items as $folder)
                                 <div class="flex flex-col items-center justify-center text-center">
-                                    {{-- Download Icon --}}
+                                    {{-- Download folder --}}
                                     <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
-                                        title="Download Folder">
+                                       class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
+                                       title="Download Folder">
                                         <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                     </a>
 
-                                    {{-- Folder Link --}}
-                                    <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $folder['path'] }}"
-                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
+                                    {{-- Open folder --}}
+                                    <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
+                                       class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
                                         <div class="w-24 h-24 flex items-center justify-center">
                                             <x-heroicon-s-folder class="w-16 h-16 text-yellow-500" style="color: #facc15;" />
                                         </div>
-                                        <span class="mt-1 text-xs text-black truncate w-24" title="{{ basename($folder['name']) }}">
-                                            {{ Str::limit(basename($folder['name']), 20) }}
+                                        <span class="mt-1 text-xs text-black truncate w-24" title="{{ $folder['name'] }}">
+                                            {{ \Illuminate\Support\Str::limit($folder['name'], 20) }}
                                         </span>
                                     </a>
                                 </div>
@@ -87,15 +82,11 @@
                 </div>
             @endforeach
 
-        {{-- Step 4: Show Subfolders & Images --}}
+        {{-- Step 4: Inside a Folder -> Show merged grouped items (folders + images) --}}
         @elseif ($selectedFolder && !$selectedSubfolder)
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedFolder) }}</h2>
 
             <div class="mb-4">
-                @php
-                    $parentPath = $selectedFolder ? dirname($selectedFolder) : null;
-                @endphp
-
                 <x-filament::button
                     tag="a"
                     href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}"
@@ -105,176 +96,158 @@
                 </x-filament::button>
             </div>
 
-            {{-- Select All and Download Button --}}
-            <div class="flex items-center justify-between mb-2 ">
-                <label class="flex items-center space-x-8">
+            {{-- Select All + Download (images in this folder/page) --}}
+            <div class="flex items-center justify-between mb-2">
+                <label class="flex items-center space-x-2">
                     <input type="checkbox" id="select-all" class="form-checkbox">
-                    <span>Select All</span>
-                    (<span id="selected-count">0</span> )
+                    <span class="text-sm">Select All</span>
+                    (<span id="selected-count">0</span>)
                 </label>
-                <button id="download-selected"
-                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
+                <button id="download-selected" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
                     Download
                 </button>
             </div>
 
-            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-                {{-- Subfolders --}}
-                @foreach ($subfolders as $subfolder)
-                    <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
-                        
-                        {{-- 📥 Download subfolder --}}
-                        <a href="{{ route('download-folder', ['path' => $subfolder['path']]) }}"
-                        class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
-                        title="Download Subfolder">
-                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-                        </a>
+            {{-- ITEMS grouped by date --}}
+            @foreach ($items as $date => $groupItems)
+                <div class="mb-4 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 flex justify-between items-center accordion-header">
+                        <span class="text-sm font-semibold">{{ $date }}</span>
+                        <span class="text-sm">▼</span>
+                    </button>
 
-                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $subfolder['path'] }}"
-                        class="absolute inset-0 flex flex-col items-center justify-center px-2">
-                            📁
-                            <div class="mt-1 truncate px-1 w-full" title="{{ basename($subfolder['name']) }}">
-                                {{ Str::limit(basename($subfolder['name']), 20) }}
-                            </div>
-                        </a>
+                    <div class="accordion-content px-4 py-3">
+                        <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+                            @foreach ($groupItems as $item)
+                                @if ($item['type'] === 'folder')
+                                    {{-- folder card --}}
+                                    <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
+                                        <a href="{{ route('download-folder', ['path' => $item['path']]) }}"
+                                        class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
+                                        title="Download Subfolder">
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                        </a>
+
+                                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                            <div class="text-3xl">📁</div>
+                                            <div class="mt-1 truncate px-1 w-full" title="{{ $item['name'] }}">
+                                                {{ \Illuminate\Support\Str::limit($item['name'], 20) }}
+                                            </div>
+                                        </a>
+                                    </div>
+                                @else
+                                    {{-- image card --}}
+                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="{{ asset('storage/' . $item['path']) }}">
+                                        <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="relative w-32 h-32 block">
+                                            <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
+                                        </a>
+                                        <a href="{{ asset('storage/' . $item['path']) }}" download class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100">
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                        </a>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
                     </div>
-                @endforeach
+                </div>
+            @endforeach
 
-                {{-- Images --}}
-                @foreach ($images as $image)
-                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="{{ asset('storage/' . $image) }}">
-                        <a href="{{ asset('storage/' . $image) }}" target="_blank"
-                        class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                            <img src="{{ asset('storage/' . $image) }}"
-                                class="w-full h-full object-cover" alt="Image">
-                        </a>
+            {{-- pagination (images use $total & $perPage) --}}
+            @if ($total > $perPage)
+                <div class="mt-4 flex justify-center space-x-2">
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
+                    @endif
 
-                        <a href="{{ asset('storage/' . $image) }}" download
-                        class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100 transition"
-                        title="Download Image">
-                            @svg('heroicon-o-arrow-down-tray', 'w-5 h-5 text-gray-700')
-                        </a>
-                    </div>
-                @endforeach
+                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}" class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">{{ $i }}</a>
+                    @endfor
 
-                @if ($total > $perPage)
-                    <div class="mt-4 flex justify-center space-x-2">
-                        {{-- Previous --}}
-                        @if ($page > 1)
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}"
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
-                        @endif
+                    @if ($page < ceil($total / $perPage))
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Next</a>
+                    @endif
+                </div>
+            @endif
 
-                        {{-- Page numbers --}}
-                        @for ($i = 1; $i <= ceil($total / $perPage); $i++)
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
-                            class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">
-                                {{ $i }}
-                            </a>
-                        @endfor
-
-                        {{-- Next --}}
-                        @if ($page < ceil($total / $perPage))
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}"
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
-                        @endif
-                    </div>
-                @endif
-            </div>
-
-        {{-- Step 5: Show Images and subfolder in Subfolder --}}
+        {{-- Step 5: Inside a Subfolder -> Show merged grouped items (folders + images) --}}
         @elseif ($selectedSubfolder)
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedSubfolder) }}</h2>
 
             <div class="mb-4">
-                @php
-                    $parentPath = dirname($selectedSubfolder);
-                @endphp
-
-                <x-filament::button
-                    tag="a"
-                    href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($parentPath) }}"
-                    color="primary"
-                    icon="heroicon-o-arrow-left">
+                @php $parentPath = dirname($selectedSubfolder); @endphp
+                <x-filament::button tag="a" href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($parentPath) }}" color="primary" icon="heroicon-o-arrow-left">
                     Back to {{ basename($parentPath) }}
                 </x-filament::button>
             </div>
 
-            {{-- Select All and Download Buttons --}}
+            {{-- Select All + Download for subfolder-level images --}}
             <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" id="select-all-subfolder" class="form-checkbox">
-                    <span class="text-sm font-medium text-gray-700">Select All</span>
-                    (<span id="selected-count-subfolder">0</span> )
+                    <span class="text-sm">Select All</span>
+                    (<span id="selected-count-subfolder">0</span>)
                 </label>
-                <button id="download-selected-subfolder"
-                    class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 border border-transparent rounded-md font-semibold text-white hover:bg-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition">
+                <button id="download-selected-subfolder" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
                     Download
                 </button>
             </div>
 
-            {{-- Combined grid for subfolders + images --}}
-            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-                {{-- Subfolders inside this subfolder --}}
-                @if (!empty($subfolders))
-                    @foreach ($subfolders as $sf)
-                        <div class="relative w-32 h-32 bg-white rounded shadow border hover:bg-orange-100 text-center text-xs font-medium">
-                            {{-- Download ZIP icon for subfolder --}}
-                            <a href="{{ route('download-folder') }}?path={{ urlencode($sf['path']) }}"
-                                class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20"
-                                title="Download Subfolder">
-                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-                            </a>
+            {{-- same merged items UI as above, but links refer to deeper levels --}}
+            @foreach ($items as $date => $groupItems)
+                <div class="mb-4 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 flex justify-between items-center accordion-header">
+                        <span class="text-sm font-semibold">{{ $date }}</span>
+                        <span class="text-sm">▼</span>
+                    </button>
 
-                            <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ $selectedFolder }}&subfolder={{ $sf['path'] }}"
-                                class="absolute inset-0 flex flex-col items-center justify-center px-2">
-                                📁
-                                <div class="mt-1 truncate px-1 w-full" title="{{ basename($sf['name']) }}">
-                                    {{ Str::limit(basename($sf['name']), 20) }}
-                                </div>
-                            </a>
+                    <div class="accordion-content px-4 py-3">
+                        <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+                            @foreach ($groupItems as $item)
+                                @if ($item['type'] === 'folder')
+                                    <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
+                                        <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                        </a>
+
+                                        <a href="?manager={{ $selectedManager->id }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}" class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                            <div class="text-3xl">📁</div>
+                                            <div class="mt-1 truncate px-1 w-full" title="{{ $item['name'] }}">{{ \Illuminate\Support\Str::limit($item['name'], 20) }}</div>
+                                        </a>
+                                    </div>
+                                @else
+                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox-subfolder" value="{{ asset('storage/' . $item['path']) }}">
+                                        <a href="{{ asset('storage/' . $item['path']) }}" target="_blank">
+                                            <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
+                                        </a>
+                                    </div>
+                                @endif
+                            @endforeach
                         </div>
-                    @endforeach
-                @endif
-
-                {{-- Images --}}
-                @forelse ($images as $image)
-                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                        <input type="checkbox" class="absolute top-1 left-1 z-10 image-checkbox-subfolder" value="{{ asset('storage/' . $image) }}">
-                        <a href="{{ asset('storage/' . $image) }}" target="_blank"
-                            class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                            <img src="{{ asset('storage/' . $image) }}" class="w-full h-full object-cover" alt="Image">
-                        </a>
                     </div>
-                @empty
-                @endforelse
+                </div>
+            @endforeach
 
-                @if ($total > $perPage)
-                    <div class="mt-4 flex justify-center space-x-2">
-                        {{-- Previous --}}
-                        @if ($page > 1)
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}"
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
-                        @endif
+            {{-- pagination (same as above) --}}
+            @if ($total > $perPage)
+                <div class="mt-4 flex justify-center space-x-2">
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
+                    @endif
 
-                        {{-- Page numbers --}}
-                        @for ($i = 1; $i <= ceil($total / $perPage); $i++)
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
-                            class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">
-                                {{ $i }}
-                            </a>
-                        @endfor
+                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $i]) }}" class="px-3 py-1 rounded {{ $i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300' }}">{{ $i }}</a>
+                    @endfor
 
-                        {{-- Next --}}
-                        @if ($page < ceil($total / $perPage))
-                            <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}"
-                            class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
-                        @endif
-                    </div>
-                @endif
-            </div>
+                    @if ($page < ceil($total / $perPage))
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Next</a>
+                    @endif
+                </div>
+            @endif
         @endif
+
     </div>
 </x-filament::page>
 
@@ -285,7 +258,6 @@ document.addEventListener('DOMContentLoaded', function () {
         header.addEventListener('click', function() {
             const content = this.nextElementSibling;
             content.classList.toggle('hidden');
-            // Optional: rotate arrow
             this.querySelector('span:last-child').classList.toggle('rotate-180');
         });
     });
@@ -295,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById(countElementId).textContent = `${count} selected`;
     };
 
-    // Folder
+    // Folder images
     const folderCheckboxes = document.querySelectorAll('.image-checkbox');
     document.getElementById('select-all')?.addEventListener('change', function () {
         folderCheckboxes.forEach(cb => cb.checked = this.checked);
@@ -305,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cb.addEventListener('change', () => updateCount('.image-checkbox', 'selected-count'));
     });
 
-    // Subfolder
+    // Subfolder images
     const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder');
     document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
         subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
@@ -315,10 +287,10 @@ document.addEventListener('DOMContentLoaded', function () {
         cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder', 'selected-count-subfolder'));
     });
 
-    // Download logic (unchanged)
+    // Download selected (folder level)
     document.getElementById('download-selected')?.addEventListener('click', function () {
         const selected = [...document.querySelectorAll('.image-checkbox:checked')].map(cb => cb.value);
-        if (selected.length === 0) return alert('Please select at least one image to download.');
+        if (!selected.length) return alert('Please select at least one image to download.');
         selected.forEach(url => {
             const a = document.createElement('a');
             a.href = url;
@@ -330,9 +302,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Download selected (subfolder level)
     document.getElementById('download-selected-subfolder')?.addEventListener('click', function () {
         const selected = [...document.querySelectorAll('.image-checkbox-subfolder:checked')].map(cb => cb.value);
-        if (selected.length === 0) return alert('Please select at least one image to download.');
+        if (!selected.length) return alert('Please select at least one image to download.');
         selected.forEach(url => {
             const a = document.createElement('a');
             a.href = url;

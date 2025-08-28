@@ -23,18 +23,18 @@ class FolderWisePhotos extends Page
     public $adminUsers = [];
     public $managers = [];
     public $users = [];
-    public $folders = [];
-    public $subfolders = [];
-    public $images = [];
+    public $folders = [];      // top-level folders grouped by date
+    public $subfolders = [];   // raw subfolder list (not grouped) - useful for links
+    public $images = [];       // paginated image items (array)
+    public $items = [];        // merged items (folders + images) grouped by date
 
     // pagination properties
-    public int $perPage = 550; // images per page
+    public int $perPage = 550; // images per page (adjust if needed)
     public int $page = 1;     // current page
     public int $total = 0;    // total images
 
-    protected function groupByDate(array $folders): array
+    protected function groupByDate(array $items): array
     {
-        // Generate last 3 dates before today
         $lastThreeDays = [];
         for ($i = 1; $i <= 3; $i++) {
             $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
@@ -42,7 +42,7 @@ class FolderWisePhotos extends Page
 
         $groups = array_merge(
             ['Today' => []],
-            array_combine($lastThreeDays, array_fill(0, 3, [])), // Yesterday, 2 days ago, 3 days ago
+            array_combine($lastThreeDays, array_fill(0, 3, [])),
             [
                 'Last Week' => [],
                 'Earlier this Month' => [],
@@ -50,24 +50,28 @@ class FolderWisePhotos extends Page
             ]
         );
 
-        foreach ($folders as $folder) {
-            $created = Carbon::parse($folder['created_at']);
+        foreach ($items as $item) {
+            // safeguard: item must have created_at
+            if (!isset($item['created_at'])) {
+                continue;
+            }
+
+            $created = Carbon::parse($item['created_at']);
             $createdDate = $created->format('d-m-Y');
 
             if ($created->isToday()) {
-                $groups['Today'][] = $folder;
+                $groups['Today'][] = $item;
             } elseif (in_array($createdDate, $lastThreeDays)) {
-                $groups[$createdDate][] = $folder;
+                $groups[$createdDate][] = $item;
             } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
-                $groups['Last Week'][] = $folder;
+                $groups['Last Week'][] = $item;
             } elseif ($created->month === now()->month) {
-                $groups['Earlier this Month'][] = $folder;
+                $groups['Earlier this Month'][] = $item;
             } else {
-                $groups['Older'][] = $folder;
+                $groups['Older'][] = $item;
             }
         }
 
-        // remove empty groups
         return array_filter($groups);
     }
 
@@ -79,89 +83,112 @@ class FolderWisePhotos extends Page
         $folder = request()->get('folder');
         $subfolder = request()->get('subfolder');
 
+        // ADMIN -> managers & adminUsers
         if ($authUser->role === 'admin') {
             $adminId = $authUser->id;
-            $this->managers = \App\Models\User::where('role', 'manager')->where('created_by', $adminId)->get();
-            $this->adminUsers = \App\Models\User::where('role', 'user')->where('created_by', $adminId)->get();
+            $this->managers = \App\Models\User::where('role', 'manager')
+                ->where('created_by', $adminId)
+                ->get();
+            $this->adminUsers = \App\Models\User::where('role', 'user')
+                ->where('created_by', $adminId)
+                ->get();
 
             if ($managerId) {
                 $this->selectedManager = $this->managers->firstWhere('id', $managerId);
-                $this->users = \App\Models\User::where('role', 'user')->where('created_by', $managerId)->get();
+                $this->users = \App\Models\User::where('role', 'user')
+                    ->where('created_by', $managerId)
+                    ->get();
             }
-
         } elseif ($authUser->role === 'manager') {
+            // MANAGER -> his users
             $this->selectedManager = $authUser;
-            $this->users = \App\Models\User::where('role', 'user')->where('created_by', $authUser->id)->get();
+            $this->users = \App\Models\User::where('role', 'user')
+                ->where('created_by', $authUser->id)
+                ->get();
         }
 
+        // If a user is selected
         if ($userId) {
             $this->selectedUser = \App\Models\User::find($userId);
             if (!$this->selectedUser) return;
 
             $baseUserPath = $userId;
 
+            // STEP 2: Show top-level folders grouped by date
             if (!$folder) {
                 $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
                     ->map(fn($dir) => [
                         'path'       => $dir,
                         'name'       => basename($dir),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                        ->toDateTimeString(),
+                                            ->toDateTimeString(),
                     ])
                     ->toArray();
 
                 $this->folders = $this->groupByDate($rawFolders);
-            } elseif (!$subfolder) {
-                $this->selectedFolder = $folder;
+            }
 
-                $this->subfolders = collect(Storage::disk('public')->directories($folder))
-                ->map(fn($dir) => [
-                    'path'       => $dir,
-                    'name'       => basename($dir),
-                    'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                    ->toDateTimeString(),
-                ])
-                ->toArray();
-                // ✅ Paginate images here
-                $allImages = collect(Storage::disk('public')->files($folder))
-                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
+            // STEP 3 / STEP 4: inside a folder (either listing subfolders/images of $folder,
+            // or if $subfolder present, listing deeper subfolders/images of $subfolder)
+            else {
+                // note: set selected folder(s)
+                $this->selectedFolder = $folder;
+                $targetPath = $subfolder ? $subfolder : $folder; // where to read items from
+                if ($subfolder) {
+                    $this->selectedSubfolder = $subfolder;
+                }
+
+                // --- subfolders inside targetPath ---
+                $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
+                    ->map(fn($dir) => [
+                        'type'       => 'folder',
+                        'path'       => $dir,
+                        'name'       => basename($dir),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                            ->toDateTimeString(),
+                    ]);
+
+                // store raw subfolders for other uses (links, downloads)
+                $this->subfolders = $rawSubfolders->values()->toArray();
+
+                // --- all images in targetPath (for pagination + merging) ---
+                $allImages = collect(Storage::disk('public')->files($targetPath))
+                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png']))
+                    ->map(fn($file) => [
+                        'type'       => 'image',
+                        'path'       => $file,
+                        'name'       => basename($file),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
+                                            ->toDateTimeString(),
+                    ])
                     ->values();
 
+                // pagination values
                 $this->total = $allImages->count();
-                $this->images = $allImages
+
+                // images for current page
+                $imagesPaged = $allImages
                     ->forPage($this->page, $this->perPage)
-                    ->toArray();
-
-            } else {
-                $this->selectedFolder = $folder;
-                $this->selectedSubfolder = $subfolder;
-
-                // ✅ Fetch deeper subfolders
-                $this->subfolders = collect(Storage::disk('public')->directories($subfolder))
-                ->map(fn($dir) => [
-                    'path'       => $dir,
-                    'name'       => basename($dir),
-                    'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                    ->toDateTimeString(),
-                ])
-                ->toArray();
-
-                // ✅ Paginate images here
-                $allImages = collect(Storage::disk('public')->files($subfolder))
-                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
                     ->values();
 
-                $this->total = $allImages->count();
-                $this->images = $allImages
-                    ->forPage($this->page, $this->perPage)
-                    ->toArray();
+                $this->images = $imagesPaged->toArray();
+
+                // Separate folders and images
+                $foldersSorted = $rawSubfolders->sortByDesc(fn($i) => $i['created_at'])->values();
+                $imagesSorted  = $imagesPaged->sortByDesc(fn($i) => $i['created_at'])->values();
+
+                // Merge with folders always first
+                $merged = $foldersSorted->merge($imagesSorted)->values();
+
+                // group merged items by date using same groupByDate helper
+                $this->items = $this->groupByDate($merged->toArray());
             }
         }
     }
 
-    // 👇 When page changes, reload images
+    // When page changes (Livewire property), reload mount
     public function updatedPage()
     {
-        $this->mount(); // re-run mount to refresh images
+        $this->mount();
     }
 }
