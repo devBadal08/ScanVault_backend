@@ -50,7 +50,7 @@ class FolderShareController extends Controller
         $share = FolderShare::create([
             'folder_id'   => $request->folder_id,
             'shared_by'   => auth()->id(),
-            'shared_with' => $sharedWithUser->id, // 👈 use ID, not email
+            'shared_with' => $sharedWithUser->id, // use ID, not email
         ]);
 
         return response()->json([
@@ -61,9 +61,13 @@ class FolderShareController extends Controller
 
     public function mySharedFolders()
     {
-        $folders = FolderShare::with('folder')
-            ->where('shared_with', auth()->id())
-            ->get();
+        $folders = FolderShare::with(['folder.photos'])->where('shared_with', auth()->id())->get();
+
+        $folders->each(function ($share) {
+            $share->folder->photos->each(function ($photo) {
+                $photo->url = asset('storage/' . $photo->path);
+            });
+        });
 
         return response()->json($folders);
     }

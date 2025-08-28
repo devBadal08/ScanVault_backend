@@ -20,11 +20,11 @@ class PhotoController extends Controller
         }
         if ($request->hasFile('image')) {
             $folder = $request->input('folder', 'default'); // Optional: choose folder like "test18"
-            $path = $request->file('image')->store("uploads/$folder", 'public');
+            $path = $request->file('image')->store("$userId/$folder", 'public');
 
             // Save path in DB
             Photo::create([
-                'path' => $path, // e.g., "uploads/test18/image.jpg"
+                'path' => $path, // e.g., "test18/image.jpg"
                 'user_id' => Auth::id(),
             ]);
             return response()->json(['message' => 'Uploaded successfully']);
@@ -40,7 +40,7 @@ class PhotoController extends Controller
         $query = Photo::where('user_id', $user->id);
 
         if ($folder) {
-            $query->where('path', 'like', "%uploads/$folder/%");
+            $query->where('path', 'like', "%$folder/%");
         }
         return response()->json($query->get());
     }
@@ -80,8 +80,8 @@ class PhotoController extends Controller
                         ['name' => $originalFolder, 'user_id' => $userId]
                     );
 
-                    // store as "uploads/{userId}/{folderName}/filename"
-                    $path = $image->storeAs("uploads/$userId/$originalFolder", $filename, 'public');
+                    // store as "{userId}/{folderName}/filename"
+                    $path = $image->storeAs("$userId/$originalFolder", $filename, 'public');
 
                     // save photo with folder_id
                     Photo::create([
@@ -109,7 +109,7 @@ class PhotoController extends Controller
 
     public function getImagesByFolder($folderName)
     {
-        $folderPath = "uploads/$folderName"; // not 'public/uploads/...'
+        $folderPath = $folderName; // not 'public/...'
         if (!Storage::disk('public')->exists($folderPath)) {
             return response()->json(['message' => 'Folder not found'], 404);
         }
