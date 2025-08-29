@@ -5,13 +5,13 @@ namespace App\Filament\Admin\Pages;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use App\Models\User;
 
 class ManagerUsersPage extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
-
     protected static string $view = 'filament.admin.pages.manager-users-page';
+    protected static ?string $navigationIcon = 'heroicon-o-photo';
     protected static ?string $navigationGroup = 'Photos';
     protected static ?string $navigationLabel = 'Manager Users';
     protected static ?int $navigationSort = 8;
@@ -22,16 +22,51 @@ class ManagerUsersPage extends Page
     public $subfolders = [];
     public $images = [];
     public $users = [];
+    public $items = [];
 
     public $selectedManager = null;
     public $selectedUser = null;
     public $selectedFolder = null;
     public $selectedSubfolder = null;
 
-    // pagination properties
-    public int $perPage = 550; // number of images per page
-    public int $page = 1;     // current page
-    public int $total = 0;   // total images
+    public int $perPage = 550;
+    public int $page = 1;
+    public int $total = 0;
+
+    protected function groupByDate(array $items): array
+    {
+        $lastThreeDays = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
+        }
+
+        $groups = array_merge(
+            ['Today' => []],
+            array_combine($lastThreeDays, array_fill(0, 3, [])),
+            ['Last Week' => [], 'Earlier this Month' => [], 'Older' => []]
+        );
+
+        foreach ($items as $item) {
+            if (!isset($item['created_at'])) continue;
+
+            $created = Carbon::parse($item['created_at']);
+            $createdDate = $created->format('d-m-Y');
+
+            if ($created->isToday()) {
+                $groups['Today'][] = $item;
+            } elseif (in_array($createdDate, $lastThreeDays)) {
+                $groups[$createdDate][] = $item;
+            } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
+                $groups['Last Week'][] = $item;
+            } elseif ($created->month === now()->month) {
+                $groups['Earlier this Month'][] = $item;
+            } else {
+                $groups['Older'][] = $item;
+            }
+        }
+
+        return array_filter($groups);
+    }
 
     public function mount(): void
     {
@@ -66,61 +101,75 @@ class ManagerUsersPage extends Page
                 ->get();
         }
 
+        // -------------------------------
+        // Selected user: show folders/images
+        // -------------------------------
         if ($userId) {
-            $this->selectedUser = \App\Models\User::find($userId);
+            $this->selectedUser = User::find($userId);
             if (!$this->selectedUser) return;
 
             $baseUserPath = $userId;
 
+            // Top-level folders
             if (!$folder) {
-                $this->folders = Storage::disk('public')->directories($baseUserPath);
+                $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
+                    ->map(fn($dir) => [
+                        'path' => $dir,
+                        'name' => basename($dir),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                            ->toDateTimeString(),
+                    ])->toArray();
 
-            } elseif (!$subfolder) {
+                $this->folders = $this->groupByDate($rawFolders);
+            }
+            // Inside folder / subfolder
+            else {
                 $this->selectedFolder = $folder;
+                $targetPath = $subfolder ?: $folder;
+                if ($subfolder) $this->selectedSubfolder = $subfolder;
 
-                $this->subfolders = Storage::disk('public')->directories($folder);
+                // Subfolders
+                $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
+                    ->map(fn($dir) => [
+                        'type' => 'folder',
+                        'path' => $dir,
+                        'name' => basename($dir),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
+                                            ->toDateTimeString(),
+                    ]);
+                $this->subfolders = $rawSubfolders->values()->toArray();
 
-                // ✅ Paginate images here
-                $allImages = collect(Storage::disk('public')->files($folder))
-                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
-                    ->values();
+                // Images
+                $allImages = collect(Storage::disk('public')->files($targetPath))
+                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png']))
+                    ->map(fn($file) => [
+                        'type' => 'image',
+                        'path' => $file,
+                        'name' => basename($file),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
+                                            ->toDateTimeString(),
+                    ])->values();
 
                 $this->total = $allImages->count();
-                $this->images = $allImages
-                    ->forPage($this->page, $this->perPage)
-                    ->toArray();
 
-            } else {
-                $this->selectedFolder = $folder;
-                $this->selectedSubfolder = $subfolder;
+                $imagesPaged = $allImages->forPage($this->page, $this->perPage)->values();
+                $this->images = $imagesPaged->toArray();
 
-                // ✅ Fetch deeper subfolders
-                $this->subfolders = Storage::disk('public')->directories($subfolder);
-
-                // ✅ Paginate images here
-                $allImages = collect(Storage::disk('public')->files($subfolder))
-                    ->filter(fn ($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png']))
-                    ->values();
-
-                $this->total = $allImages->count();
-                $this->images = $allImages
-                    ->forPage($this->page, $this->perPage)
-                    ->toArray();
+                // Merge folders first, then images
+                $merged = $rawSubfolders->sortByDesc('created_at')->merge($imagesPaged->sortByDesc('created_at'))->values();
+                $this->items = $this->groupByDate($merged->toArray());
             }
         }
+    }
+
+    public function updatedPage()
+    {
+        $this->mount();
     }
 
     public static function shouldRegisterNavigation(): bool
     {
         $user = auth()->user();
-
-        // Managers and admins can see it
         return $user && in_array($user->role, ['manager', 'admin']);
-    }
-
-    // When page changes, reload images
-    public function updatedPage()
-    {
-        $this->mount(); // re-run mount to refresh images
     }
 }
