@@ -49,4 +49,42 @@ class DownloadController extends Controller
 
         return response()->json(['error' => 'Could not create zip.'], 500);
     }
+
+    public function downloadToday(Request $request)
+    {
+        $today = now()->toDateString();
+
+        // 1. Get all images uploaded today
+        $images = \DB::table('photos')
+            ->whereDate('created_at', $today)
+            ->get();
+
+        if ($images->isEmpty()) {
+            return response()->json(['error' => 'No images found for today.'], 404);
+        }
+
+        // 2. Prepare zip
+        $zipFileName = 'today_images_' . $today . '.zip';
+        $zipPath = storage_path('app/temp/' . $zipFileName);
+
+        if (!is_dir(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        $zip = new \ZipArchive;
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
+            foreach ($images as $img) {
+                $filePath = storage_path('app/public/' . $img->path);
+                if (file_exists($filePath)) {
+                    // Add to zip (keep relative folder structure)
+                    $zip->addFile($filePath, $img->path);
+                }
+            }
+            $zip->close();
+
+            return response()->download($zipPath)->deleteFileAfterSend(true);
+        }
+
+        return response()->json(['error' => 'Could not create zip.'], 500);
+    }
 }

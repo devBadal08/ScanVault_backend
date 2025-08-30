@@ -35,14 +35,14 @@ class LoginController extends Controller
             } else {
                 Auth::logout();
                 return back()->withErrors([
-                    'email' => 'Your account does not have permission to access this system.',
+                    'login_error' => 'Your account does not have permission to access this system.',
                 ])->withInput($request->only('email'));
             }
         }
 
         // Step 4: Invalid email/password
         return back()->withErrors([
-            'password' => 'Invalid email or password.',
+            'login_error' => 'Invalid email or password.',
         ])->withInput($request->only('email'));
     }
 

@@ -53,6 +53,17 @@
 
             <h2 class="text-xl font-bold mb-4">Folders of {{ $selectedUser->name }}</h2>
 
+            <div class="mb-4 flex justify-end">
+                <x-filament::button
+                    tag="a"
+                    href="{{ route('download-today-folders') }}"
+                    color="success"
+                    icon="heroicon-o-arrow-down-tray"
+                >
+                    Download Today’s Folders
+                </x-filament::button>
+            </div>
+
             @foreach ($folders as $group => $items)
                 <div class="mb-2 border rounded">
                     <button class="w-full text-left px-4 py-2 bg-gray-100 hover:bg-gray-200 flex justify-between items-center accordion-header">

@@ -24,6 +24,12 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        dd([
+            'session_id' => session()->getId(),
+            'csrf_token' => csrf_token(),
+            'all_session' => session()->all(),
+        ]);
+        
         $request->authenticate();
 
         $request->session()->regenerate();

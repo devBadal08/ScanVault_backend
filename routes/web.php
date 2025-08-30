@@ -29,10 +29,10 @@ require __DIR__.'/auth.php';
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
 Route::get('/download-folder', [DownloadController::class, 'download'])->name('download-folder');
-Route::get('/download-test', function (Request $request) {
-    return $request->query('path');
-});
+Route::get('/download-today-folders', [DownloadController::class, 'downloadToday'])
+    ->name('download-today-folders');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', function () {

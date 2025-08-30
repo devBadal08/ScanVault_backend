@@ -2,33 +2,41 @@
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    
-
     <form method="POST" action="{{ route('login') }}">
         @csrf
-@if (session('debug'))
-    <p class="text-red-500">{{ session('debug') }}</p>
-@endif
 
         <!-- Email Address -->
-<div>
-    <x-input-label for="email" :value="__('Email')" />
-    <x-text-input id="email" class="block mt-1 w-full @error('email') border-red-500 @enderror"
-        type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-    @error('email')
-        <div class="text-red-500 mt-2">{{ $message }}</div>
-    @enderror
-</div>
+        <div>
+            <x-input-label for="email" :value="__('Email')" />
+            <x-text-input id="email"
+                class="block mt-1 w-full @error('email') border-red-500 @enderror"
+                type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
 
-<!-- Password -->
-<div class="mt-4">
-    <x-input-label for="password" :value="__('Password')" />
-    <x-text-input id="password" class="block mt-1 w-full @error('password') border-red-500 @enderror"
-        type="password" name="password" required autocomplete="current-password" />
-    @error('password')
-        <div class="text-red-500 mt-2">{{ $message }}</div>
-    @enderror
-</div>
+            <!-- Email validation error -->
+            @error('email')
+                <div class="text-red-500 mt-2">Invalid Email</div>
+            @enderror
+        </div>
+
+        <!-- Password -->
+        <div class="mt-4">
+            <x-input-label for="password" :value="__('Password')" />
+            <x-text-input id="password"
+                class="block mt-1 w-full @error('password') border-red-500 @enderror"
+                type="password" name="password" required autocomplete="current-password" />
+
+            <!-- Password validation error -->
+            @error('password')
+                <div class="text-red-500 mt-2">Invalid password</div>
+            @enderror
+
+            <!-- Login error (invalid credentials / unauthorized role) -->
+            @if ($errors->has('login_error'))
+                <div class="text-red-500 mt-2">
+                    {{ $errors->first('login_error') }}
+                </div>
+            @endif
+        </div>
 
         <!-- Remember Me -->
         <div class="block mt-4">
