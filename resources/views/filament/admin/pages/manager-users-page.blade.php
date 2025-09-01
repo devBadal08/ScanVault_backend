@@ -19,7 +19,8 @@
         {{-- Step 2: Show Folders --}}
         @elseif ($selectedUser && !$selectedFolder)
             <h2 class="text-xl font-bold mb-4">Folders of {{ $selectedUser->name }}</h2>
-            <div class="mb-4 flex space-x-2">
+
+            <div class="mb-4 flex justify-between items-center">
                 {{-- Back to User list --}}
                 <x-filament::button 
                     tag="a" 
@@ -27,6 +28,16 @@
                     color="primary" 
                     icon="heroicon-o-arrow-left">
                     Back to Users
+                </x-filament::button>
+
+                {{-- Download Today’s Folders --}}
+                <x-filament::button
+                    tag="a"
+                    href="{{ route('download-today-folders', ['user' => $selectedUser->id]) }}"
+                    color="success"
+                    icon="heroicon-o-arrow-down-tray"
+                >
+                    Download Today’s Folders
                 </x-filament::button>
             </div>
             
