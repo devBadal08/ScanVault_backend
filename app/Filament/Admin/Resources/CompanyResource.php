@@ -80,7 +80,7 @@ class CompanyResource extends Resource
     {
         return [
             NavigationItem::make('Create Companies')
-                ->url(static::getUrl('create'))
+                ->url(static::getUrl('index'))
                 ->icon('heroicon-o-plus-circle')
                 ->group('Administration'),
 

@@ -154,6 +154,7 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 'role' => 'user',
                 'created_by' => $currentUser->id,
                 'assigned_to'=> $currentUser->id,
+                'company_id' => $currentUser->company_id,
             ]);
             $user->assignRole('user');
             Notification::make()->title('User Created')->success()->send();

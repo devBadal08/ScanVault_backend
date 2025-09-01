@@ -20,4 +20,11 @@ class Company extends Model
         return $this->hasMany(User::class);
     }
 
+    public function getCompanyLogoUrlAttribute()
+    {
+        return $this->company_logo
+            ? asset('storage/' . $this->company_logo)
+            : null;
+    }
+
 }
