@@ -35,7 +35,7 @@
             <h2 class="text-xl font-bold mb-4">Users under {{ $selectedManager->name }}</h2>
             <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
                 @foreach ($users as $user)
-                    <a href="?user={{ $user->id }}"
+                    <a href="?manager={{ $selectedManager->id }}&user={{ $user->id }}"
                         class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
                         <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;" />
                         <span class="mt-1 text-sm text-black truncate w-24">{{ $user->name }}</span>
@@ -46,8 +46,8 @@
         {{-- Step 3: Show Folders (grouped by date) --}}
         @elseif ($selectedUser && !$selectedFolder)
             <div class="mb-4">
-                <x-filament::button tag="a" href="{{ url()->current() }}?{{ $selectedManager ? 'manager='.$selectedManager->id : '' }}" color="primary" icon="heroicon-o-arrow-left">
-                    Back
+                <x-filament::button tag="a" href="?{{ $selectedManager ? 'manager='.$selectedManager->id : '' }}" color="primary" icon="heroicon-o-arrow-left">
+                    Back to Users
                 </x-filament::button>
             </div>
 

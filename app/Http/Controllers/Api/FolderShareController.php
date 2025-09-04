@@ -71,4 +71,35 @@ class FolderShareController extends Controller
 
         return response()->json($folders);
     }
+
+    public function getSharedFolderPhotos($id)
+    {
+        // Find the shared folder entry
+        $share = FolderShare::with(['folder.photos'])
+            ->where('shared_with', auth()->id()) // only if this user has access
+            ->where('folder_id', $id)
+            ->first();
+
+        if (!$share) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Folder not found or not shared with you.'
+            ], 404);
+        }
+
+        // Attach public URLs for photos
+        $photos = $share->folder->photos->map(function ($photo) {
+            return [
+                'id'   => $photo->id,
+                'path' => $photo->path,
+                'url'  => asset('storage/' . $photo->path),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'folder_id' => $id,
+            'photos' => $photos,
+        ]);
+    }
 }
