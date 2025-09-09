@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\FolderShare;
 use App\Models\Folder;
+use App\Models\Photo;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 
 class FolderShareController extends Controller
@@ -100,6 +102,72 @@ class FolderShareController extends Controller
             'success' => true,
             'folder_id' => $id,
             'photos' => $photos,
+        ]);
+    }
+
+    public function uploadToSharedFolder(Request $request, $folderId)
+    {
+        $userId = Auth::id();
+
+        // check access
+        $hasAccess = Folder::where('id', $folderId)->where('user_id', $userId)->exists()
+            || FolderShare::where('folder_id', $folderId)->where('shared_with', $userId)->exists();
+
+        if (!$hasAccess) {
+            return response()->json(['success' => false, 'message' => 'Not authorized'], 403);
+        }
+
+        $folder = Folder::findOrFail($folderId);
+
+        $request->validate([
+            'photos'   => 'required|array',
+            'photos.*' => 'file|mimes:jpg,jpeg,png|max:5120',
+        ]);
+
+        // ✅ multiple files come in as array
+        $files = $request->file('photos');
+
+        if (!$files || !is_array($files)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No files uploaded.'
+            ], 400);
+        }
+
+        $uploaded = [];
+        foreach ($files as $file) {
+            if (!$file->isValid()) continue;
+
+            $originalName = $file->getClientOriginalName();
+
+            // ✅ check if file with same name already exists in this folder
+            $exists = Photo::where('folder_id', $folderId)
+                ->where('user_id', $folder->user_id)
+                ->where('path', 'like', "%$originalName")
+                ->exists();
+
+            if ($exists) {
+                continue; // skip duplicate
+            }
+
+            $filename = time().'_'.uniqid().'_'.$originalName;
+            $safeFolderName = Str::slug($folder->name, '_');
+
+            $path = $file->storeAs("{$folder->user_id}/shared/{$safeFolderName}", $filename, 'public');
+
+            Photo::create([
+                'path'        => $path,
+                'user_id'     => $folder->user_id,
+                'folder_id'   => $folderId,
+                'uploaded_by' => $userId,
+            ]);
+
+            $uploaded[] = asset('storage/'.$path);
+        }
+
+        return response()->json([
+            'success'  => true,
+            'uploaded' => $uploaded,
         ]);
     }
 }

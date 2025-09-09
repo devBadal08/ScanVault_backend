@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 class Photo extends Model
 {
     use HasFactory;
-    protected $fillable = ['path', 'user_id', 'folder_id'];
+    protected $fillable = ['path', 'user_id', 'folder_id', 'uploaded_by'];
 
     public function getUrlAttribute()
     {
@@ -24,5 +24,10 @@ class Photo extends Model
     public function folder()
     {
         return $this->belongsTo(Folder::class);
+    }
+
+    public function uploader()
+    {
+        return $this->belongsTo(User::class, 'uploaded_by');
     }
 }

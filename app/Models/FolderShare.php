@@ -14,7 +14,7 @@ class FolderShare extends Model
 
     public function folder()
     {
-        return $this->belongsTo(Folder::class);
+        return $this->belongsTo(Folder::class, 'folder_id');
     }
 
     public function sharedByUser()

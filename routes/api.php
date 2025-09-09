@@ -33,5 +33,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/folder/my-shared', [FolderShareController::class, 'mySharedFolders']);
     Route::get('/folders/id', [FolderShareController::class, 'getFolderId']);
     Route::get('/shared-folder/{id}/photos', [FolderShareController::class, 'getSharedFolderPhotos']);
+    Route::post('/shared-folders/{id}/upload', [\App\Http\Controllers\Api\FolderShareController::class, 'uploadToSharedFolder']);
 });
 
