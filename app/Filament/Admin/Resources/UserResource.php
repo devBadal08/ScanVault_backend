@@ -38,10 +38,20 @@ class UserResource extends Resource
         if ($currentUser && $currentUser->hasRole('admin')) {
             $adminMaxLimit = $currentUser->max_limit ?? 0;
 
-            $totalCreatedUsers = User::where('created_by', $currentUser->id)
-                                    ->count();
+            // direct + indirect users
+            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
+            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
+            $directCount = count($directUserIds);
 
-            $availableLimit = max($adminMaxLimit - $totalCreatedUsers, 0);
+            // ✅ manager limits already assigned
+            $assignedLimitToManagers = User::where('role', 'manager')
+                ->where('created_by', $currentUser->id)
+                ->sum('max_limit');
+
+            // ✅ used = direct users + indirect users + assigned manager limits
+            $used = $directCount + $indirectCount + $assignedLimitToManagers;
+
+            $availableLimit = max($adminMaxLimit - $used, 0);
         }
 
         return $form
@@ -144,24 +154,23 @@ class UserResource extends Resource
 
         // Only enforce for admin (skip Super Admin or adapt if needed)
         if ($currentUser && $currentUser->hasRole('admin')) {
-            // Get IDs of users created by this admin (level 1)
             $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
-
-            // Count users created by those users (level 2, e.g., managers)
             $indirectCount = User::whereIn('created_by', $directUserIds)->count();
-
-            // Count direct users (managers + users)
             $directCount = count($directUserIds);
-
-            // Total users created (direct + indirect)
             $createdCount = $directCount + $indirectCount;
+
+            // ✅ Sum of limits already given to managers
+            $assignedLimitToManagers = User::where('created_by', $currentUser->id)
+                ->where('role', 'manager')
+                ->sum('max_limit');
+
+            $totalUsed = $createdCount + $assignedLimitToManagers;
             $maxLimit = $currentUser->max_limit ?? 0;
 
-            if ($createdCount >= $maxLimit) {
-                // Use Filament's Notification
+            if ($totalUsed >= $maxLimit) {
                 \Filament\Notifications\Notification::make()
                     ->title('Limit Reached')
-                    ->body('You have reached your maximum user creation limit.')
+                    ->body('You have reached your maximum limit.')
                     ->danger()
                     ->send();
 
@@ -188,9 +197,16 @@ class UserResource extends Resource
         if ($currentUser && $currentUser->hasRole('admin')) {
             $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
             $indirectCount = User::whereIn('created_by', $directUserIds)->count();
-            $createdCount = count($directUserIds) + $indirectCount;
+
+            // ✅ manager limits already assigned
+            $assignedLimitToManagers = User::where('role', 'manager')
+                ->where('created_by', $currentUser->id)
+                ->sum('max_limit');
+
+            $createdCount = count($directUserIds) + $indirectCount + $assignedLimitToManagers;
             $maxLimit = $currentUser->max_limit ?? 0;
-            return $createdCount < $maxLimit;
+
+            return $createdCount < $maxLimit; // ❌ disables button if limit reached
         }
 
         return true;

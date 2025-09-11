@@ -5,14 +5,19 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use ZipArchive;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DownloadController extends Controller
 {
     public function download(Request $request)
     {
-        $folder = urldecode($request->query('path'));
+        $folder = trim($request->query('path'));
         $folderPath = storage_path('app/public/' . $folder);
+
+        if (!str_starts_with(realpath($folderPath), storage_path('app/public'))) {
+            return response()->json(['error' => 'Invalid path.'], 400);
+        }
 
         if (!is_dir($folderPath)) {
             return response()->json(['error' => 'Folder does not exist.'], 404);
@@ -28,7 +33,7 @@ class DownloadController extends Controller
         }
 
         $zip = new ZipArchive;
-        if ($zip->open($zipPath, ZipArchive::CREATE) === TRUE) {
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($folderPath),
                 \RecursiveIteratorIterator::LEAVES_ONLY
@@ -55,9 +60,7 @@ class DownloadController extends Controller
         $today = now()->toDateString();
 
         // 1. Get all images uploaded today
-        $images = \DB::table('photos')
-            ->whereDate('created_at', $today)
-            ->get();
+        $images = DB::table('photos')->whereDate('created_at', $today)->get();
 
         if ($images->isEmpty()) {
             return response()->json(['error' => 'No images found for today.'], 404);

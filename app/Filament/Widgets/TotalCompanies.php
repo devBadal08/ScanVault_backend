@@ -70,8 +70,14 @@ class TotalCompanies extends BaseWidget
             // Count direct creations by admin (managers + users)
             $directlyCreated = User::where('created_by', $currentUser->id)->count();
 
-            // Total usage: direct + indirect
-            $createdCount = $directlyCreated + $usersByManagers;
+            // ✅ Sum of limits assigned to managers
+            $assignedLimitToManagers = User::where('role', 'manager')
+                ->where('created_by', $currentUser->id)
+                ->sum('max_limit');
+
+            // ✅ Total usage = direct users + indirect users + assigned manager limits
+            $createdCount = $directlyCreated + $usersByManagers + $assignedLimitToManagers;
+
             $maxLimit = $currentUser->max_limit ?? 0;
 
             if ($createdCount >= $maxLimit) {

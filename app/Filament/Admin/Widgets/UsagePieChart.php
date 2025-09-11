@@ -30,29 +30,36 @@ class UsagePieChart extends ChartWidget
 
         $adminId = $currentUser->id;
 
-        // get managers created by this admin
+        // Managers created by this admin
         $managerIds = User::where('created_by', $adminId)
-                        ->where('role', 'manager')
-                        ->pluck('id')
-                        ->toArray();
+            ->where('role', 'manager')
+            ->pluck('id')
+            ->toArray();
 
-        // count users created by managers
+        // Users created by those managers
         $managerUsersCount = User::whereIn('created_by', $managerIds)->count();
 
-        // count users created directly by this admin
+        // Direct users (including managers + normal users)
         $directUserCount = User::where('created_by', $adminId)->count();
 
-        $totalCreated = $directUserCount + $managerUsersCount;
+        // ✅ Sum of limits assigned to managers
+        $assignedLimitToManagers = User::where('role', 'manager')
+            ->where('created_by', $adminId)
+            ->sum('max_limit');
+
+        // ✅ Total usage = direct users + users created by managers + assigned manager limits
+        $totalUsed = $directUserCount + $managerUsersCount + $assignedLimitToManagers;
+
         $maxLimit = $currentUser->max_limit ?? 10;
-        $remaining = max($maxLimit - $totalCreated, 0);
+        $remaining = max($maxLimit - $totalUsed, 0);
 
         return [
             'datasets' => [
                 [
                     'label' => 'Usage',
-                    'data' => [$totalCreated, $remaining],
+                    'data' => [$totalUsed, $remaining],
                     'backgroundColor' => [
-                        $this->getUsageColor($totalCreated, $maxLimit),
+                        $this->getUsageColor($totalUsed, $maxLimit),
                         '#e5e7eb'
                     ],
                 ],
