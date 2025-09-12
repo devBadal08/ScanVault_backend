@@ -17,6 +17,11 @@ class UserList extends Page
         return 2; // appear second in the Admin group
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return true; // ensures it appears in the menu
+    }
+
     protected function getViewData(): array
     {
         $user = auth()->user();
@@ -50,7 +55,7 @@ class UserList extends Page
         ];
     }
 
-    public static function canAccess(): bool
+     public static function canAccess(): bool
     {
         return auth()->check() && (
             auth()->user()->hasRole('admin') ||

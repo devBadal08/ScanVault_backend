@@ -97,7 +97,7 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
-            <!-- @if ($total > $perPage)
+            @if ($total > $perPage)
                 <div class="mt-4 flex justify-center space-x-2">
                     @if ($page > 1)
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -111,7 +111,7 @@
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     @endif
                 </div>
-            @endif -->
+            @endif
 
         {{-- Step 4: Inside a Folder --}}
         @elseif ($selectedFolder && !$selectedSubfolder)
@@ -180,7 +180,7 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
-            <!-- @if ($total > $perPage)
+            @if ($total > $perPage)
                 <div class="mt-4 flex justify-center space-x-2">
                     @if ($page > 1)
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -194,7 +194,7 @@
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     @endif
                 </div>
-            @endif -->
+            @endif
 
         {{-- Step 5: Inside a Subfolder --}}
         @elseif ($selectedSubfolder)
@@ -254,7 +254,7 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
-            <!-- @if ($total > $perPage)
+            @if ($total > $perPage)
                 <div class="mt-4 flex justify-center space-x-2">
                     @if ($page > 1)
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page - 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -268,7 +268,7 @@
                         <a href="{{ request()->fullUrlWithQuery(['page' => $page + 1]) }}" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     @endif
                 </div>
-            @endif -->
+            @endif
         @endif
     </div>
 </x-filament::page>

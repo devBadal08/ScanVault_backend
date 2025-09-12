@@ -233,7 +233,7 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
-            <!-- <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
+            <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-4 flex justify-center space-x-2">
                     <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -247,7 +247,7 @@
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                 </div>
-            <?php endif; ?><!--[if ENDBLOCK]><![endif]--> -->
+            <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
         
         <?php elseif($selectedFolder && !$selectedSubfolder): ?>
@@ -373,7 +373,7 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
-            <!-- <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
+            <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-4 flex justify-center space-x-2">
                     <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -387,7 +387,7 @@
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                 </div>
-            <?php endif; ?><!--[if ENDBLOCK]><![endif]--> -->
+            <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
         
         <?php elseif($selectedSubfolder): ?>
@@ -485,7 +485,7 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
-            <!-- <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
+            <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-4 flex justify-center space-x-2">
                     <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
@@ -499,7 +499,7 @@
                         <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                 </div>
-            <?php endif; ?><!--[if ENDBLOCK]><![endif]--> -->
+            <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
     </div>
  <?php echo $__env->renderComponent(); ?>

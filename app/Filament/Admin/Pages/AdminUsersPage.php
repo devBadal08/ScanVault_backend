@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 class AdminUsersPage extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-photo';
     protected static string $view = 'filament.admin.pages.admin-users-page';
     protected static ?string $navigationGroup = 'Photos';
     protected static ?string $navigationLabel = 'Admin Users';
