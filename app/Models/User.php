@@ -8,17 +8,21 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles, HasApiTokens;
 
+    protected $connection = 'mysql';
+
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
+
     protected $fillable = [
         'name',
         'email',
@@ -30,6 +34,31 @@ class User extends Authenticatable
         'assigned_to',
     ];
 
+    // public function tokens(): MorphMany
+    // {
+    //     return $this->morphMany(\App\Models\PersonalAccessToken::class, 'tokenable');
+    // }
+
+    public function setConnectionByCompany($databaseName)
+    {
+        config(["database.connections.tenant" => [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => $databaseName,
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ]]);
+
+        //$this->setConnection('tenant');
+
+        return $this;
+    }
     /**
      * The attributes that should be hidden for serialization.
      *

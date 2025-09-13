@@ -40,14 +40,21 @@ class CompanyDashboard extends Page
 
     public function loadUsers()
     {
-        $this->users = $this->company->users()->get();
+        $this->users = (new User)
+            ->setConnectionByCompany($this->company->database_name)
+            ->where('company_id', $this->company->id)
+            ->get();
     }
 
     public function refreshCounts()
     {
-        $this->totalAdmins = $this->company->users()->where('role', 'admin')->count();
-        $this->totalManagers = $this->company->users()->where('role', 'manager')->count();
-        $this->totalUsers = $this->company->users()->where('role', 'user')->count();
+        $users = (new User)
+            ->setConnectionByCompany($this->company->database_name)
+            ->where('company_id', $this->company->id);
+
+        $this->totalAdmins = $users->where('role', 'admin')->count();
+        $this->totalManagers = $users->where('role', 'manager')->count();
+        $this->totalUsers = $users->where('role', 'user')->count();
     }
 
     protected function getFormSchema(): array
@@ -146,7 +153,8 @@ class CompanyDashboard extends Page
                     ->send();
                 return;
             }
-
+            
+            // Also save into main database
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -156,6 +164,21 @@ class CompanyDashboard extends Page
                 'max_limit' => $data['max_limit'],
                 'created_by' => auth()->id(),
             ]);
+            $user->assignRole($data['role']);
+
+            // save into particular company's database
+            $user = (new User)->setConnectionByCompany($this->company->database_name);
+
+            $user->fill([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => Hash::make($data['password']),
+                'company_id' => $this->company->id,
+                'role' => $data['role'],
+                'max_limit' => $data['max_limit'],
+                'created_by' => auth()->id(),
+            ]);
+            $user->save();
             $user->assignRole($data['role']);
         }
 

@@ -214,6 +214,7 @@ class UserResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->check() && auth()->user()->hasRole('Super Admin');
+        $user = auth()->user();
+        return $user && in_array($user->role, ['admin', 'Super Admin']);
     }
 }

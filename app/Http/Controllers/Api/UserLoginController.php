@@ -26,7 +26,7 @@ class UserLoginController extends Controller
         $user = Auth::user();
 
         // Optional: Check user role (if needed)
-        if (!$user->hasRole('user')) {
+        if (!in_array($user->role, ['user'])) {
             return response()->json(['message' => 'Unauthorized role'], 403);
         }
 

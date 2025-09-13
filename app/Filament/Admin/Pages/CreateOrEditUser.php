@@ -132,13 +132,13 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 ->title('User creation limit reached.')
                 ->danger()
                 ->send();
-
             return;
         }
 
         $data = $this->form->getState();
 
         if ($this->editingUserId) {
+            // Edit existing user
             $user = User::findOrFail($this->editingUserId);
             $user->update([
                 'name' => $data['name'],
@@ -147,7 +147,8 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
             ]);
             Notification::make()->title('User Updated')->success()->send();
         } else {
-            $user = User::create([
+            // Create new user in main DB
+            $mainUser = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
@@ -156,7 +157,46 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 'assigned_to'=> $currentUser->id,
                 'company_id' => $currentUser->company_id,
             ]);
-            $user->assignRole('user');
+            $mainUser->assignRole('user');
+
+            // Create user in company DB
+            if ($currentUser->company && !empty($currentUser->company->database_name)) {
+                $companyUser = (new User)->setConnectionByCompany($currentUser->company->database_name);
+                $companyUser->fill([
+                    'name' => $mainUser->name,
+                    'email' => $mainUser->email,
+                    'password' => $mainUser->password, // already hashed
+                    'role' => $mainUser->role,
+                    'created_by' => $mainUser->created_by,
+                    'assigned_to'=> $mainUser->assigned_to,
+                    'company_id' => $mainUser->company_id,
+                ]);
+                $companyUser->save();
+                $companyUser->assignRole($mainUser->role);
+
+                // Create username_photos table in company DB
+                $tableName = strtolower($mainUser->name) . '_photos';
+                $tableName = preg_replace('/\s+/', '_', $tableName); // replace spaces
+                $tableName = preg_replace('/[^a-z0-9_]/', '', $tableName); // remove special chars
+
+                $connection = $companyUser->getConnection(); // tenant DB connection
+
+                $connection->statement("
+                    CREATE TABLE IF NOT EXISTS `$tableName` (
+                        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        path VARCHAR(255) NOT NULL,
+                        user_id BIGINT UNSIGNED NOT NULL,
+                        uploaded_by BIGINT UNSIGNED NULL,
+                        folder_id BIGINT UNSIGNED NULL,
+                        created_at TIMESTAMP NULL,
+                        updated_at TIMESTAMP NULL,
+                        INDEX uploaded_by_index (uploaded_by),
+                        INDEX folder_id_index (folder_id),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+            }
+
             Notification::make()->title('User Created')->success()->send();
         }
 
@@ -175,11 +215,9 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
         ];
     }
 
-    public static function canAccess(): bool
+    public static function canViewAny(): bool
     {
-        return auth()->check() && (
-            auth()->user()->hasRole('manager') ||
-            auth()->user()->hasRole('Super Admin')
-        );
+        $user = auth()->user();
+        return $user && in_array($user->role, ['manager', 'Super Admin']);
     }
 }
