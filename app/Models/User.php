@@ -55,7 +55,7 @@ class User extends Authenticatable
             'engine' => null,
         ]]);
 
-        //$this->setConnection('tenant');
+        $this->setConnection('tenant');
 
         return $this;
     }

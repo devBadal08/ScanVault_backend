@@ -86,6 +86,7 @@ class PhotoController extends Controller
             $companyUserId = $this->getCompanyUserId($connection, $user);
             $folderName = $request->input('folder', 'default');
             $path = $request->file('image')->store("$companyUserId/$folderName", 'public');
+            $path = str_replace('public/', '', $path);
 
             DB::connection($connection)->table($usernameTable)->insert([
                 'path'        => $path,
@@ -140,6 +141,7 @@ class PhotoController extends Controller
                 $folderName = $folders[$index];
                 $filename = $image->getClientOriginalName();
                 $path = $image->storeAs("$companyUserId/$folderName", $filename, 'public');
+                $path = str_replace('public/', '', $path);
 
                 DB::connection($connection)->table($usernameTable)->insert([
                     'path'        => $path,

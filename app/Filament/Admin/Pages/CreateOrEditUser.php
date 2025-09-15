@@ -162,6 +162,7 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
             // Create user in company DB
             if ($currentUser->company && !empty($currentUser->company->database_name)) {
                 $companyUser = (new User)->setConnectionByCompany($currentUser->company->database_name);
+                $companyUser->setConnection('tenant');
                 $companyUser->fill([
                     'name' => $mainUser->name,
                     'email' => $mainUser->email,

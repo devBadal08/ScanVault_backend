@@ -64,7 +64,7 @@ class CreateUser extends CreateRecord
     {
         // 1️⃣ If role is 'user', set max_limit to null
         if ($data['role'] === 'user') {
-            $data['max_limit'] = null;
+            $data['max_limit'] = 0;
         }
 
         // 2️⃣ Save in main database
@@ -74,6 +74,7 @@ class CreateUser extends CreateRecord
         $currentUser = Auth::user();
         if ($currentUser && $currentUser->company && !empty($currentUser->company->database_name)) {
             $companyUser = (new User)->setConnectionByCompany($currentUser->company->database_name);
+            $companyUser->setConnection('tenant');
             $companyUser->fill([
                 'name' => $user->name,
                 'email' => $user->email,

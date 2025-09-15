@@ -71,7 +71,11 @@ class CompanyDashboard extends Page
 
             Forms\Components\TextInput::make('password')
                 ->label('Password')
-                ->password()
+                ->password()->rule('regex:/^(?=.*[A-Za-z])(?=.*\d).+$/')
+                ->minLength(6)
+                ->maxLength(255)
+                ->revealable()
+                ->helperText('Password must be at least 6 characters and contain both letters and numbers.')
                 ->required(fn () => !$this->editingUserId),
 
             Forms\Components\Select::make('role')
@@ -133,14 +137,26 @@ class CompanyDashboard extends Page
         $data = $this->form->getState();
 
         if ($this->editingUserId) {
-            $user = User::findOrFail($this->editingUserId);
-            $user->update([
+            // --- EDIT EXISTING USER ---
+            $userMain = User::findOrFail($this->editingUserId);
+            $userMain->update([
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'password' => $data['password'] ? Hash::make($data['password']) : $user->password,
+                'password' => $data['password'] ? Hash::make($data['password']) : $userMain->password,
                 'max_limit' => $data['max_limit'],
             ]);
+
+            // Update in company DB
+            $userCompany = (new User)->setConnectionByCompany($this->company->database_name);
+            $userCompany->where('id', $this->editingUserId)->update([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'] ? Hash::make($data['password']) : $userCompany->password,
+                'max_limit' => $data['max_limit'],
+            ]);
+
         } else {
+            // --- CREATE NEW USER ---
             $currentUser = auth()->user();
             $createdCount = User::where('created_by', $currentUser->id)->count();
             $maxLimit = $currentUser->max_limit ?? 0;
@@ -153,9 +169,11 @@ class CompanyDashboard extends Page
                     ->send();
                 return;
             }
-            
-            // Also save into main database
-            $user = User::create([
+
+            // --- Save in company DB ---
+            $userCompany = (new User)->setConnectionByCompany($this->company->database_name);
+            $userCompany->setConnection('tenant');
+            $userCompany->fill([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
@@ -164,12 +182,11 @@ class CompanyDashboard extends Page
                 'max_limit' => $data['max_limit'],
                 'created_by' => auth()->id(),
             ]);
-            $user->assignRole($data['role']);
+            $userCompany->save();
+            $userCompany->assignRole($data['role']);
 
-            // save into particular company's database
-            $user = (new User)->setConnectionByCompany($this->company->database_name);
-
-            $user->fill([
+            // --- Save in main DB ---
+            $userMain = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
@@ -178,8 +195,7 @@ class CompanyDashboard extends Page
                 'max_limit' => $data['max_limit'],
                 'created_by' => auth()->id(),
             ]);
-            $user->save();
-            $user->assignRole($data['role']);
+            $userMain->assignRole($data['role']);
         }
 
         $this->showFormPage = false;
