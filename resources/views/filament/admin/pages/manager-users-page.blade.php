@@ -52,7 +52,7 @@
                             @foreach ($items as $folder)
                                 <div class="flex flex-col items-center justify-center text-center">
                                     {{-- Download --}}
-                                    <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
+                                    <a href="{{ route('download-folder', ['path' => $folder['path'], 'user_id' => $selectedUser->id]) }}"
                                         class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
                                         title="Download Folder">
                                         <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
@@ -131,7 +131,7 @@
                                 @if ($item['type'] === 'folder')
                                     {{-- folder card --}}
                                     <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="{{ route('download-folder', ['path' => $item['path']]) }}"
+                                        <a href="{{ route('download-folder', ['path' => $item['path'], 'user_id' => $selectedUser->id]) }}"
                                         class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
                                         title="Download Subfolder">
                                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
@@ -148,11 +148,11 @@
                                 @else
                                     {{-- image card --}}
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="{{ asset('storage/' . $item['path']) }}">
-                                        <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="relative w-32 h-32 block">
-                                            <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="{{ $item['path'] }}">
+                                        <a href="{{ $item['path'] }}" target="_blank" class="relative w-32 h-32 block">
+                                            <img src="{{ $item['path'] }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
                                         </a>
-                                        <a href="{{ asset('storage/' . $item['path']) }}" download class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100">
+                                        <a href="{{ $item['path'] }}" download class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100">
                                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                         </a>
                                     </div>
@@ -221,7 +221,7 @@
                             @foreach ($groupItems as $item)
                                 @if ($item['type'] === 'folder')
                                     <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
+                                        <a href="{{ route('download-folder', ['path' => $item['path'], 'user_id' => $selectedUser->id]) }}" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
                                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                         </a>
 
@@ -232,9 +232,9 @@
                                     </div>
                                 @else
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox-subfolder" value="{{ asset('storage/' . $item['path']) }}">
-                                        <a href="{{ asset('storage/' . $item['path']) }}" target="_blank">
-                                            <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox-subfolder" value="{{ $item['path'] }}">
+                                        <a href="{{ $item['path'] }}" target="_blank">
+                                            <img src="{{ $item['path'] }}" class="w-full h-full object-cover" alt="{{ $item['name'] }}">
                                         </a>
                                     </div>
                                 @endif

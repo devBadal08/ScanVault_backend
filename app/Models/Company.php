@@ -16,6 +16,7 @@ class Company extends Model
         'admin_name',
         'company_logo',
         'database_name',
+        'domain',
     ];
 
     protected static function booted()

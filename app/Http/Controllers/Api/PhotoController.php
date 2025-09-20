@@ -65,6 +65,42 @@ class PhotoController extends Controller
         return $tableName;
     }
 
+    // -----------------------
+    // New: Create folders hierarchy correctly
+    // -----------------------
+    protected function createFoldersHierarchy($connection, $companyUserId, $folderPath)
+    {
+        $folders = explode('/', $folderPath);
+        $parentId = null;
+
+        foreach ($folders as $folderName) {
+            $folder = DB::connection($connection)->table('folders')
+                ->where('user_id', $companyUserId)
+                ->where('name', $folderName)
+                ->where('parent_id', $parentId)
+                ->first();
+
+            if (!$folder) {
+                $folderId = DB::connection($connection)->table('folders')->insertGetId([
+                    'user_id' => $companyUserId,
+                    'name' => $folderName,
+                    'parent_id' => $parentId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $folderId = $folder->id;
+            }
+
+            $parentId = $folderId;
+        }
+
+        return $parentId; // return id of the deepest folder
+    }
+
+    // -----------------------
+    // Store single image
+    // -----------------------
     public function store(Request $request)
     {
         $user = Auth::user();
@@ -84,17 +120,26 @@ class PhotoController extends Controller
 
         try {
             $companyUserId = $this->getCompanyUserId($connection, $user);
+
             $folderName = $request->input('folder', 'default');
-            $path = $request->file('image')->store("$companyUserId/$folderName", 'public');
+            $subfolderName = $request->input('subfolder', null);
+            $folderPath = $subfolderName ? "$folderName/$subfolderName" : $folderName;
+
+            // Create folders hierarchy
+            $folderId = $this->createFoldersHierarchy($connection, $companyUserId, $folderPath);
+
+            // Store photo
+            $storePath = $folderPath ? "$companyUserId/$folderPath" : "$companyUserId";
+            $path = $request->file('image')->store($storePath, 'public');
             $path = str_replace('public/', '', $path);
 
             DB::connection($connection)->table($usernameTable)->insert([
-                'path'        => $path,
-                'user_id'     => $companyUserId,
+                'path' => $path,
+                'user_id' => $companyUserId,
                 'uploaded_by' => $companyUserId,
-                'folder_id'   => null,
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'folder_id' => $folderId,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             return response()->json(['message' => 'Uploaded successfully', 'path' => $path]);
@@ -104,6 +149,9 @@ class PhotoController extends Controller
         }
     }
 
+    // -----------------------
+    // Upload multiple images
+    // -----------------------
     public function uploadAll(Request $request)
     {
         $user = Auth::user();
@@ -117,11 +165,12 @@ class PhotoController extends Controller
 
         if (!$request->hasFile('images')) return response()->json(['error' => 'No images uploaded'], 400);
 
-        $folders = $request->input('folders');
-        if (!$folders || !is_array($folders)) return response()->json(['error' => 'Folders array required'], 422);
-
+        $folderPaths = $request->input('folders'); // array of full paths like 'folder/subfolder/subsubfolder'
         $images = $request->file('images');
-        if (count($images) !== count($folders)) return response()->json(['error' => 'Folders count must match images count'], 422);
+
+        if (!$folderPaths || !is_array($folderPaths) || count($images) !== count($folderPaths)) {
+            return response()->json(['error' => 'Folders count must match images count'], 422);
+        }
 
         if (!Schema::connection($connection)->hasTable($usernameTable)) {
             return response()->json(['error' => 'User photos table not found'], 500);
@@ -138,18 +187,24 @@ class PhotoController extends Controller
 
         foreach ($images as $index => $image) {
             try {
-                $folderName = $folders[$index];
+                $folderPath = $folderPaths[$index];
+
+                // Create full folder hierarchy and get the deepest folder ID
+                $folderId = $this->createFoldersHierarchy($connection, $companyUserId, $folderPath);
+
+                // Store photo
+                $storePath = "$companyUserId/$folderPath";
                 $filename = $image->getClientOriginalName();
-                $path = $image->storeAs("$companyUserId/$folderName", $filename, 'public');
+                $path = $image->storeAs($storePath, $filename, 'public');
                 $path = str_replace('public/', '', $path);
 
                 DB::connection($connection)->table($usernameTable)->insert([
-                    'path'        => $path,
-                    'user_id'     => $companyUserId,
+                    'path' => $path,
+                    'user_id' => $companyUserId,
                     'uploaded_by' => $companyUserId,
-                    'folder_id'   => null,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
+                    'folder_id' => $folderId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 $uploaded[] = asset('storage/' . $path);
@@ -166,6 +221,9 @@ class PhotoController extends Controller
         ]);
     }
 
+    // -----------------------
+    // Get photos by folder
+    // -----------------------
     public function getImagesByFolder($folderName)
     {
         $user = Auth::user();

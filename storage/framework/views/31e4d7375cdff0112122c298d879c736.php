@@ -171,10 +171,10 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center justify-center text-center">
-                                    
-                                    <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>" class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200" title="Download Folder">
-                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                                <!--[if BLOCK]><![endif]--><?php if(is_array($folder)): ?> 
+                                    <div class="flex flex-col items-center justify-center text-center">
+                                        <a href="<?php echo e(route('download-folder', ['path' => $folder['path'], 'user_id' => $selectedUser->id])); ?>" class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200" title="Download Folder">
+                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-o-arrow-down-tray'); ?>
@@ -194,12 +194,10 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                    </a>
-
-                                    
-                                    <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>" class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                                        <div class="w-24 h-24 flex items-center justify-center">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                                        </a>
+                                        <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>" class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
+                                            <div class="w-24 h-24 flex items-center justify-center">
+                                                <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-s-folder'); ?>
@@ -219,13 +217,14 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                        </div>
-                                        <span class="mt-1 text-xs text-black truncate w-24" title="<?php echo e($folder['name']); ?>">
-                                            <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
+                                            </div>
+                                            <span class="mt-1 text-xs text-black truncate w-24" title="<?php echo e($folder['name']); ?>">
+                                                <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
 
-                                        </span>
-                                    </a>
-                                </div>
+                                            </span>
+                                        </a>
+                                    </div>
+                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                         </div>
                     </div>
@@ -301,7 +300,7 @@
                                 <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'folder'): ?>
                                     
                                     <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>"
+                                        <a href="<?php echo e(route('download-folder', ['path' => $item['path'], 'user_id' => $selectedUser->id])); ?>"
                                         class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
                                         title="Download Subfolder">
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
@@ -338,11 +337,11 @@
                                 <?php else: ?>
                                     
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="<?php echo e(asset('storage/' . $item['path'])); ?>">
-                                        <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="relative w-32 h-32 block">
-                                            <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover" alt="<?php echo e($item['name']); ?>">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox" value="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>">
+                                        <a href="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>" target="_blank" class="relative w-32 h-32 block">
+                                            <img src="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>" class="w-full h-full object-cover" alt="<?php echo e($item['name']); ?>">
                                         </a>
-                                        <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" download class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100">
+                                        <a href="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>" download class="absolute bottom-2 right-2 z-50 bg-white p-1 rounded-full shadow hover:bg-gray-100">
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -442,7 +441,7 @@
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $groupItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'folder'): ?>
                                     <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
+                                        <a href="<?php echo e(route('download-folder', ['path' => $item['path'], 'user_id' => $selectedUser->id])); ?>" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -472,9 +471,9 @@
                                     </div>
                                 <?php else: ?>
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox-subfolder" value="<?php echo e(asset('storage/' . $item['path'])); ?>">
-                                        <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank">
-                                            <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover" alt="<?php echo e($item['name']); ?>">
+                                        <input type="checkbox" class="absolute top-1 left-1 z-50 image-checkbox-subfolder" value="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>">
+                                        <a href="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>" target="_blank">
+                                            <img src="<?php echo e(asset('storage/'.$username.'/'.$item['path'])); ?>" class="w-full h-full object-cover" alt="<?php echo e($item['name']); ?>">
                                         </a>
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
@@ -553,5 +552,4 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('download-selected')?.addEventListener('click', () => download('.image-checkbox'));
     document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder'));
 });
-</script>
-<?php /**PATH C:\xampp\htdocs\scanner-app\resources\views/filament/admin/pages/admin-users-page.blade.php ENDPATH**/ ?>
+</script><?php /**PATH C:\xampp\htdocs\scanner-app\resources\views/filament/admin/pages/admin-users-page.blade.php ENDPATH**/ ?>

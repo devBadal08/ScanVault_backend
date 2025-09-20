@@ -35,6 +35,11 @@ class CompanyResource extends Resource
                 TextInput::make('admin_name')
                     ->required()
                     ->label('Admin Name'),
+                TextInput::make('domain')
+                    ->required()
+                    ->unique(ignoreRecord: true)
+                    ->label('Company Domain')
+                    ->placeholder('e.g. techstrota.com'),
                 FileUpload::make('company_logo')
                     ->label('Company Logo')
                     ->image() // ensures only image files
@@ -58,6 +63,11 @@ class CompanyResource extends Resource
             ->columns([
                 TextColumn::make('company_name')->label('Company Name')->sortable()->searchable()->alignLeft(),
                 TextColumn::make('admin_name')->label('Admin Name')->sortable()->searchable()->alignLeft(),
+                TextColumn::make('domain')
+                    ->label('Domain')
+                    ->sortable()
+                    ->searchable()
+                    ->alignLeft(),
                 ImageColumn::make('company_logo')
                     ->label('Logo')
                     ->visibility('visible')

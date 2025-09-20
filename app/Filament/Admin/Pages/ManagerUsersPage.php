@@ -3,10 +3,11 @@
 namespace App\Filament\Admin\Pages;
 
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use App\Models\User;
+use App\Models\Folder;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class ManagerUsersPage extends Page
 {
@@ -16,15 +17,12 @@ class ManagerUsersPage extends Page
     protected static ?string $navigationLabel = 'Manager Users';
     protected static ?int $navigationSort = 8;
 
-    public $managers = [];
     public $managerUsers = [];
     public $folders = [];
     public $subfolders = [];
     public $images = [];
-    public $users = [];
     public $items = [];
 
-    public $selectedManager = null;
     public $selectedUser = null;
     public $selectedFolder = null;
     public $selectedSubfolder = null;
@@ -49,7 +47,7 @@ class ManagerUsersPage extends Page
         foreach ($items as $item) {
             if (!isset($item['created_at'])) continue;
 
-            $created = Carbon::parse($item['created_at']);
+            $created = Carbon::parse($item['created_at'])->timezone(config('app.timezone'));
             $createdDate = $created->format('d-m-Y');
 
             if ($created->isToday()) {
@@ -71,27 +69,22 @@ class ManagerUsersPage extends Page
     public function mount(): void
     {
         $authUser = Auth::user();
-        $managerId = request()->get('manager');
-        $userId = request()->get('user');
-        $folder = request()->get('folder');
-        $subfolder = request()->get('subfolder');
-
         if (!in_array($authUser->role, ['manager', 'admin'])) {
             abort(403, 'Unauthorized');
         }
 
-        if ($managerId) {
-            $this->selectedManager = User::find($managerId);
-        }
+        $userId = request()->get('user');
+        $folderName = request()->get('folder');
+        $subfolderName = request()->get('subfolder');
 
+        // ----------------------------
+        // Step 0: Manager users
+        // ----------------------------
         if ($authUser->role === 'manager') {
-            // Manager sees only their own users
             $this->managerUsers = User::where('role', 'user')
                 ->where('assigned_to', $authUser->id)
                 ->get();
-
         } elseif ($authUser->role === 'admin') {
-            // Admin sees all users under managers they created
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
@@ -101,65 +94,128 @@ class ManagerUsersPage extends Page
                 ->get();
         }
 
-        // -------------------------------
-        // Selected user: show folders/images
-        // -------------------------------
-        if ($userId) {
-            $this->selectedUser = User::find($userId);
-            if (!$this->selectedUser) return;
+        if (!$userId) return;
 
-            $baseUserPath = $userId;
+        $this->selectedUser = User::find($userId);
+        if (!$this->selectedUser) return;
 
+        // ----------------------------
+        // Step 1: Company DB setup
+        // ----------------------------
+        $company = \DB::connection('mysql')->table('companies')
+            ->where('id', $this->selectedUser->company_id)
+            ->first();
+
+        if (!$company || !$company->database_name) return;
+
+        config([
+            "database.connections.dynamic_company" => [
+                'driver' => 'mysql',
+                'host' => env('DB_HOST'),
+                'port' => env('DB_PORT'),
+                'database' => $company->database_name,
+                'username' => env('DB_USERNAME'),
+                'password' => env('DB_PASSWORD'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => true,
+            ],
+        ]);
+
+        // Resolve user in company DB
+        $companyUserId = \DB::connection('dynamic_company')
+            ->table('users')
+            ->where('email', $this->selectedUser->email)
+            ->value('id');
+        if (!$companyUserId) return;
+
+        $companyUser = \DB::connection('dynamic_company')
+            ->table('users')
+            ->where('id', $companyUserId)
+            ->first();
+        if (!$companyUser || !$companyUser->name) return;
+
+        $username = $companyUser->name;
+
+        // ----------------------------
+        // Step 2: Determine folderPath
+        // ----------------------------
+        $folderPath = $subfolderName ?? $folderName;
+
+        if (!$folderPath) {
             // Top-level folders
-            if (!$folder) {
-                $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
-                    ->map(fn($dir) => [
-                        'path' => $dir,
-                        'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
-                    ])->toArray();
+            $folders = Folder::topLevelFolders('dynamic_company', $companyUserId);
+            $folders->each(fn($f) => $f->setCompanyConnection('dynamic_company'));
 
-                $this->folders = $this->groupByDate($rawFolders);
-            }
-            // Inside folder / subfolder
-            else {
-                $this->selectedFolder = $folder;
-                $targetPath = $subfolder ?: $folder;
-                if ($subfolder) $this->selectedSubfolder = $subfolder;
+            $foldersArray = $folders->map(function ($f) use ($username) {
+                $photos = $f->userPhotos($username);
+                $latestDate = $photos->max(fn($p) => $p->created_at) ?? $f->created_at;
 
-                // Subfolders
-                $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
-                    ->map(fn($dir) => [
-                        'type' => 'folder',
-                        'path' => $dir,
-                        'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
-                    ]);
-                $this->subfolders = $rawSubfolders->values()->toArray();
+                return [
+                    'id' => $f->id,
+                    'name' => $f->name,
+                    'path' => $f->name,
+                    'type' => 'folder',
+                    'created_at' => $latestDate,
+                ];
+            })->toArray();
 
-                // Images
-                $allImages = collect(Storage::disk('public')->files($targetPath))
-                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png']))
-                    ->map(fn($file) => [
-                        'type' => 'image',
-                        'path' => $file,
-                        'name' => basename($file),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
-                                            ->toDateTimeString(),
-                    ])->values();
-
-                $this->total = $allImages->count();
-
-                $imagesPaged = $allImages->forPage($this->page, $this->perPage)->values();
-                $this->images = $imagesPaged->toArray();
-
-                // Merge folders first, then images
-                $merged = $rawSubfolders->sortByDesc('created_at')->merge($imagesPaged->sortByDesc('created_at'))->values();
-                $this->items = $this->groupByDate($merged->toArray());
-            }
+            $this->folders = $this->groupByDate($foldersArray);
+            return;
         }
+
+        // ----------------------------
+        // Step 3: Selected folder
+        // ----------------------------
+        $folderSegments = explode('/', $folderPath);
+        $lastFolderName = end($folderSegments);
+
+        $folderModel = Folder::on('dynamic_company')
+            ->where('name', $lastFolderName)
+            ->where('user_id', $companyUserId)
+            ->first();
+        if (!$folderModel) return;
+
+        $folderModel->setCompanyConnection('dynamic_company');
+        $this->selectedFolder = $folderName;
+        $this->selectedSubfolder = $subfolderName;
+
+        // Subfolders
+        $subfolders = $folderModel->getSubfolders();
+        $this->subfolders = $subfolders->map(function ($sf) use ($username, $folderPath) {
+            $photos = $sf->userPhotos($username);
+            $latestDate = $photos->max(fn($p) => $p->created_at) ?? $sf->created_at;
+
+            return [
+                'id' => $sf->id,
+                'name' => $sf->name,
+                'path' => $folderPath.'/'.$sf->name,
+                'type' => 'folder',
+                'created_at' => $latestDate,
+            ];
+        })->toArray();
+
+        // Photos
+        $photos = $folderModel->userPhotos($username);
+
+        // Merge subfolders + photos
+        $allItems = collect($this->subfolders)->merge(
+            $photos->map(function ($p) {
+                $p = (array)$p;
+                return [
+                    'id' => $p['id'],
+                    'path' => Storage::disk('public')->url($p['path']),
+                    'name' => basename($p['path']),
+                    'type' => 'image',
+                    'created_at' => $p['created_at'],
+                ];
+            })
+        );
+
+        $this->total = $photos->count();
+        $photosPaged = $allItems->forPage($this->page, $this->perPage);
+        $this->items = $this->groupByDate($photosPaged->toArray());
     }
 
     public function updatedPage()

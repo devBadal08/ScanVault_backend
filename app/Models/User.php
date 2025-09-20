@@ -41,6 +41,7 @@ class User extends Authenticatable
 
     public function setConnectionByCompany($databaseName)
     {
+        $this->companyDb = $databaseName;
         config(["database.connections.tenant" => [
             'driver' => 'mysql',
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -59,6 +60,16 @@ class User extends Authenticatable
 
         return $this;
     }
+
+    public function photosTable()
+    {
+        $tableName = strtolower($this->name) . '_photos';
+        $tableName = preg_replace('/\s+/', '_', $tableName);
+        $tableName = preg_replace('/[^a-z0-9_]/', '', $tableName);
+
+        return (new \App\Models\DynamicPhoto)->setTableName($tableName);
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -109,7 +120,8 @@ class User extends Authenticatable
 
     public function photos()
     {
-        return $this->hasMany(Photo::class);
+        $tableName = $this->photosTable()->getTable();
+        return (new \App\Models\Photo)->setConnectionByCompany($this->company_db)->setTable($tableName);
     }
 
     public function getAllDescendantUsers()
