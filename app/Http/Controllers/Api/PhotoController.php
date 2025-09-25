@@ -59,6 +59,10 @@ class PhotoController extends Controller
             return response()->json(['error' => 'Folders array required'], 422);
         }
 
+        $uploaded = [];
+        $failed = [];
+
+        // ---------- Upload Images ----------
         if ($request->hasFile('images')) {
             $images = $request->file('images');
 
@@ -66,45 +70,77 @@ class PhotoController extends Controller
                 return response()->json(['error' => 'Folders count must match images count'], 422);
             }
 
-            $uploaded = [];
-            $failed = [];
-
             foreach ($images as $index => $image) {
                 try {
                     $originalFolder = $folders[$index];
                     $filename = $image->getClientOriginalName();
 
-                    // ✅ ensure folder exists in DB (no duplicates)
                     $folder = Folder::firstOrCreate(
                         ['name' => $originalFolder, 'user_id' => $userId],
                         ['name' => $originalFolder, 'user_id' => $userId]
                     );
 
-                    // store as "{userId}/{folderName}/filename"
                     $path = $image->storeAs("$userId/$originalFolder", $filename, 'public');
 
-                    // save photo with folder_id
                     Photo::create([
                         'path'      => $path,
                         'user_id'   => $userId,
                         'folder_id' => $folder->id,
+                        'type'      => 'image',
                     ]);
 
                     $uploaded[] = asset('storage/' . $path);
                 } catch (\Exception $e) {
-                    \Log::error("Upload failed: " . $e->getMessage());
+                    \Log::error("Image upload failed: " . $e->getMessage());
                     $failed[] = $image->getClientOriginalName();
                 }
             }
-
-            return response()->json([
-                'message'  => 'Upload finished',
-                'uploaded' => $uploaded,
-                'failed'   => $failed
-            ]);
         }
 
-        return response()->json(['error' => 'No images uploaded'], 400);
+        // ---------- Upload Videos ----------
+        if ($request->hasFile('videos')) {
+            $videos = $request->file('videos');
+
+            if (count($videos) !== count($folders)) {
+                return response()->json(['error' => 'Folders count must match videos count'], 422);
+            }
+
+            foreach ($videos as $index => $video) {
+                try {
+                    $originalFolder = $folders[$index];
+                    $filename = $video->getClientOriginalName();
+
+                    $folder = Folder::firstOrCreate(
+                        ['name' => $originalFolder, 'user_id' => $userId],
+                        ['name' => $originalFolder, 'user_id' => $userId]
+                    );
+
+                    $path = $video->storeAs("$userId/$originalFolder", $filename, 'public');
+
+                    Photo::create([
+                        'path'      => $path,
+                        'user_id'   => $userId,
+                        'folder_id' => $folder->id,
+                        'type'      => 'video',
+                    ]);
+
+                    $uploaded[] = asset('storage/' . $path);
+                } catch (\Exception $e) {
+                    \Log::error("Video upload failed: " . $e->getMessage());
+                    $failed[] = $video->getClientOriginalName();
+                }
+            }
+        }
+
+        if (empty($uploaded) && empty($failed)) {
+            return response()->json(['error' => 'No files uploaded'], 400);
+        }
+
+        return response()->json([
+            'message'  => 'Upload finished',
+            'uploaded' => $uploaded,
+            'failed'   => $failed,
+        ]);
     }
 
     public function getImagesByFolder($folderName)

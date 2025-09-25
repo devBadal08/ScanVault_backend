@@ -136,11 +136,16 @@ class AdminUsersPage extends Page
                     ]);
                 $this->subfolders = $rawSubfolders->values()->toArray();
 
-                // All images in targetPath
-                $allImages = collect(Storage::disk('public')->files($targetPath))
-                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png']))
+                // Allowed extensions for media
+                $allowedExtensions = ['jpg','jpeg','png','mp4'];
+
+                // All media files (images + videos)
+                $allMedia = collect(Storage::disk('public')->files($targetPath))
+                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
                     ->map(fn($file) => [
-                        'type' => 'image',
+                        'type' => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['mp4'])
+                            ? 'video'
+                            : 'image',
                         'path' => $file,
                         'name' => basename($file),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
@@ -148,18 +153,18 @@ class AdminUsersPage extends Page
                     ])
                     ->values();
 
-                $this->total = $allImages->count();
+                $this->total = $allMedia->count();
 
-                // Pagination
-                $imagesPaged = $allImages->forPage($this->page, $this->perPage)->values();
-                $this->images = $imagesPaged->toArray();
+                // Pagination for media
+                $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();
 
-                // Merge folders and images
+                // Merge folders and paged media
                 $foldersSorted = $rawSubfolders->sortByDesc(fn($i) => $i['created_at'])->values();
-                $imagesSorted = $imagesPaged->sortByDesc(fn($i) => $i['created_at'])->values();
-                $merged = $foldersSorted->merge($imagesSorted)->values();
+                $mediaSorted = $mediaPaged->sortByDesc(fn($i) => $i['created_at'])->values();
+                $merged = $foldersSorted->merge($mediaSorted)->values();
 
                 $this->items = $this->groupByDate($merged->toArray());
+                $this->images = $mediaPaged->toArray();
             }
         }
     }

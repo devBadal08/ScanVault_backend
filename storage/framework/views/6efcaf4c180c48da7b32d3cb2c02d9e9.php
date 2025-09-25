@@ -275,7 +275,7 @@
                                     </div>
                                 <?php else: ?>
                                     
-                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
@@ -283,12 +283,21 @@
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 
-                                        
-                                        <a href="javascript:void(0)"
-                                        onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>')"
-                                        class="w-full h-full block">
-                                            <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover rounded" alt="<?php echo e($item['name']); ?>">
-                                        </a>
+                                        <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
+                                            <a href="javascript:void(0)"
+                                                onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', 'image')"
+                                                class="w-full h-full block">
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover rounded" alt="<?php echo e($item['name']); ?>">
+                                            </a>
+                                        <?php elseif($item['type'] === 'video'): ?>
+                                            <a href="javascript:void(0)"
+                                                onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', 'video')"
+                                                class="w-full h-full block">
+                                                <video class="w-full h-full object-cover rounded">
+                                                    <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
+                                                </video>
+                                            </a>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
@@ -404,16 +413,25 @@
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="image-checkbox-subfolder"
+                                                class="<?php echo e(isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 
-                                        
-                                        <a href="javascript:void(0)"
-                                        onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>')"
-                                        class="w-full h-full block">
-                                            <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover rounded" alt="<?php echo e($item['name']); ?>">
-                                        </a>
+                                        <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
+                                            <a href="javascript:void(0)"
+                                                onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', 'image')"
+                                                class="w-full h-full block">
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" class="w-full h-full object-cover rounded" alt="<?php echo e($item['name']); ?>">
+                                            </a>
+                                        <?php elseif($item['type'] === 'video'): ?>
+                                            <a href="javascript:void(0)"
+                                                onclick="openImageModal('<?php echo e($item['name']); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', 'video')"
+                                                class="w-full h-full block">
+                                                <video class="w-full h-full object-cover rounded">
+                                                    <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
+                                                </video>
+                                            </a>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
@@ -441,6 +459,7 @@
         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
     </div>
 
+    <!-- Modal -->
     <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
         <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden relative animate-scale-up">
             
@@ -451,18 +470,26 @@
 
             
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
+                
                 <img id="modalImage" src="" class="max-h-[60vh] object-contain rounded-lg" alt="Image Preview">
+
+                
+                <video id="modalVideo" controls class="max-h-[60vh] object-contain rounded-lg hidden">
+                    <source id="modalVideoSource" src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
             </div>
 
             
             <div class="px-6 py-4 bg-white border-t border-gray-200">
-                <h3 class="text-lg font-semibold mb-2">Image Details</h3>
+                <h3 class="text-lg font-semibold mb-2">Media Details</h3>
                 <p class="text-sm text-gray-700"><strong>Name:</strong> <span id="modalName"></span></p>
                 <p class="text-sm text-gray-700"><strong>Path:</strong> <span id="modalPath"></span></p>
                 <p class="text-sm text-gray-700"><strong>Created At:</strong> <span id="modalCreated"></span></p>
             </div>
         </div>
     </div>
+
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalbe23554f7bded3778895289146189db7)): ?>
@@ -475,16 +502,40 @@
 <?php endif; ?>
 
 <script>
-    function openImageModal(name, path, created) {
-        document.getElementById('modalImage').src = path;
+    function openImageModal(name, path, created, type = 'image') {
+        const modal = document.getElementById('imageModal');
+        const img = document.getElementById('modalImage');
+        const video = document.getElementById('modalVideo');
+        const videoSource = document.getElementById('modalVideoSource');
+
+        // Reset: hide both
+        img.classList.add('hidden');
+        video.classList.add('hidden');
+        video.pause();
+
+        // Show correct media
+        if(type === 'image') {
+            img.src = path;
+            img.classList.remove('hidden');
+        } else if(type === 'video') {
+            videoSource.src = path;
+            video.load();
+            video.classList.remove('hidden');
+        }
+
+        // Update details
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalPath').innerText = path;
         document.getElementById('modalCreated').innerText = created;
-        document.getElementById('imageModal').classList.remove('hidden');
+
+        modal.classList.remove('hidden');
     }
 
     function closeImageModal() {
-        document.getElementById('imageModal').classList.add('hidden');
+        const modal = document.getElementById('imageModal');
+        const video = document.getElementById('modalVideo');
+        modal.classList.add('hidden');
+        video.pause();
     }
 
 document.addEventListener('DOMContentLoaded', function () {

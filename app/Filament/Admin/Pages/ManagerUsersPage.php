@@ -139,24 +139,24 @@ class ManagerUsersPage extends Page
                     ]);
                 $this->subfolders = $rawSubfolders->values()->toArray();
 
-                // Images
-                $allImages = collect(Storage::disk('public')->files($targetPath))
-                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png']))
+                // Fetch all media (images + videos)
+                $allMedia = collect(Storage::disk('public')->files($targetPath))
+                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png','mp4','mov','webm']))
                     ->map(fn($file) => [
-                        'type' => 'image',
+                        'type' => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['mp4','mov','webm']) ? 'video' : 'image',
                         'path' => $file,
                         'name' => basename($file),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
                                             ->toDateTimeString(),
                     ])->values();
 
-                $this->total = $allImages->count();
+                $this->total = $allMedia->count();
 
-                $imagesPaged = $allImages->forPage($this->page, $this->perPage)->values();
-                $this->images = $imagesPaged->toArray();
+                $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();
+                $this->images = $mediaPaged->toArray(); // still called images, can rename to $media if you want
 
-                // Merge folders first, then images
-                $merged = $rawSubfolders->sortByDesc('created_at')->merge($imagesPaged->sortByDesc('created_at'))->values();
+                // Merge folders first, then media
+                $merged = $rawSubfolders->sortByDesc('created_at')->merge($mediaPaged->sortByDesc('created_at'))->values();
                 $this->items = $this->groupByDate($merged->toArray());
             }
         }
