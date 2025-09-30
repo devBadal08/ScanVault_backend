@@ -132,6 +132,41 @@ class PhotoController extends Controller
             }
         }
 
+        // ---------- Upload PDFs ----------
+        if ($request->hasFile('pdfs')) {
+            $pdfs = $request->file('pdfs');
+
+            if (count($pdfs) !== count($folders)) {
+                return response()->json(['error' => 'Folders count must match PDFs count'], 422);
+            }
+
+            foreach ($pdfs as $index => $pdf) {
+                try {
+                    $originalFolder = $folders[$index];
+                    $filename = $pdf->getClientOriginalName();
+
+                    $folder = Folder::firstOrCreate(
+                        ['name' => $originalFolder, 'user_id' => $userId],
+                        ['name' => $originalFolder, 'user_id' => $userId]
+                    );
+
+                    $path = $pdf->storeAs("$userId/$originalFolder", $filename, 'public');
+
+                    Photo::create([
+                        'path'      => $path,
+                        'user_id'   => $userId,
+                        'folder_id' => $folder->id,
+                        'type'      => 'pdf',
+                    ]);
+
+                    $uploaded[] = asset('storage/' . $path);
+                } catch (\Exception $e) {
+                    \Log::error("PDF upload failed: " . $e->getMessage());
+                    $failed[] = $pdf->getClientOriginalName();
+                }
+            }
+        }
+
         if (empty($uploaded) && empty($failed)) {
             return response()->json(['error' => 'No files uploaded'], 400);
         }

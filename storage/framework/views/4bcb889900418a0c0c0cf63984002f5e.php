@@ -197,6 +197,11 @@
                                     </a>
 
                                     
+                                    <!--[if BLOCK]><![endif]--><?php if(isset($folder['linked']) && $folder['linked']): ?>
+                                        <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
+                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                                    
                                     <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>" class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
                                         <div class="w-24 h-24 flex items-center justify-center">
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
@@ -326,6 +331,11 @@
 <?php endif; ?>
                                         </a>
 
+                                        
+                                        <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
+                                            <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
                                         <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
                                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                             <div class="text-3xl">📁</div>
@@ -358,6 +368,13 @@
                                                 <video class="w-full h-full object-cover rounded">
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
+                                            </a>
+                                        <?php elseif($item['type'] === 'pdf'): ?>
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="<?php echo e($item['name']); ?>">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
                                             </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>
@@ -490,6 +507,13 @@
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
                                             </a>
+                                        <?php elseif($item['type'] === 'pdf'): ?>
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="<?php echo e($item['name']); ?>">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
+                                            </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
@@ -529,14 +553,13 @@
 
             
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
-                
-                <img id="modalImage" src="" class="max-h-[60vh] object-contain rounded-lg" alt="Image Preview">
-
-                
-                <video id="modalVideo" controls class="max-h-[60vh] object-contain rounded-lg hidden">
-                    <source id="modalVideoSource" src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+                <div class="max-w-full max-h-[40vh] flex items-center justify-center">
+                    <img id="modalImage" src="" class="max-h-[60vh] max-w-full object-contain rounded-lg" alt="Image Preview">
+                    <video id="modalVideo" controls class="max-h-[40vh] max-w-full object-contain rounded-lg hidden">
+                        <source id="modalVideoSource" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
             </div>
 
             

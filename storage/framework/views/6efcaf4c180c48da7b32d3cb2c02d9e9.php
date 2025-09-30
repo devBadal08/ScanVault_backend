@@ -297,6 +297,13 @@
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
                                             </a>
+                                        <?php elseif($item['type'] === 'pdf'): ?>
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="<?php echo e($item['name']); ?>">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
+                                            </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
@@ -430,6 +437,13 @@
                                                 <video class="w-full h-full object-cover rounded">
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
+                                            </a>
+                                        <?php elseif($item['type'] === 'pdf'): ?>
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="<?php echo e($item['name']); ?>">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
                                             </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </div>

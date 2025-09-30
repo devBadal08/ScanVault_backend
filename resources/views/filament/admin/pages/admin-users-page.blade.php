@@ -80,6 +80,11 @@
                                         <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                     </a>
 
+                                    {{-- Linked folder badge --}}
+                                    @if(isset($folder['linked']) && $folder['linked'])
+                                        <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
+                                    @endif
+
                                     {{-- Open folder --}}
                                     <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}" class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
                                         <div class="w-24 h-24 flex items-center justify-center">
@@ -153,6 +158,11 @@
                                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                         </a>
 
+                                        {{-- Linked badge --}}
+                                        @if(isset($item['linked']) && $item['linked'])
+                                            <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
+                                        @endif
+
                                         <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
                                         class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                             <div class="text-3xl">📁</div>
@@ -184,6 +194,13 @@
                                                 <video class="w-full h-full object-cover rounded">
                                                     <source src="{{ asset('storage/' . $item['path']) }}" type="video/mp4">
                                                 </video>
+                                            </a>
+                                        @elseif ($item['type'] === 'pdf')
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="{{ $item['name'] }}">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
                                             </a>
                                         @endif
                                     </div>
@@ -278,6 +295,13 @@
                                                     <source src="{{ asset('storage/' . $item['path']) }}" type="video/mp4">
                                                 </video>
                                             </a>
+                                        @elseif ($item['type'] === 'pdf')
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                title="{{ $item['name'] }}">
+                                                <div class="text-3xl">📄</div>
+                                                <div class="mt-1 truncate w-full">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
+                                            </a>
                                         @endif
                                     </div>
                                 @endif
@@ -317,14 +341,13 @@
 
             {{-- Media container --}}
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
-                {{-- Image preview --}}
-                <img id="modalImage" src="" class="max-h-[60vh] object-contain rounded-lg" alt="Image Preview">
-
-                {{-- Video preview --}}
-                <video id="modalVideo" controls class="max-h-[60vh] object-contain rounded-lg hidden">
-                    <source id="modalVideoSource" src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+                <div class="max-w-full max-h-[40vh] flex items-center justify-center">
+                    <img id="modalImage" src="" class="max-h-[60vh] max-w-full object-contain rounded-lg" alt="Image Preview">
+                    <video id="modalVideo" controls class="max-h-[40vh] max-w-full object-contain rounded-lg hidden">
+                        <source id="modalVideoSource" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
             </div>
 
             {{-- Properties --}}

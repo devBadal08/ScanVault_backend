@@ -16,7 +16,6 @@ class ManagerUsersPage extends Page
     protected static ?string $navigationLabel = 'Manager Users';
     protected static ?int $navigationSort = 8;
 
-    public $managers = [];
     public $managerUsers = [];
     public $folders = [];
     public $subfolders = [];
@@ -24,7 +23,6 @@ class ManagerUsersPage extends Page
     public $users = [];
     public $items = [];
 
-    public $selectedManager = null;
     public $selectedUser = null;
     public $selectedFolder = null;
     public $selectedSubfolder = null;
@@ -43,7 +41,11 @@ class ManagerUsersPage extends Page
         $groups = array_merge(
             ['Today' => []],
             array_combine($lastThreeDays, array_fill(0, 3, [])),
-            ['Last Week' => [], 'Earlier this Month' => [], 'Older' => []]
+            [
+                'Last Week' => [],
+                'Earlier this Month' => [],
+                'Older' => [],
+            ]
         );
 
         foreach ($items as $item) {
@@ -71,7 +73,6 @@ class ManagerUsersPage extends Page
     public function mount(): void
     {
         $authUser = Auth::user();
-        $managerId = request()->get('manager');
         $userId = request()->get('user');
         $folder = request()->get('folder');
         $subfolder = request()->get('subfolder');
@@ -80,18 +81,14 @@ class ManagerUsersPage extends Page
             abort(403, 'Unauthorized');
         }
 
-        if ($managerId) {
-            $this->selectedManager = User::find($managerId);
-        }
-
+        // Manager sees only their own users
         if ($authUser->role === 'manager') {
-            // Manager sees only their own users
             $this->managerUsers = User::where('role', 'user')
                 ->where('created_by', $authUser->id)
                 ->get();
-
-        } elseif ($authUser->role === 'admin') {
-            // Admin sees all users under managers they created
+        } 
+        // Admin can see all users under managers they created
+        else {
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
@@ -102,7 +99,7 @@ class ManagerUsersPage extends Page
         }
 
         // -------------------------------
-        // Selected user: show folders/images
+        // Selected user → show folders/media
         // -------------------------------
         if ($userId) {
             $this->selectedUser = User::find($userId);
@@ -110,54 +107,84 @@ class ManagerUsersPage extends Page
 
             $baseUserPath = $userId;
 
-            // Top-level folders
+            // 🔹 Top-level folders
             if (!$folder) {
                 $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
                     ->map(fn($dir) => [
+                        'type' => 'folder',
                         'path' => $dir,
                         'name' => basename($dir),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
+                                              ->toDateTimeString(),
+                        'linked' => false,
                     ])->toArray();
 
                 $this->folders = $this->groupByDate($rawFolders);
-            }
-            // Inside folder / subfolder
+            } 
+            // 🔹 Inside folder / subfolder
             else {
                 $this->selectedFolder = $folder;
                 $targetPath = $subfolder ?: $folder;
                 if ($subfolder) $this->selectedSubfolder = $subfolder;
 
-                // Subfolders
+                // Physical subfolders
                 $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
                     ->map(fn($dir) => [
                         'type' => 'folder',
                         'path' => $dir,
                         'name' => basename($dir),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
-                    ]);
-                $this->subfolders = $rawSubfolders->values()->toArray();
+                                              ->toDateTimeString(),
+                        'linked' => false,
+                    ])->toArray();
 
-                // Fetch all media (images + videos)
+                // Linked folders from DB
+                $linkedFolders = [];
+                $selectedFolderModel = \App\Models\Folder::where('user_id', $this->selectedUser->id)
+                    ->where('name', basename($folder))
+                    ->first();
+
+                if ($selectedFolderModel) {
+                    $linkedFolders = $selectedFolderModel->linkedFolders
+                        ->map(fn($f) => [
+                            'type' => 'folder',
+                            'path' => $f->user_id . '/' . $f->name,
+                            'name' => $f->name,
+                            'created_at' => $f->created_at->toDateTimeString(),
+                            'linked' => true,
+                        ])->toArray();
+                }
+
+                // Merge physical + linked
+                $this->subfolders = collect($rawSubfolders)
+                    ->merge($linkedFolders)
+                    ->sortByDesc(fn($i) => $i['created_at'])
+                    ->values()
+                    ->toArray();
+
+                // Media files
+                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
                 $allMedia = collect(Storage::disk('public')->files($targetPath))
-                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['jpg','jpeg','png','mp4','mov','webm']))
+                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
                     ->map(fn($file) => [
-                        'type' => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['mp4','mov','webm']) ? 'video' : 'image',
+                        'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
+                            'mp4' => 'video',
+                            'pdf' => 'pdf',
+                            default => 'image',
+                        },
                         'path' => $file,
                         'name' => basename($file),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
                                             ->toDateTimeString(),
+                        'merged_from' => \App\Models\Photo::where('path', $file)->first()?->source_folder_id,
                     ])->values();
 
                 $this->total = $allMedia->count();
-
                 $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();
-                $this->images = $mediaPaged->toArray(); // still called images, can rename to $media if you want
 
-                // Merge folders first, then media
-                $merged = $rawSubfolders->sortByDesc('created_at')->merge($mediaPaged->sortByDesc('created_at'))->values();
+                $merged = collect($this->subfolders)->merge($mediaPaged)->values();
                 $this->items = $this->groupByDate($merged->toArray());
+                $this->images = $mediaPaged->toArray();
             }
         }
     }
