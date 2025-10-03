@@ -654,7 +654,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const download = (selector) => {
         const selected = [...document.querySelectorAll(selector+':checked')].map(cb => cb.value);
         if (!selected.length) return alert('Please select at least one image to download.');
-        selected.forEach(url => { const a=document.createElement('a'); a.href=url; a.download=''; a.style.display='none'; document.body.appendChild(a); a.click(); document.body.removeChild(a); });
+
+        selected.forEach((url, i) => {
+            setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }, i * 300); // 300ms delay between downloads
+        });
     };
     document.getElementById('download-selected')?.addEventListener('click', () => download('.image-checkbox'));
     document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder'));
