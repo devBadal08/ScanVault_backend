@@ -351,7 +351,7 @@
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="<?php echo e(isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
+                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 
@@ -489,7 +489,7 @@
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="<?php echo e(isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
+                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 
@@ -584,18 +584,88 @@
 <?php endif; ?>
 
 <script>
-    function openImageModal(name, path, created, type = 'image') {
+document.addEventListener('DOMContentLoaded', function () {
+    // =========================
+    // Accordion logic
+    // =========================
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', function () {
+            const content = this.nextElementSibling;
+            content.classList.toggle('hidden');
+            this.querySelector('span:last-child').classList.toggle('rotate-180');
+        });
+    });
+
+    // =========================
+    // Count update (dynamic)
+    // =========================
+    const updateCount = (selector, countId) => {
+        const totalChecked = document.querySelectorAll(selector + ':checked').length;
+        document.getElementById(countId).textContent = `${totalChecked} selected`;
+    };
+
+    // =========================
+    // Select All logic (folder-level)
+    // =========================
+    document.getElementById('select-all')?.addEventListener('change', function () {
+        document.querySelectorAll('.image-checkbox').forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox', 'selected-count');
+    });
+
+    // =========================
+    // Select All logic (subfolder-level)
+    // =========================
+    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
+        document.querySelectorAll('.image-checkbox-subfolder').forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
+    });
+
+    // =========================
+    // Dynamic checkbox listener for count updates
+    // =========================
+    document.addEventListener('change', function(e) {
+        if(e.target.matches('.image-checkbox')) updateCount('.image-checkbox', 'selected-count');
+        if(e.target.matches('.image-checkbox-subfolder')) updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
+    });
+
+    // =========================
+    // Download logic
+    // =========================
+    const downloadSelected = (selector) => {
+        const selected = [...document.querySelectorAll(selector + ':checked')].map(cb => cb.value);
+        if (!selected.length) return alert('Please select at least one file to download.');
+
+        selected.forEach((url, i) => {
+            setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }, i * 300); // delay 300ms between downloads
+        });
+    };
+
+    document.getElementById('download-selected')?.addEventListener('click', () => downloadSelected('.image-checkbox'));
+    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => downloadSelected('.image-checkbox-subfolder'));
+
+    // =========================
+    // Modal logic
+    // =========================
+    const openImageModal = (name, path, created, type = 'image') => {
         const modal = document.getElementById('imageModal');
         const img = document.getElementById('modalImage');
         const video = document.getElementById('modalVideo');
         const videoSource = document.getElementById('modalVideoSource');
 
-        // Reset: hide both
+        // Reset
         img.classList.add('hidden');
         video.classList.add('hidden');
         video.pause();
 
-        // Show correct media
+        // Show proper media
         if(type === 'image') {
             img.src = path;
             img.classList.remove('hidden');
@@ -611,64 +681,17 @@
         document.getElementById('modalCreated').innerText = created;
 
         modal.classList.remove('hidden');
-    }
+    };
 
-    function closeImageModal() {
+    window.openImageModal = openImageModal;
+
+    window.closeImageModal = () => {
         const modal = document.getElementById('imageModal');
         const video = document.getElementById('modalVideo');
         modal.classList.add('hidden');
         video.pause();
-    }
-
-document.addEventListener('DOMContentLoaded', function () {
-    // Accordion logic
-    document.querySelectorAll('.accordion-header').forEach(header => {
-        header.addEventListener('click', function () {
-            const content = this.nextElementSibling;
-            content.classList.toggle('hidden');
-            this.querySelector('span:last-child').classList.toggle('rotate-180');
-        });
-    });
-
-    const updateCount = (selector, countId) => {
-        document.getElementById(countId).textContent = `${document.querySelectorAll(selector+':checked').length} selected`;
     };
-
-    // Folder level
-    const folderCheckboxes = document.querySelectorAll('.image-checkbox');
-    document.getElementById('select-all')?.addEventListener('change', function () {
-        folderCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox', 'selected-count');
-    });
-    folderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox', 'selected-count')));
-
-    // Subfolder level
-    const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder');
-    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
-        subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
-    });
-    subfolderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder', 'selected-count-subfolder')));
-
-    // Download logic (folder & subfolder)
-    const download = (selector) => {
-        const selected = [...document.querySelectorAll(selector+':checked')].map(cb => cb.value);
-        if (!selected.length) return alert('Please select at least one image to download.');
-
-        selected.forEach((url, i) => {
-            setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = '';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }, i * 300); // 300ms delay between downloads
-        });
-    };
-    document.getElementById('download-selected')?.addEventListener('click', () => download('.image-checkbox'));
-    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder'));
 });
 </script>
+
 <?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/filament/admin/pages/admin-users-page.blade.php ENDPATH**/ ?>

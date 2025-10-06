@@ -151,7 +151,7 @@
                                         {{-- Top-left checkbox --}}
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="{{ isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
+                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
                                                 value="{{ asset('storage/' . $item['path']) }}">
                                         </div>
 
@@ -258,7 +258,7 @@
                                         {{-- Top-left checkbox --}}
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="{{ isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
+                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
                                                 value="{{ asset('storage/' . $item['path']) }}">
                                         </div>
 
