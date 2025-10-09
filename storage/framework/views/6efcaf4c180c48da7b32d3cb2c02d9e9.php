@@ -279,7 +279,7 @@
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="<?php echo e(isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
+                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 
@@ -420,7 +420,7 @@
                                         
                                         <div class="absolute top-1 left-1 z-50">
                                             <input type="checkbox"
-                                                class="<?php echo e(isset($subfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
+                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                 value="<?php echo e(asset('storage/' . $item['path'])); ?>">
                                         </div>
 

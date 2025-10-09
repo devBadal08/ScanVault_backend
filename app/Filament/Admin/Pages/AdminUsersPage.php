@@ -37,14 +37,14 @@ class AdminUsersPage extends Page
 
     protected function groupByDate(array $items): array
     {
-        $lastThreeDays = [];
-        for ($i = 1; $i <= 3; $i++) {
-            $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
+        $lastSixDays = [];
+        for ($i = 1; $i <= 6; $i++) {
+            $lastSixDays[] = now()->subDays($i)->format('d-m-Y');
         }
 
         $groups = array_merge(
             ['Today' => []],
-            array_combine($lastThreeDays, array_fill(0, 3, [])),
+            array_combine($lastSixDays, array_fill(0, 6, [])),
             [
                 'Last Week' => [],
                 'Earlier this Month' => [],
@@ -60,7 +60,7 @@ class AdminUsersPage extends Page
 
             if ($created->isToday()) {
                 $groups['Today'][] = $item;
-            } elseif (in_array($createdDate, $lastThreeDays)) {
+            } elseif (in_array($createdDate, $lastSixDays)) {
                 $groups[$createdDate][] = $item;
             } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
                 $groups['Last Week'][] = $item;

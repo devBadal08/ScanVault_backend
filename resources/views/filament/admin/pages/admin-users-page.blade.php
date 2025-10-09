@@ -152,9 +152,13 @@
                                 @if ($item['type'] === 'folder')
                                     {{-- folder card --}}
                                     <div class="relative w-40 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="{{ route('download-folder', ['path' => $item['path']]) }}"
-                                        class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20"
-                                        title="Download Subfolder">
+                                        {{-- Hidden checkbox for Select All --}}
+                                        <input type="checkbox"
+                                            class="folder-checkbox absolute top-2 left-2 z-50"
+                                            style="transform: scale(1.2);"
+                                            value="{{ route('download-folder', ['path' => $item['path']]) }}">
+
+                                        <a href="{{ route('download-folder', ['path' => $item['path']]) }}" class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20" title="Download Subfolder">
                                             <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
                                         </a>
 
@@ -163,8 +167,7 @@
                                             <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
                                         @endif
 
-                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
-                                        class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}" class="absolute inset-0 flex flex-col items-center justify-center px-2">
                                             <div class="text-3xl">📁</div>
                                             <div class="mt-1 truncate px-1 w-full" title="{{ $item['name'] }}">
                                                 {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
@@ -332,7 +335,7 @@
 
     <!-- Modal -->
     <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden relative animate-scale-up">
+        <div class="bg-white rounded-lg shadow-2xl max-w-md w-full overflow-hidden relative animate-scale-up">
             {{-- Close Button --}}
             <button onclick="closeImageModal()"
                     class="absolute top-3 right-3 text-gray-600 hover:text-gray-900 text-2xl font-bold transition">
@@ -341,9 +344,9 @@
 
             {{-- Media container --}}
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
-                <div class="max-w-full max-h-[40vh] flex items-center justify-center">
-                    <img id="modalImage" src="" class="max-h-[60vh] max-w-full object-contain rounded-lg" alt="Image Preview">
-                    <video id="modalVideo" controls class="max-h-[40vh] max-w-full object-contain rounded-lg hidden">
+                <div class="max-w-full max-h-[30vh] flex items-center justify-center">
+                    <img id="modalImage" src="" class="max-h-[40vh] max-w-full object-contain rounded-lg" alt="Image Preview">
+                    <video id="modalVideo" controls class="max-h-[30vh] max-w-full object-contain rounded-lg hidden">
                         <source id="modalVideoSource" src="" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -363,88 +366,18 @@
 </x-filament::page>
 
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    // =========================
-    // Accordion logic
-    // =========================
-    document.querySelectorAll('.accordion-header').forEach(header => {
-        header.addEventListener('click', function () {
-            const content = this.nextElementSibling;
-            content.classList.toggle('hidden');
-            this.querySelector('span:last-child').classList.toggle('rotate-180');
-        });
-    });
-
-    // =========================
-    // Count update (dynamic)
-    // =========================
-    const updateCount = (selector, countId) => {
-        const totalChecked = document.querySelectorAll(selector + ':checked').length;
-        document.getElementById(countId).textContent = `${totalChecked} selected`;
-    };
-
-    // =========================
-    // Select All logic (folder-level)
-    // =========================
-    document.getElementById('select-all')?.addEventListener('change', function () {
-        document.querySelectorAll('.image-checkbox').forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox', 'selected-count');
-    });
-
-    // =========================
-    // Select All logic (subfolder-level)
-    // =========================
-    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
-        document.querySelectorAll('.image-checkbox-subfolder').forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
-    });
-
-    // =========================
-    // Dynamic checkbox listener for count updates
-    // =========================
-    document.addEventListener('change', function(e) {
-        if(e.target.matches('.image-checkbox')) updateCount('.image-checkbox', 'selected-count');
-        if(e.target.matches('.image-checkbox-subfolder')) updateCount('.image-checkbox-subfolder', 'selected-count-subfolder');
-    });
-
-    // =========================
-    // Download logic
-    // =========================
-    const downloadSelected = (selector) => {
-        const selected = [...document.querySelectorAll(selector + ':checked')].map(cb => cb.value);
-        if (!selected.length) return alert('Please select at least one file to download.');
-
-        selected.forEach((url, i) => {
-            setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = '';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }, i * 300); // delay 300ms between downloads
-        });
-    };
-
-    document.getElementById('download-selected')?.addEventListener('click', () => downloadSelected('.image-checkbox'));
-    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => downloadSelected('.image-checkbox-subfolder'));
-
-    // =========================
-    // Modal logic
-    // =========================
-    const openImageModal = (name, path, created, type = 'image') => {
+    function openImageModal(name, path, created, type = 'image') {
         const modal = document.getElementById('imageModal');
         const img = document.getElementById('modalImage');
         const video = document.getElementById('modalVideo');
         const videoSource = document.getElementById('modalVideoSource');
 
-        // Reset
+        // Reset: hide both
         img.classList.add('hidden');
         video.classList.add('hidden');
         video.pause();
 
-        // Show proper media
+        // Show correct media
         if(type === 'image') {
             img.src = path;
             img.classList.remove('hidden');
@@ -460,16 +393,63 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('modalCreated').innerText = created;
 
         modal.classList.remove('hidden');
-    };
+    }
 
-    window.openImageModal = openImageModal;
-
-    window.closeImageModal = () => {
+    function closeImageModal() {
         const modal = document.getElementById('imageModal');
         const video = document.getElementById('modalVideo');
         modal.classList.add('hidden');
         video.pause();
+    }
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Accordion logic
+    document.querySelectorAll('.accordion-header').forEach(header => {
+        header.addEventListener('click', function () {
+            const content = this.nextElementSibling;
+            content.classList.toggle('hidden');
+            this.querySelector('span:last-child').classList.toggle('rotate-180');
+        });
+    });
+
+    const updateCount = (selector, countId) => {
+        document.getElementById(countId).textContent = `${document.querySelectorAll(selector+':checked').length} selected`;
     };
+
+    // Folder level
+    const folderCheckboxes = document.querySelectorAll('.image-checkbox, .folder-checkbox');
+    document.getElementById('select-all')?.addEventListener('change', function () {
+        folderCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox, .folder-checkbox', 'selected-count');
+    });
+    folderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox, .folder-checkbox', 'selected-count')));
+
+    // Subfolder level
+    const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder, .folder-checkbox');
+    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
+        subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateCount('.image-checkbox-subfolder, .folder-checkbox', 'selected-count-subfolder');
+    });
+    subfolderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder, .folder-checkbox', 'selected-count-subfolder')));
+
+    // Download logic (folder & subfolder)
+    const download = (selector) => {
+        const selected = [...document.querySelectorAll(selector+':checked')].map(cb => cb.value);
+        if (!selected.length) return alert('Please select at least one image to download.');
+
+        selected.forEach((url, i) => {
+            setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }, i * 300); // 300ms delay between downloads
+        });
+    };
+    document.getElementById('download-selected')?.addEventListener('click', () => download('.image-checkbox, .folder-checkbox'));
+    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder, .folder-checkbox'));
 });
 </script>
-
