@@ -151,25 +151,30 @@
                             @foreach ($groupItems as $item)
                                 @if ($item['type'] === 'folder')
                                     {{-- folder card --}}
-                                    <div class="relative w-40 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        {{-- Hidden checkbox for Select All --}}
-                                        <input type="checkbox"
-                                            class="folder-checkbox absolute top-2 left-2 z-50"
-                                            style="transform: scale(1.2);"
-                                            value="{{ route('download-folder', ['path' => $item['path']]) }}">
+                                    <div class="relative w-40 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
+                                        {{-- Top row: checkbox + optional linked badge + download button --}}
+                                        <div class="flex justify-between items-start p-1">
+                                            <div class="flex items-center space-x-1">
+                                                <input type="checkbox"
+                                                    class="folder-checkbox"
+                                                    value="{{ route('download-folder', ['path' => $item['path']]) }}">
+                                                @if(isset($item['linked']) && $item['linked'])
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
+                                                @endif
+                                            </div>
 
-                                        <a href="{{ route('download-folder', ['path' => $item['path']]) }}" class="absolute top-2 right-2 bg-white p-1 shadow hover:bg-gray-200 z-20" title="Download Subfolder">
-                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-                                        </a>
+                                            <a href="{{ route('download-folder', ['path' => $item['path']]) }}"
+                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            title="Download Subfolder">
+                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                            </a>
+                                        </div>
 
-                                        {{-- Linked badge --}}
-                                        @if(isset($item['linked']) && $item['linked'])
-                                            <span class="absolute top-0 left-0 bg-blue-500 text-white text-xs px-1 rounded-br">Linked</span>
-                                        @endif
-
-                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}" class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                        {{-- Folder icon + name --}}
+                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        class="flex flex-col items-center justify-center flex-1">
                                             <div class="text-3xl">📁</div>
-                                            <div class="mt-1 truncate px-1 w-full" title="{{ $item['name'] }}">
+                                            <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">
                                                 {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
                                             </div>
                                         </a>
@@ -264,14 +269,28 @@
                         <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
                             @foreach ($groupItems as $item)
                                 @if ($item['type'] === 'folder')
-                                    <div class="relative w-32 h-32 bg-white rounded shadow border text-center text-xs font-medium">
-                                        <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}" class="absolute top-2 right-2 bg-white p-1 rounded-full shadow hover:bg-gray-200 z-20" title="Download Subfolder">
-                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-                                        </a>
+                                    <div class="relative w-32 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
+                                        {{-- Top row: checkbox + download button --}}
+                                        <div class="flex justify-between items-start p-1">
+                                            <input type="checkbox"
+                                                class="folder-checkbox-subfolder"
+                                                style="transform: scale(1.2);"
+                                                value="{{ route('download-folder', ['path' => $item['path']]) }}">
 
-                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}" class="absolute inset-0 flex flex-col items-center justify-center px-2">
+                                            <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
+                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            title="Download Subfolder">
+                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                            </a>
+                                        </div>
+
+                                        {{-- Folder icon + name --}}
+                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}&user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
-                                            <div class="mt-1 truncate px-1 w-full" title="{{ $item['name'] }}">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
+                                            <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">
+                                                {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
+                                            </div>
                                         </a>
                                     </div>
                                 @else
@@ -403,7 +422,7 @@
     }
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Accordion logic
+    // Accordion toggle
     document.querySelectorAll('.accordion-header').forEach(header => {
         header.addEventListener('click', function () {
             const content = this.nextElementSibling;
@@ -412,44 +431,54 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Update selected count
     const updateCount = (selector, countId) => {
-        document.getElementById(countId).textContent = `${document.querySelectorAll(selector+':checked').length} selected`;
+        const count = document.querySelectorAll(selector + ':checked').length;
+        document.getElementById(countId).textContent = `${count} selected`;
     };
 
-    // Folder level
+    // -------- Folder Level --------
     const folderCheckboxes = document.querySelectorAll('.image-checkbox, .folder-checkbox');
-    document.getElementById('select-all')?.addEventListener('change', function () {
-        folderCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox, .folder-checkbox', 'selected-count');
-    });
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            folderCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateCount('.image-checkbox, .folder-checkbox', 'selected-count');
+            if (!this.checked) document.getElementById('selected-count').textContent = '0 selected';
+        });
+    }
     folderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox, .folder-checkbox', 'selected-count')));
 
-    // Subfolder level
-    const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder, .folder-checkbox');
-    document.getElementById('select-all-subfolder')?.addEventListener('change', function () {
-        subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateCount('.image-checkbox-subfolder, .folder-checkbox', 'selected-count-subfolder');
-    });
-    subfolderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder, .folder-checkbox', 'selected-count-subfolder')));
+    // -------- Subfolder Level (images + folders) --------
+    const subfolderCheckboxes = document.querySelectorAll('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder');
+    const selectAllSubfolder = document.getElementById('select-all-subfolder');
+    if (selectAllSubfolder) {
+        selectAllSubfolder.addEventListener('change', function () {
+            subfolderCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateCount('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder', 'selected-count-subfolder');
+            if (!this.checked) document.getElementById('selected-count-subfolder').textContent = '0 selected';
+        });
+    }
+    subfolderCheckboxes.forEach(cb => cb.addEventListener('change', () => updateCount('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder', 'selected-count-subfolder')));
 
-    // Download logic (folder & subfolder)
+    // -------- Download Selected --------
     const download = (selector) => {
-        const selected = [...document.querySelectorAll(selector+':checked')].map(cb => cb.value);
-        if (!selected.length) return alert('Please select at least one image to download.');
+        const selected = [...document.querySelectorAll(selector + ':checked')].map(cb => cb.value);
+        if (!selected.length) return alert('Please select at least one item to download.');
 
         selected.forEach((url, i) => {
             setTimeout(() => {
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = '';
-                a.style.display = 'none';
                 document.body.appendChild(a);
                 a.click();
-                document.body.removeChild(a);
-            }, i * 300); // 300ms delay between downloads
+                a.remove();
+            }, i * 300);
         });
     };
+
     document.getElementById('download-selected')?.addEventListener('click', () => download('.image-checkbox, .folder-checkbox'));
-    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder, .folder-checkbox'));
+    document.getElementById('download-selected-subfolder')?.addEventListener('click', () => download('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder'));
 });
 </script>
