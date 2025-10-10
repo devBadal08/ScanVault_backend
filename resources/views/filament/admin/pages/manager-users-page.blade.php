@@ -131,29 +131,29 @@
                                 @if ($item['type'] === 'folder')
                                     {{-- folder card --}}
                                     <div class="relative w-32 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
-    {{-- Top row: checkbox + download button --}}
-    <div class="flex justify-between items-start p-1">
-        <input type="checkbox"
-               class="folder-checkbox"
-               style="transform: scale(1.2);"
-               value="{{ route('download-folder', ['path' => $item['path']]) }}">
+                                        {{-- Top row: checkbox + download button --}}
+                                        <div class="flex justify-between items-start p-1">
+                                            <input type="checkbox"
+                                                class="folder-checkbox"
+                                                style="transform: scale(1.2);"
+                                                value="{{ route('download-folder', ['path' => $item['path']]) }}">
 
-        <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
-           class="p-1 rounded-full hover:bg-gray-200"
-           title="Download Subfolder">
-            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
-        </a>
-    </div>
+                                            <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
+                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            title="Download Subfolder">
+                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                            </a>
+                                        </div>
 
-    {{-- Folder icon + name --}}
-    <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
-       class="flex flex-col items-center justify-center flex-1 px-2">
-        <div class="text-3xl">📁</div>
-        <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">
-            {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
-        </div>
-    </a>
-</div>
+                                        {{-- Folder icon + name --}}
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        class="flex flex-col items-center justify-center flex-1 px-2">
+                                            <div class="text-3xl">📁</div>
+                                            <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">
+                                                {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
+                                            </div>
+                                        </a>
+                                    </div>
 
                                 @else
                                     {{-- media card (image or video) --}}
@@ -347,10 +347,10 @@
             {{-- Media container --}}
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
                 {{-- Image preview --}}
-                <img id="modalImage" src="" class="max-h-[60vh] object-contain rounded-lg" alt="Image Preview">
+                <img id="modalImage" src="" class="max-h-[40vh] object-contain rounded-lg" alt="Image Preview">
 
                 {{-- Video preview --}}
-                <video id="modalVideo" controls class="max-h-[60vh] object-contain rounded-lg hidden">
+                <video id="modalVideo" controls class="max-h-[40vh] object-contain rounded-lg hidden">
                     <source id="modalVideoSource" src="" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>

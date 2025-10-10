@@ -239,17 +239,17 @@
                                 <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'folder'): ?>
                                     
                                     <div class="relative w-32 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
-    
-    <div class="flex justify-between items-start p-1">
-        <input type="checkbox"
-               class="folder-checkbox"
-               style="transform: scale(1.2);"
-               value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
+                                        
+                                        <div class="flex justify-between items-start p-1">
+                                            <input type="checkbox"
+                                                class="folder-checkbox"
+                                                style="transform: scale(1.2);"
+                                                value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
 
-        <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
-           class="p-1 rounded-full hover:bg-gray-200"
-           title="Download Subfolder">
-            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                                            <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
+                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            title="Download Subfolder">
+                                                <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-o-arrow-down-tray'); ?>
@@ -269,19 +269,19 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-        </a>
-    </div>
+                                            </a>
+                                        </div>
 
-    
-    <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
-       class="flex flex-col items-center justify-center flex-1 px-2">
-        <div class="text-3xl">📁</div>
-        <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">
-            <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
+                                        
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
+                                        class="flex flex-col items-center justify-center flex-1 px-2">
+                                            <div class="text-3xl">📁</div>
+                                            <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">
+                                                <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
 
-        </div>
-    </a>
-</div>
+                                            </div>
+                                        </a>
+                                    </div>
 
                                 <?php else: ?>
                                     
@@ -510,10 +510,10 @@
             
             <div class="w-full bg-gray-100 flex items-center justify-center p-4">
                 
-                <img id="modalImage" src="" class="max-h-[60vh] object-contain rounded-lg" alt="Image Preview">
+                <img id="modalImage" src="" class="max-h-[40vh] object-contain rounded-lg" alt="Image Preview">
 
                 
-                <video id="modalVideo" controls class="max-h-[60vh] object-contain rounded-lg hidden">
+                <video id="modalVideo" controls class="max-h-[40vh] object-contain rounded-lg hidden">
                     <source id="modalVideoSource" src="" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>

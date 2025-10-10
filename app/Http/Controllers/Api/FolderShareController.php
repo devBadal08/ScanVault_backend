@@ -63,15 +63,40 @@ class FolderShareController extends Controller
 
     public function mySharedFolders()
     {
-        $folders = FolderShare::with(['folder.photos'])->where('shared_with', auth()->id())->get();
+        $userId = auth()->id();
 
-        $folders->each(function ($share) {
-            $share->folder->photos->each(function ($photo) {
-                $photo->url = asset('storage/' . $photo->path);
+        // Folders I own
+        $owned = Folder::with('photos')
+            ->where('user_id', $userId)
+            ->get()
+            ->map(function ($folder) {
+                $folder->shared_type = 'owned';
+                $folder->photos->each(function ($photo) {
+                    $photo->url = asset('storage/' . $photo->path);
+                });
+                return $folder;
             });
-        });
 
-        return response()->json($folders);
+        // Folders shared with me
+        $shared = FolderShare::with(['folder.photos'])
+            ->where('shared_with', $userId)
+            ->get()
+            ->map(function ($share) {
+                $folder = $share->folder;
+                $folder->shared_type = 'shared';
+                $folder->photos->each(function ($photo) {
+                    $photo->url = asset('storage/' . $photo->path);
+                });
+                return $folder;
+            });
+
+        // Combine both
+        $allFolders = $owned->merge($shared);
+
+        return response()->json([
+            'success' => true,
+            'folders' => $allFolders,
+        ]);
     }
 
     public function getSharedFolderPhotos($id)
