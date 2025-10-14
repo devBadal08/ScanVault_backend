@@ -155,7 +155,7 @@ class FolderShareController extends Controller
 
         $request->validate([
             'files'   => 'required|array',
-            'files.*' => 'file|mimes:jpg,jpeg,png,mp4|max:20480', // 20MB limit
+            'files.*' => 'file|mimes:jpg,jpeg,png,mp4,pdf',
         ]);
 
         $files = $request->file('files');
@@ -179,29 +179,19 @@ class FolderShareController extends Controller
             $filename = time() . '_' . uniqid() . '_' . $originalName;
             $safeFolderName = Str::slug($folder->name, '_');
 
-            // Determine subdirectory based on file type
-            $extension = strtolower($file->getClientOriginalExtension());
-            $subFolder = 'others';
-            if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
-                $subFolder = 'images';
-            } elseif (in_array($extension, ['mp4', 'mov', 'avi'])) {
-                $subFolder = 'videos';
-            } elseif ($extension === 'pdf') {
-                $subFolder = 'pdfs';
-            }
-
-            $path = $file->storeAs("{$folder->user_id}/shared/{$safeFolderName}/{$subFolder}", $filename, 'public');
+            // ✅ No subfolders — store all files in the main folder
+            $path = $file->storeAs("{$folder->user_id}/{$safeFolderName}", $filename, 'public');
 
             Photo::create([
                 'path'        => $path,
-                'user_id'     => $folder->user_id,  // folder owner
+                'user_id'     => $folder->user_id,
                 'folder_id'   => $folderId,
-                'uploaded_by' => $userId,           // actual uploader
+                'uploaded_by' => $userId,
             ]);
 
             $uploaded[] = [
                 'url' => asset('storage/' . $path),
-                'type' => $extension,
+                'type' => $extension = strtolower($file->getClientOriginalExtension()),
             ];
         }
 
