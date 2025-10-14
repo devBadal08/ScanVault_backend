@@ -17,7 +17,7 @@ class Folder extends Model
 
     public function photos()
     {
-        return $this->hasMany(Photo::class);
+        return $this->hasMany(Photo::class, 'folder_id');
     }
 
     public function shares() {

@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Auth;
 
 class FolderShareController extends Controller
 {
+    /**
+     * Get folder ID by name for the current user
+     */
     public function getFolderId(Request $request)
     {
         $request->validate(['name' => 'required|string']);
@@ -28,6 +31,9 @@ class FolderShareController extends Controller
         return response()->json(['folder_id' => $folder->id]);
     }
 
+    /**
+     * Share a folder with another user
+     */
     public function share(Request $request)
     {
         $request->validate([
@@ -35,106 +41,109 @@ class FolderShareController extends Controller
             'shared_with' => 'required|email|exists:users,email',
         ]);
 
-        // ✅ Find user by email
         $sharedWithUser = User::where('email', $request->shared_with)->first();
-        if (!$sharedWithUser) {
-            return response()->json(['success' => false, 'message' => 'Enter a valid email'], 200);
-        }
 
         if (!$sharedWithUser) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User with this email does not exist.'
-            ], 404);
+            return response()->json(['success' => false, 'message' => 'User with this email does not exist.'], 404);
         }
 
-        // ✅ Create share entry
+        // Prevent duplicate share
+        $exists = FolderShare::where('folder_id', $request->folder_id)
+            ->where('shared_with', $sharedWithUser->id)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['success' => false, 'message' => 'Folder already shared with this user.'], 200);
+        }
+
         $share = FolderShare::create([
             'folder_id'   => $request->folder_id,
             'shared_by'   => auth()->id(),
-            'shared_with' => $sharedWithUser->id, // use ID, not email
+            'shared_with' => $sharedWithUser->id,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'share'   => $share
-        ]);
+        return response()->json(['success' => true, 'share' => $share]);
     }
 
+    /**
+     * Get folders shared with the authenticated user
+     */
     public function mySharedFolders()
+    {
+        $folders = FolderShare::with(['folder.photos'])->where('shared_with', auth()->id())->get();
+
+        $folders->each(function ($share) {
+            $share->folder->photos->each(function ($photo) {
+                $photo->url = asset('storage/' . $photo->path);
+                $photo->uploader = User::find($photo->uploaded_by)?->name ?? 'Unknown';
+            });
+        });
+
+        return response()->json(['success' => true, 'folders' => $folders]);
+    }
+
+    /**
+     * Get all accessible folders (owned + shared)
+     */
+    public function allAccessibleFolders()
     {
         $userId = auth()->id();
 
-        // Folders I own
-        $owned = Folder::with('photos')
+        $sharedFolderIds = FolderShare::where('shared_with', $userId)->pluck('folder_id');
+
+        $folders = Folder::with(['photos'])
             ->where('user_id', $userId)
-            ->get()
-            ->map(function ($folder) {
-                $folder->shared_type = 'owned';
-                $folder->photos->each(function ($photo) {
-                    $photo->url = asset('storage/' . $photo->path);
-                });
-                return $folder;
+            ->orWhereIn('id', $sharedFolderIds)
+            ->get();
+
+        $folders->each(function ($folder) {
+            $folder->photos->each(function ($photo) {
+                $photo->url = asset('storage/' . $photo->path);
+                $photo->uploader = User::find($photo->uploaded_by)?->name ?? 'Unknown';
             });
+        });
 
-        // Folders shared with me
-        $shared = FolderShare::with(['folder.photos'])
-            ->where('shared_with', $userId)
-            ->get()
-            ->map(function ($share) {
-                $folder = $share->folder;
-                $folder->shared_type = 'shared';
-                $folder->photos->each(function ($photo) {
-                    $photo->url = asset('storage/' . $photo->path);
-                });
-                return $folder;
-            });
-
-        // Combine both
-        $allFolders = $owned->merge($shared);
-
-        return response()->json([
-            'success' => true,
-            'folders' => $allFolders,
-        ]);
+        return response()->json(['success' => true, 'folders' => $folders]);
     }
 
+    /**
+     * Get all photos from a shared folder
+     */
     public function getSharedFolderPhotos($id)
     {
-        // Find the shared folder entry
-        $share = FolderShare::with(['folder.photos'])
-            ->where('shared_with', auth()->id()) // only if this user has access
-            ->where('folder_id', $id)
-            ->first();
+        $userId = auth()->id();
 
-        if (!$share) {
+        $hasAccess = Folder::where('id', $id)->where('user_id', $userId)->exists()
+            || FolderShare::where('folder_id', $id)->where('shared_with', $userId)->exists();
+
+        if (!$hasAccess) {
             return response()->json([
                 'success' => false,
                 'message' => 'Folder not found or not shared with you.'
             ], 404);
         }
 
-        // Attach public URLs for photos
-        $photos = $share->folder->photos->map(function ($photo) {
+        $folder = Folder::with('photos')->findOrFail($id);
+
+        $photos = $folder->photos->map(function ($photo) {
             return [
-                'id'   => $photo->id,
-                'path' => $photo->path,
-                'url'  => asset('storage/' . $photo->path),
+                'id'        => $photo->id,
+                'path'      => $photo->path,
+                'url'       => asset('storage/' . $photo->path),
+                'uploaded_by' => User::find($photo->uploaded_by)?->name ?? 'Unknown',
             ];
         });
 
-        return response()->json([
-            'success' => true,
-            'folder_id' => $id,
-            'photos' => $photos,
-        ]);
+        return response()->json(['success' => true, 'folder_id' => $id, 'photos' => $photos]);
     }
 
+    /**
+     * Upload photos to a folder (owner or shared)
+     */
     public function uploadToSharedFolder(Request $request, $folderId)
     {
         $userId = Auth::id();
 
-        // check access
         $hasAccess = Folder::where('id', $folderId)->where('user_id', $userId)->exists()
             || FolderShare::where('folder_id', $folderId)->where('shared_with', $userId)->exists();
 
@@ -145,18 +154,13 @@ class FolderShareController extends Controller
         $folder = Folder::findOrFail($folderId);
 
         $request->validate([
-            'photos'   => 'required|array',
-            'photos.*' => 'file|mimes:jpg,jpeg,png|max:5120',
+            'files'   => 'required|array',
+            'files.*' => 'file|mimes:jpg,jpeg,png,mp4|max:20480', // 20MB limit
         ]);
 
-        // ✅ multiple files come in as array
-        $files = $request->file('photos');
-
+        $files = $request->file('files');
         if (!$files || !is_array($files)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No files uploaded.'
-            ], 400);
+            return response()->json(['success' => false, 'message' => 'No files uploaded.'], 400);
         }
 
         $uploaded = [];
@@ -165,34 +169,42 @@ class FolderShareController extends Controller
 
             $originalName = $file->getClientOriginalName();
 
-            // ✅ check if file with same name already exists in this folder
+            // Skip if same base filename already exists in this folder
             $exists = Photo::where('folder_id', $folderId)
-                ->where('user_id', $folder->user_id)
                 ->where('path', 'like', "%$originalName")
                 ->exists();
 
-            if ($exists) {
-                continue; // skip duplicate
-            }
+            if ($exists) continue;
 
-            $filename = time().'_'.uniqid().'_'.$originalName;
+            $filename = time() . '_' . uniqid() . '_' . $originalName;
             $safeFolderName = Str::slug($folder->name, '_');
 
-            $path = $file->storeAs("{$folder->user_id}/shared/{$safeFolderName}", $filename, 'public');
+            // Determine subdirectory based on file type
+            $extension = strtolower($file->getClientOriginalExtension());
+            $subFolder = 'others';
+            if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+                $subFolder = 'images';
+            } elseif (in_array($extension, ['mp4', 'mov', 'avi'])) {
+                $subFolder = 'videos';
+            } elseif ($extension === 'pdf') {
+                $subFolder = 'pdfs';
+            }
+
+            $path = $file->storeAs("{$folder->user_id}/shared/{$safeFolderName}/{$subFolder}", $filename, 'public');
 
             Photo::create([
                 'path'        => $path,
-                'user_id'     => $folder->user_id,
+                'user_id'     => $folder->user_id,  // folder owner
                 'folder_id'   => $folderId,
-                'uploaded_by' => $userId,
+                'uploaded_by' => $userId,           // actual uploader
             ]);
 
-            $uploaded[] = asset('storage/'.$path);
+            $uploaded[] = [
+                'url' => asset('storage/' . $path),
+                'type' => $extension,
+            ];
         }
 
-        return response()->json([
-            'success'  => true,
-            'uploaded' => $uploaded,
-        ]);
+        return response()->json(['success' => true, 'uploaded' => $uploaded]);
     }
 }
