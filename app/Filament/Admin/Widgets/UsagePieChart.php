@@ -36,9 +36,6 @@ class UsagePieChart extends ChartWidget
             ->pluck('id')
             ->toArray();
 
-        // Users created by those managers
-        $managerUsersCount = User::whereIn('created_by', $managerIds)->count();
-
         // Direct users (including managers + normal users)
         $directUserCount = User::where('created_by', $adminId)->count();
 
@@ -48,7 +45,7 @@ class UsagePieChart extends ChartWidget
             ->sum('max_limit');
 
         // ✅ Total usage = direct users + users created by managers + assigned manager limits
-        $totalUsed = $directUserCount + $managerUsersCount + $assignedLimitToManagers;
+        $totalUsed = $directUserCount + $assignedLimitToManagers;
 
         $maxLimit = $currentUser->max_limit ?? 10;
         $remaining = max($maxLimit - $totalUsed, 0);

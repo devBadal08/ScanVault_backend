@@ -65,6 +65,7 @@ class CompanyDashboard extends Page
             Forms\Components\TextInput::make('password')
                 ->label('Password')
                 ->password()
+                ->revealable()
                 ->required(fn () => !$this->editingUserId),
 
             Forms\Components\Select::make('role')
