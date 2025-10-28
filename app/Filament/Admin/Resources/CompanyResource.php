@@ -41,8 +41,6 @@ class CompanyResource extends Resource
                     ->disk('public')
                     ->columns(1)
                     ->directory('company-logos') // optional: folder to store logos
-                    ->storeFileNamesIn('company-logos') // store filename in 'logo' column
-                    ->maxSize(1024) // optional: max file size in KB
                     ->required()
                     ->visibility('public')         // make file public
                     ->preserveFilenames()          // keep original file name (optional)
@@ -62,7 +60,7 @@ class CompanyResource extends Resource
                     ->label('Logo')
                     ->visibility('visible')
                     ->url(fn ($record) => asset('storage/' . $record->company_logo)) // clickable
-                    ->openUrlInNewTab()
+                    ->openUrlInNewTab() 
                     ->square()
                     ->alignCenter(),
             ])
