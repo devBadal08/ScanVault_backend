@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Company;
+use Filament\Notifications\Notification;
 
 class DownloadController extends Controller
 {
@@ -71,7 +72,13 @@ class DownloadController extends Controller
             ->get();
 
         if ($images->isEmpty()) {
-            return response()->json(['error' => 'No images found for today.'], 404);
+            Notification::make()
+                ->title('No Images Found')
+                ->body('No remaining images for today.')
+                ->warning()
+                ->send();
+
+            return back();
         }
 
         // 2. Prepare zip

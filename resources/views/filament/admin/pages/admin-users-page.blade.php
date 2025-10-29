@@ -1,5 +1,17 @@
 @php use Illuminate\Support\Facades\Auth; @endphp
 <x-filament::page>
+     @if (session('error'))
+        <div class="mb-4 p-3 text-sm bg-red-100 text-red-800 rounded-lg">
+            {{ session('error') }}
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div class="mb-4 p-3 text-sm bg-green-100 text-green-800 rounded-lg">
+            {{ session('success') }}
+        </div>
+    @endif
+    
     <div>
         {{-- Step 1: Show Admin Users + Managers --}}
         @if (!$selectedManager && !$selectedUser)

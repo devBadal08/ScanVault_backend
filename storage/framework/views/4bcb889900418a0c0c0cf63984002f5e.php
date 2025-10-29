@@ -9,6 +9,20 @@
 <?php $attributes = $attributes->except(\Filament\View\LegacyComponents\Page::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
+     <!--[if BLOCK]><![endif]--><?php if(session('error')): ?>
+        <div class="mb-4 p-3 text-sm bg-red-100 text-red-800 rounded-lg">
+            <?php echo e(session('error')); ?>
+
+        </div>
+    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+    <!--[if BLOCK]><![endif]--><?php if(session('success')): ?>
+        <div class="mb-4 p-3 text-sm bg-green-100 text-green-800 rounded-lg">
+            <?php echo e(session('success')); ?>
+
+        </div>
+    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+    
     <div>
         
         <!--[if BLOCK]><![endif]--><?php if(!$selectedManager && !$selectedUser): ?>
