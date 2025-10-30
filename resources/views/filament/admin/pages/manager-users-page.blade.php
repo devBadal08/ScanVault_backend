@@ -159,23 +159,36 @@
                                     {{-- media card (image or video) --}}
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
                                         {{-- Top-left checkbox --}}
-                                        <div class="absolute top-1 left-1 z-50">
-                                            <input type="checkbox"
-                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                value="{{ asset('storage/' . $item['path']) }}">
+                                        <div class="flex justify-between items-start p-1">
+                                            <div class="flex items-center space-x-1">
+                                                <input type="checkbox"
+                                                    class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
+                                                    value="{{ asset('storage/' . $item['path']) }}">
+                                                @if(isset($item['linked']) && $item['linked'])
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
+                                                @endif
+                                            </div>
+
+                                            {{-- 3-dot button (top-right) --}}
+                                            <button 
+                                                onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
+                                                class="p-1 rounded-full hover:bg-gray-200 transition"
+                                                title="More options">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                                                </svg>
+                                            </button>
                                         </div>
 
                                         @if ($item['type'] === 'image')
-                                            <a href="javascript:void(0)"
-                                                onclick="openImageModal('{{ $item['name'] }}', '{{ asset('storage/' . $item['path']) }}', '{{ $item['created_at'] ?? 'N/A' }}', 'image')"
-                                                class="w-full h-full block">
-                                                <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover rounded" alt="{{ $item['name'] }}">
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
+                                                <img src="{{ asset('storage/' . $item['path']) }}" 
+                                                    class="w-full h-full object-cover rounded" 
+                                                    alt="{{ $item['name'] }}">
                                             </a>
                                         @elseif ($item['type'] === 'video')
-                                            <a href="javascript:void(0)"
-                                                onclick="openImageModal('{{ $item['name'] }}', '{{ asset('storage/' . $item['path']) }}', '{{ $item['created_at'] ?? 'N/A' }}', 'video')"
-                                                class="w-full h-full block">
-                                                <video class="w-full h-full object-cover rounded">
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
+                                                <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="{{ asset('storage/' . $item['path']) }}" type="video/mp4">
                                                 </video>
                                             </a>
@@ -280,23 +293,36 @@
                                     {{-- media card (image or video) --}}
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
                                         {{-- Top-left checkbox --}}
-                                        <div class="absolute top-1 left-1 z-50">
-                                            <input type="checkbox"
-                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                value="{{ asset('storage/' . $item['path']) }}">
+                                        <div class="flex justify-between items-start p-1">
+                                            <div class="flex items-center space-x-1">
+                                                <input type="checkbox"
+                                                    class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
+                                                    value="{{ asset('storage/' . $item['path']) }}">
+                                                @if(isset($item['linked']) && $item['linked'])
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
+                                                @endif
+                                            </div>
+
+                                            {{-- 3-dot button (top-right) --}}
+                                            <button 
+                                                onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
+                                                class="p-1 rounded-full hover:bg-gray-200 transition"
+                                                title="More options">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                                                </svg>
+                                            </button>
                                         </div>
 
                                         @if ($item['type'] === 'image')
-                                            <a href="javascript:void(0)"
-                                                onclick="openImageModal('{{ $item['name'] }}', '{{ asset('storage/' . $item['path']) }}', '{{ $item['created_at'] ?? 'N/A' }}', 'image')"
-                                                class="w-full h-full block">
-                                                <img src="{{ asset('storage/' . $item['path']) }}" class="w-full h-full object-cover rounded" alt="{{ $item['name'] }}">
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
+                                                <img src="{{ asset('storage/' . $item['path']) }}" 
+                                                    class="w-full h-full object-cover rounded" 
+                                                    alt="{{ $item['name'] }}">
                                             </a>
                                         @elseif ($item['type'] === 'video')
-                                            <a href="javascript:void(0)"
-                                                onclick="openImageModal('{{ $item['name'] }}', '{{ asset('storage/' . $item['path']) }}', '{{ $item['created_at'] ?? 'N/A' }}', 'video')"
-                                                class="w-full h-full block">
-                                                <video class="w-full h-full object-cover rounded">
+                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
+                                                <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="{{ asset('storage/' . $item['path']) }}" type="video/mp4">
                                                 </video>
                                             </a>
@@ -335,33 +361,29 @@
         @endif
     </div>
 
-    <!-- Modal -->
-    <div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full overflow-hidden relative animate-scale-up">
+    <!-- Properties Modal -->
+    <div id="propertiesModal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm relative p-6 overflow-hidden">
             {{-- Close Button --}}
-            <button onclick="closeImageModal()"
-                    class="absolute top-3 right-3 text-gray-600 hover:text-gray-900 text-2xl font-bold transition">
+            <button onclick="closePropertiesModal()"
+                class="absolute top-3 right-3 text-gray-600 hover:text-gray-800 text-2xl leading-none focus:outline-none">
                 &times;
             </button>
 
-            {{-- Media container --}}
-            <div class="w-full bg-gray-100 flex items-center justify-center p-4">
-                {{-- Image preview --}}
-                <img id="modalImage" src="" class="max-h-[40vh] object-contain rounded-lg" alt="Image Preview">
-
-                {{-- Video preview --}}
-                <video id="modalVideo" controls class="max-h-[40vh] object-contain rounded-lg hidden">
-                    <source id="modalVideoSource" src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-
-            {{-- Properties --}}
-            <div class="px-6 py-4 bg-white border-t border-gray-200">
-                <h3 class="text-lg font-semibold mb-2">Media Details</h3>
-                <p class="text-sm text-gray-700"><strong>Name:</strong> <span id="modalName"></span></p>
-                <p class="text-sm text-gray-700"><strong>Path:</strong> <span id="modalPath"></span></p>
-                <p class="text-sm text-gray-700"><strong>Created At:</strong> <span id="modalCreated"></span></p>
+            <h3 class="text-lg font-bold mb-4 text-center">File Properties</h3>
+            <div class="space-y-3 text-sm break-words overflow-hidden">
+                <p class="truncate"><strong>Name:</strong> 
+                    <span id="prop-name" class="break-words block text-gray-700"></span>
+                </p>
+                <p><strong>Created At:</strong> 
+                    <span id="prop-date" class="text-gray-700"></span>
+                </p>
+                <p><strong>Path:</strong> 
+                    <span id="prop-path" 
+                        class="break-all text-blue-600 block max-h-24 overflow-y-auto p-1 bg-blue-50 rounded"></span>
+                </p>
             </div>
         </div>
     </div>
@@ -369,40 +391,15 @@
 </x-filament::page>
 
 <script>
-    function openImageModal(name, path, created, type = 'image') {
-        const modal = document.getElementById('imageModal');
-        const img = document.getElementById('modalImage');
-        const video = document.getElementById('modalVideo');
-        const videoSource = document.getElementById('modalVideoSource');
-
-        // Reset: hide both
-        img.classList.add('hidden');
-        video.classList.add('hidden');
-        video.pause();
-
-        // Show correct media
-        if(type === 'image') {
-            img.src = path;
-            img.classList.remove('hidden');
-        } else if(type === 'video') {
-            videoSource.src = path;
-            video.load();
-            video.classList.remove('hidden');
-        }
-
-        // Update details
-        document.getElementById('modalName').innerText = name;
-        document.getElementById('modalPath').innerText = path;
-        document.getElementById('modalCreated').innerText = created;
-
-        modal.classList.remove('hidden');
+    function openPropertiesModal(name, type, date, path) {
+        document.getElementById('prop-name').innerText = name;
+        document.getElementById('prop-date').innerText = date;
+        document.getElementById('prop-path').innerText = path;
+        document.getElementById('propertiesModal').classList.remove('hidden');
     }
 
-    function closeImageModal() {
-        const modal = document.getElementById('imageModal');
-        const video = document.getElementById('modalVideo');
-        modal.classList.add('hidden');
-        video.pause();
+    function closePropertiesModal() {
+        document.getElementById('propertiesModal').classList.add('hidden');
     }
 
 document.addEventListener('DOMContentLoaded', function () {
