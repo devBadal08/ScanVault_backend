@@ -20,7 +20,6 @@ use App\Filament\Widgets\TotalCompanies;
 use App\Filament\Admin\Widgets\UsagePieChart;
 use App\Filament\Widgets\ManagerUsageList;
 
-
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel

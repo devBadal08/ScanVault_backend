@@ -20,6 +20,8 @@ class CompanyDashboard extends Page
     public $totalManagers;
     public $totalUsers;
     public $users;
+    public $totalStorageUsed;
+    public $totalPhotos;
 
     public $showFormPage = false;
     public $editingUserId = null;
@@ -48,6 +50,59 @@ class CompanyDashboard extends Page
         $this->totalAdmins = $this->company->users()->where('role', 'admin')->count();
         $this->totalManagers = $this->company->users()->where('role', 'manager')->count();
         $this->totalUsers = $this->company->users()->where('role', 'user')->count();
+        $this->totalStorageUsed = $this->calculateCompanyStorage();
+        $this->totalPhotos = $this->calculateCompanyPhotos();
+    }
+
+    private function calculateCompanyStorage(): string
+    {
+        $totalSize = 0;
+
+        // Loop through each user in the company
+        foreach ($this->company->users as $user) {
+            $userFolder = storage_path('app/public/' . $user->id);
+            if (is_dir($userFolder)) {
+                foreach (new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($userFolder, \FilesystemIterator::SKIP_DOTS)
+                ) as $file) {
+                    $totalSize += $file->getSize();
+                }
+            }
+        }
+
+        // Convert bytes → MB & GB
+        $totalSizeMB = round($totalSize / (1024 ** 2), 2);
+        $totalSizeGB = round($totalSize / (1024 ** 3), 2);
+
+        return "{$totalSizeGB} GB (≈{$totalSizeMB} MB)";
+    }
+
+    public function refreshStorageUsage()
+    {
+        $this->totalStorageUsed = $this->calculateCompanyStorage();
+    }
+
+    private function calculateCompanyPhotos(): int
+    {
+        $totalPhotos = 0;
+        $imageExtensions = ['jpg', 'jpeg', 'png'];
+
+        // Loop through each user in the company
+        foreach ($this->company->users as $user) {
+            $userFolder = storage_path('app/public/' . $user->id);
+
+            if (is_dir($userFolder)) {
+                foreach (new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($userFolder, \FilesystemIterator::SKIP_DOTS)
+                ) as $file) {
+                    if (in_array(strtolower($file->getExtension()), $imageExtensions)) {
+                        $totalPhotos++;
+                    }
+                }
+            }
+        }
+
+        return $totalPhotos;
     }
 
     protected function getFormSchema(): array
@@ -179,6 +234,8 @@ class CompanyDashboard extends Page
             'totalAdmins' => $this->totalAdmins,
             'totalManagers' => $this->totalManagers,
             'totalUsers' => $this->totalUsers,
+            'totalStorageUsed' => $this->totalStorageUsed,
+            'totalPhotos' => $this->totalPhotos ?? 0,
             'form' => $this->form,
             'showFormPage' => $this->showFormPage,
             'editingUserId' => $this->editingUserId,

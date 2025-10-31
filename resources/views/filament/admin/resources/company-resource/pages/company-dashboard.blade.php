@@ -38,6 +38,14 @@
                 <div class="text-3xl font-bold">{{ $totalUsers }}</div>
                 <div class="text-gray-600 mt-2">Total Users</div>
             </div>
+            <div class="bg-white shadow rounded-lg p-6 text-center">
+                <div class="text-xl font-bold text-green-600">{{ $totalStorageUsed }}</div>
+                <div class="text-gray-600 mt-2">Total Storage Used</div>
+            </div>
+            <div class="bg-white shadow rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold">{{ $totalPhotos }}</div>
+                <div class="text-gray-600 mt-2">Total Photos</div>
+            </div>
         </div>
 
         <div class="flex justify-between items-center mb-4">
