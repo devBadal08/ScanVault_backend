@@ -27,11 +27,7 @@ class TotalCompanies extends BaseWidget
                 ->description('Registered in system')
                 ->descriptionIcon('heroicon-o-building-office')
                 ->chart([7, 10, 12, 15, 20, 25, 30])
-                ->color('success')
-                ->extraAttributes([
-                'class' => 'cursor-pointer',
-                'wire:click' => "\$dispatch('setStatusFilter', { filter: 'processed' })",
-                ]);
+                ->color('success');
 
             $cards[] = Card::make('Total Admins', User::where('role', 'admin')->count())
                 ->description('All admins in system')
@@ -151,16 +147,35 @@ class TotalCompanies extends BaseWidget
                 ? "{$totalSizeGB} GB (≈{$totalSizeMB} MB)"
                 : "{$totalSizeMB} MB";
 
-            if ($totalSize > 0) {
-                $cards[] = Card::make('Your Storage Used', $displaySize)
-                    ->description('Total storage used by you')
+            if ($currentUser->canShow('total_storage')) {
+                // Get the user's max storage (in MB) and convert it for display
+                $maxStorageMB = $currentUser->max_storage ?? 0;
+                $maxStorageGB = round($maxStorageMB / 1024, 2);
+
+                // Used storage display
+                $usedStorageDisplay = ($totalSizeGB >= 1)
+                    ? "{$totalSizeGB} GB (≈{$totalSizeMB} MB)"
+                    : "{$totalSizeMB} MB";
+
+                // Max storage display
+                $maxStorageDisplay = ($maxStorageGB >= 1)
+                    ? "{$maxStorageGB} GB (≈{$maxStorageMB} MB)"
+                    : "{$maxStorageMB} MB";
+
+                // Progress or ratio (e.g., used vs max)
+                $percentUsed = $maxStorageMB > 0 ? round(($totalSizeMB / $maxStorageMB) * 100, 1) : 0;
+
+                $desc = $maxStorageMB > 0
+                    ? "Used: {$usedStorageDisplay} ({$percentUsed}% used)"
+                    : "No storage limit assigned.";
+
+                $color = $percentUsed >= 85 ? 'danger' : ($percentUsed >= 70 ? 'warning' : 'success');
+
+                $cards[] = Card::make('Your Storage', $maxStorageGB >= 1 ? "{$maxStorageGB} GB" : "{$maxStorageMB} MB")
+                    ->description($desc)
                     ->descriptionIcon('heroicon-o-server')
-                    ->color('success');
-            } else {
-                $cards[] = Card::make('Your Storage Used', '0 MB')
-                    ->description('No files uploaded yet')
-                    ->descriptionIcon('heroicon-o-server')
-                    ->color('gray');
+                    ->color($color)
+                    ->chart([$percentUsed, 100 - $percentUsed]);
             }
         }
 

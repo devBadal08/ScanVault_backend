@@ -32,6 +32,7 @@ class CompanyDashboard extends Page
     public $password;
     public $role;
     public $max_limit;
+    public $max_storage;
 
     public function mount($record): void
     {
@@ -137,6 +138,12 @@ class CompanyDashboard extends Page
                 ->label('Max Limit')
                 ->numeric()
                 ->required(),
+
+            Forms\Components\TextInput::make('max_storage')
+                ->label('Max Storage (GB)')
+                ->numeric()
+                ->required()
+                ->helperText('Enter value in GB (e.g., 1 = 1GB, 2 = 2GB)'),
         ];
     }
 
@@ -168,6 +175,7 @@ class CompanyDashboard extends Page
             'password' => '',
             'role' => $user->role,
             'max_limit' => $user->max_limit,
+            'max_storage' => $user->max_storage / 1024,
         ]);
     }
 
@@ -181,6 +189,9 @@ class CompanyDashboard extends Page
     {
         $data = $this->form->getState();
 
+        // Convert GB → MB before saving
+        $maxStorageInMB = isset($data['max_storage']) ? $data['max_storage'] * 1024 : 0;
+
         if ($this->editingUserId) {
             $user = User::findOrFail($this->editingUserId);
             $user->update([
@@ -188,6 +199,7 @@ class CompanyDashboard extends Page
                 'email' => $data['email'],
                 'password' => $data['password'] ? Hash::make($data['password']) : $user->password,
                 'max_limit' => $data['max_limit'],
+                'max_storage' => $maxStorageInMB, // ✅ save in MB
             ]);
         } else {
             $currentUser = auth()->user();
@@ -210,6 +222,7 @@ class CompanyDashboard extends Page
                 'company_id' => $this->company->id,
                 'role' => $data['role'],
                 'max_limit' => $data['max_limit'],
+                'max_storage' => $maxStorageInMB, // ✅ save in MB
                 'created_by' => auth()->id(),
             ]);
             $user->assignRole($data['role']);

@@ -33,6 +33,11 @@
                         class="form-checkbox h-5 w-5 text-blue-600 mr-3">
                     <span class="text-md">Show Total Limit</span>
                 </label>
+                <label class="flex items-center p-4 bg-white rounded-lg shadow hover:shadow-lg transition-all cursor-pointer">
+                    <input type="checkbox" wire:model.defer="permissions.show_total_storage"
+                        class="form-checkbox h-5 w-5 text-blue-600 mr-3">
+                    <span class="text-md">Show Total Storage</span>
+                </label>
             </div>
 
             <x-filament::button wire:click="savePermissions"

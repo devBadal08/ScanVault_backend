@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Folder;
 use Carbon\Carbon;
-use App\Models\FolderShare;
 
 class AdminUsersPage extends Page
 {
@@ -38,14 +37,14 @@ class AdminUsersPage extends Page
 
     protected function groupByDate(array $items): array
     {
-        $lastSixDays = [];
-        for ($i = 1; $i <= 6; $i++) {
-            $lastSixDays[] = now()->subDays($i)->format('d-m-Y');
+        $lastThreeDays = [];
+        for ($i = 1; $i <= 3; $i++) {
+            $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
         }
 
         $groups = array_merge(
             ['Today' => []],
-            array_combine($lastSixDays, array_fill(0, 6, [])),
+            array_combine($lastThreeDays, array_fill(0, 3, [])),
             [
                 'Last Week' => [],
                 'Earlier this Month' => [],
@@ -61,7 +60,7 @@ class AdminUsersPage extends Page
 
             if ($created->isToday()) {
                 $groups['Today'][] = $item;
-            } elseif (in_array($createdDate, $lastSixDays)) {
+            } elseif (in_array($createdDate, $lastThreeDays)) {
                 $groups[$createdDate][] = $item;
             } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
                 $groups['Last Week'][] = $item;
@@ -110,7 +109,6 @@ class AdminUsersPage extends Page
 
             // Top-level folders (if no folder selected)
             if (!$folder) {
-                // 🔹 User's own folders
                 $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
                     ->map(fn($dir) => [
                         'type' => 'folder',
@@ -119,34 +117,10 @@ class AdminUsersPage extends Page
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
                                             ->toDateTimeString(),
                         'linked' => false,
-                        'owner_id' => $this->selectedUser->id,
                     ])->toArray();
 
-                // 🔹 Folders shared to this user
-                $sharedToUser = FolderShare::where('shared_with', $this->selectedUser->id)
-                    ->with('folder') // eager load the folder
-                    ->get()
-                    ->map(function ($share) {
-                        $folder = $share->folder;
-                        return [
-                            'type' => 'folder',
-                            'path' => $folder->user_id . '/' . $folder->name, // physical storage path of owner
-                            'name' => $folder->name,
-                            'created_at' => $folder->created_at->toDateTimeString(),
-                            'linked' => true, // highlight shared
-                            'owner_id' => $folder->user_id,
-                        ];
-                    })
-                    ->toArray();
+                $this->folders = $this->groupByDate($rawFolders);
 
-                // Merge owner's + shared folders
-                $mergedFolders = collect($rawFolders)
-                    ->merge($sharedToUser)
-                    ->sortByDesc(fn($i) => $i['created_at'])
-                    ->values()
-                    ->toArray();
-
-                $this->folders = $this->groupByDate($mergedFolders);
             } else {
                 // Selected folder / subfolder
                 $this->selectedFolder = $folder;
@@ -189,31 +163,21 @@ class AdminUsersPage extends Page
                     ->toArray();
 
                 // 🔹 Fetch media files (images + videos)
-                $allowedExtensions = ['jpg', 'jpeg', 'png', 'mp4', 'pdf'];
-
-                $folderModel = Folder::where('name', basename($folder))
-                    ->where(function($q) use ($userId) {
-                        $q->where('user_id', $userId)
-                        ->orWhereHas('shares', fn($q2) => $q2->where('shared_with', $userId));
-                    })
-                    ->first();
-
-                $allMedia = collect();
-                if ($folderModel) {
-                    $allMedia = $folderModel->allPhotos()
-                        ->filter(fn($photo) => in_array(strtolower(pathinfo($photo->path, PATHINFO_EXTENSION)), $allowedExtensions))
-                        ->map(fn($photo) => [
-                            'type' => match(strtolower(pathinfo($photo->path, PATHINFO_EXTENSION))) {
-                                'mp4' => 'video',
-                                'pdf' => 'pdf',
-                                default => 'image',
-                            },
-                            'path' => $photo->path,
-                            'name' => basename($photo->path),
-                            'created_at' => $photo->created_at->toDateTimeString(),
-                            'uploaded_by' => $photo->uploaded_by,
-                        ])->values();
-                }
+                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
+                $allMedia = collect(Storage::disk('public')->files($targetPath))
+                    ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
+                    ->map(fn($file) => [
+                        'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
+                            'mp4' => 'video',
+                            'pdf' => 'pdf',
+                            default => 'image',
+                        },
+                        'path' => $file,
+                        'name' => basename($file),
+                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
+                                            ->toDateTimeString(),
+                        'merged_from' => \App\Models\Photo::where('path', $file)->first()?->source_folder_id,
+                    ])->values();
 
                 $this->total = $allMedia->count();
 

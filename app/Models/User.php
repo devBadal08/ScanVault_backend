@@ -26,6 +26,7 @@ class User extends Authenticatable
         'role',
         'company_id',
         'max_limit',
+        'max_storage',
         'created_by',
         'assigned_to',
     ];
@@ -116,6 +117,7 @@ class User extends Authenticatable
             'total_managers' => (bool) $this->userPermission->show_total_managers,
             'total_admins' => (bool) $this->userPermission->show_total_admins,
             'total_limit' => (bool) $this->userPermission->show_total_limit,
+            'total_storage' => (bool) $this->userPermission->show_total_storage,
             default => false,
         };
     }
