@@ -12,6 +12,8 @@ class CompanyList extends Page
 
     protected static string $view = 'filament.admin.resources.company-resource.pages.company-list';
 
+    protected static ?string $slug = 'company-list';
+
     public $companies;
 
     public function mount()

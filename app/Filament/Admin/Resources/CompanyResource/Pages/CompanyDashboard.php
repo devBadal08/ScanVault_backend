@@ -181,6 +181,12 @@ class CompanyDashboard extends Page
 
     public function goBack()
     {
+        // Redirect to your custom Company List page
+        return redirect(CompanyResource::getUrl('company-list'));
+    }
+
+    public function back()
+    {
         $this->showFormPage = false;
         $this->editingUserId = null;
     }
