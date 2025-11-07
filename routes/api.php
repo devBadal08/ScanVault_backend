@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\UserLoginController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\FolderShareController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\Api\UserStorageController;
 
 // Your custom API route
 // Route::get('/photos', [PhotoController::class, 'index']);
@@ -34,5 +35,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/folders/id', [FolderShareController::class, 'getFolderId']);
     Route::get('/shared-folder/{id}/photos', [FolderShareController::class, 'getSharedFolderPhotos']);
     Route::post('/shared-folders/{id}/upload', [\App\Http\Controllers\Api\FolderShareController::class, 'uploadToSharedFolder']);
+    Route::get('/storage-usage', [UserStorageController::class, 'getStorageUsage']);
 });
 
