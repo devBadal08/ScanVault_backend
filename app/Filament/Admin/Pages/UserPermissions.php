@@ -23,7 +23,8 @@ class UserPermissions extends Page
         'permissions.show_total_managers' => 'boolean',
         'permissions.show_total_admins' => 'boolean',
         'permissions.show_total_limit' => 'boolean',
-        'permissions.show_total_storage' => 'boolean', // ✅ new rule
+        'permissions.show_total_storage' => 'boolean',
+        'permissions.show_total_photos' => 'boolean', // ✅ new rule added
     ];
 
     public static function shouldRegisterNavigation(): bool
@@ -55,7 +56,8 @@ class UserPermissions extends Page
             'show_total_managers' => $permissionModel->show_total_managers,
             'show_total_admins' => $permissionModel->show_total_admins,
             'show_total_limit' => $permissionModel->show_total_limit,
-            'show_total_storage' => $permissionModel->show_total_storage, // ✅ load value
+            'show_total_storage' => $permissionModel->show_total_storage,
+            'show_total_photos' => $permissionModel->show_total_photos, // ✅ load value
         ];
     }
 
@@ -72,7 +74,8 @@ class UserPermissions extends Page
                     'show_total_managers' => (bool)($this->permissions['show_total_managers'] ?? false),
                     'show_total_admins' => (bool)($this->permissions['show_total_admins'] ?? false),
                     'show_total_limit' => (bool)($this->permissions['show_total_limit'] ?? false),
-                    'show_total_storage' => (bool)($this->permissions['show_total_storage'] ?? false), // ✅ save new
+                    'show_total_storage' => (bool)($this->permissions['show_total_storage'] ?? false),
+                    'show_total_photos' => (bool)($this->permissions['show_total_photos'] ?? false), // ✅ save new
                 ]
             );
 

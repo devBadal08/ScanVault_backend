@@ -17,5 +17,6 @@ class UserPermission extends Model
         'show_total_admins',
         'show_total_limit',
         'show_total_storage',
+        'show_total_photos',
     ];
 }

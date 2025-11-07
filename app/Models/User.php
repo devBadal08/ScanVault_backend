@@ -118,6 +118,7 @@ class User extends Authenticatable
             'total_admins' => (bool) $this->userPermission->show_total_admins,
             'total_limit' => (bool) $this->userPermission->show_total_limit,
             'total_storage' => (bool) $this->userPermission->show_total_storage,
+            'total_photos' => (bool) $this->userPermission->show_total_photos,
             default => false,
         };
     }
