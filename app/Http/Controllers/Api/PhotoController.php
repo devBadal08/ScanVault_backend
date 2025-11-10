@@ -54,6 +54,38 @@ class PhotoController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
+        $user = Auth::user();
+        $maxStorage = $user->max_storage ?? 0; // in MB
+        $usedStorage = $this->calculateUsedStorageMB($user->id);
+
+        // ✅ Check if usage is between 99.5% and 100%
+        if ($maxStorage > 0) {
+            $percentUsed = round(($usedStorage / $maxStorage) * 100, 2);
+
+            // Block if usage is between 99.5% and 100%
+            if ($percentUsed >= 99 && $percentUsed <= 100) {
+                return response()->json([
+                    'error' => '🚫 Upload blocked: your storage is almost full (' . $percentUsed . '% used). 
+                                Delete some files or contact admin.',
+                    'used_storage_mb' => $usedStorage,
+                    'max_storage_mb' => $maxStorage,
+                    'percent_used' => $percentUsed,
+                ], 403);
+            }
+
+            // Block if storage limit exceeded
+            if ($percentUsed > 100) {
+                return response()->json([
+                    'error' => '❌ Upload blocked: storage limit exceeded (' . $percentUsed . '% used). 
+                                Please delete some files.',
+                    'used_storage_mb' => $usedStorage,
+                    'max_storage_mb' => $maxStorage,
+                    'percent_used' => $percentUsed,
+                ], 403);
+            }
+        }
+
+        // ✅ Proceed with uploads if under threshold
         $folders = $request->input('folders'); // array of folder names
         if (!$folders || !is_array($folders)) {
             return response()->json(['error' => 'Folders array required'], 422);
@@ -205,4 +237,24 @@ class PhotoController extends Controller
         });
         return response()->json($photos);
     }
+
+        /**
+     * Calculate total used storage in MB for a user (or their company)
+     */
+    private function calculateUsedStorageMB($userId)
+    {
+        $totalSize = 0;
+        $userPath = storage_path("app/public/{$userId}");
+
+        if (is_dir($userPath)) {
+            foreach (new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($userPath, \FilesystemIterator::SKIP_DOTS)
+            ) as $file) {
+                $totalSize += $file->getSize();
+            }
+        }
+
+        return round($totalSize / (1024 ** 2), 2); // Convert bytes to MB
+    }
 }
+
