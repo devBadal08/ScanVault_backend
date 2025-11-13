@@ -25,9 +25,11 @@ class AdminPanelProvider extends PanelProvider
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->brandName('Scanner App')
+            ->brandLogo(asset('images/company_logo.png'))
+            ->brandLogoHeight('130px')
             ->id('admin')
             ->path('admin')
+            ->login()
             ->colors([
                 'primary' => Color::Amber,
             ])
