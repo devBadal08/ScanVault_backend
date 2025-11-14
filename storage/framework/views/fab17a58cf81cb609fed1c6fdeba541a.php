@@ -8,33 +8,60 @@
 <?php $attributes = $attributes->except(\Filament\View\LegacyComponents\Page::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         
-        <div
-            class="p-6 rounded-xl shadow-sm border
-                   bg-white dark:bg-gray-800
-                   border-gray-200 dark:border-gray-700
-                   text-gray-900 dark:text-gray-100
-            "
-        >
-            <h3 class="text-lg font-semibold">Total Managers</h3>
-            <p class="text-3xl font-bold mt-2"><?php echo e($totals['managers']); ?></p>
+        <div class="p-6 rounded-xl shadow-md border
+                    bg-white dark:bg-gray-800
+                    border-gray-200 dark:border-gray-700">
+
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Managers (<?php echo e($managers->count()); ?>)
+            </h2>
+
+            <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="p-4 rounded-lg bg-gray-100 dark:bg-gray-700
+                                text-gray-900 dark:text-gray-100">
+
+                        <p class="font-semibold"><?php echo e($m->name); ?></p>
+                        <p class="text-sm">Email: <?php echo e($m->email); ?></p>
+
+                    </div>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+
+            </div>
         </div>
 
+
         
-        <div
-            class="p-6 rounded-xl shadow-sm border
-                   bg-white dark:bg-gray-800
-                   border-gray-200 dark:border-gray-700
-                   text-gray-900 dark:text-gray-100
-            "
-        >
-            <h3 class="text-lg font-semibold">Total Users</h3>
-            <p class="text-3xl font-bold mt-2"><?php echo e($totals['users']); ?></p>
+        <div class="p-6 rounded-xl shadow-md border
+                    bg-white dark:bg-gray-800
+                    border-gray-200 dark:border-gray-700">
+
+            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                Users (<?php echo e($users->count()); ?>)
+            </h2>
+
+            <div class="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $u): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <div class="p-4 rounded-lg bg-gray-100 dark:bg-gray-700
+                                text-gray-900 dark:text-gray-100">
+
+                        <p class="font-semibold"><?php echo e($u->name); ?></p>
+                        <p class="text-sm">Email: <?php echo e($u->email); ?></p>
+
+                    </div>
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+
+            </div>
         </div>
 
     </div>
+
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginalbe23554f7bded3778895289146189db7)): ?>

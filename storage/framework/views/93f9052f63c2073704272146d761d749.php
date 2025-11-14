@@ -1,0 +1,1 @@
+<img src="<?php echo e(asset('images/logo.png')); ?>" alt="ScanVault App"/><?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/vendor/filament-panels/components/logo.blade.php ENDPATH**/ ?>
