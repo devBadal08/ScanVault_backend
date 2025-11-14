@@ -57,7 +57,7 @@
     <button
         x-cloak
         class="block rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
-        :class="theme ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600 hover:text-gray-500 focus:text-gray-500 dark:hover:text-gray-500 dark:focus:text-gray-500'"
+        :class="theme ? 'text-gray-700 dark:text-white' : 'text-gray-400 dark:text-gray-600 hover:text-gray-500 focus:text-gray-500 dark:hover:text-gray-500 dark:focus:text-gray-500'"
         @click="menu = ! menu"
     >
         <?php if (isset($component)) { $__componentOriginalbfde029a2e31d1ec96b5017ff81a67a7 = $component; } ?>

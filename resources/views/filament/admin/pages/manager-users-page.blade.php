@@ -11,7 +11,7 @@
                         {{-- User Icon --}}
                         <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;"/>
                         {{-- User Name --}}
-                        <span class="mt-1 text-sm text-black truncate w-24">{{ $user->name }}</span>
+                        <span class="mt-1 text-sm text-gray-900 dark:text-white truncate w-24">{{ $user->name }}</span>
                     </a>
                 @endforeach
             </div>
@@ -43,7 +43,7 @@
             
             @foreach ($folders as $group => $items)
                 <div class="mb-2 border rounded">
-                    <button class="w-full text-left px-4 py-2 bg-gray-100 hover:bg-gray-200 flex justify-between items-center accordion-header">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold">{{ $group }}</span>
                         <span class="text-sm">▼</span>
                     </button>
@@ -53,9 +53,10 @@
                                 <div class="flex flex-col items-center justify-center text-center">
                                     {{-- Download --}}
                                     <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200"
+                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                         title="Download Folder">
-                                        <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                        <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
+/>
                                     </a>
                                     {{-- Open Folder --}}
                                     <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
@@ -120,7 +121,7 @@
             {{-- ITEMS grouped by date --}}
             @foreach ($items as $date => $groupItems)
                 <div class="mb-4 border rounded">
-                    <button class="w-full text-left px-4 py-2 bg-gray-100 flex justify-between items-center accordion-header">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold">{{ $date }}</span>
                         <span class="text-sm">▼</span>
                     </button>
@@ -130,7 +131,7 @@
                             @foreach ($groupItems as $item)
                                 @if ($item['type'] === 'folder')
                                     {{-- folder card --}}
-                                    <div class="relative w-32 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
+                                    <div class="relative w-32 h-36 bg-white dark:bg-gray-800 rounded shadow border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-hidden flex flex-col">
                                         {{-- Top row: checkbox + download button --}}
                                         <div class="flex justify-between items-start p-1">
                                             <input type="checkbox"
@@ -139,9 +140,10 @@
                                                 value="{{ route('download-folder', ['path' => $item['path']]) }}">
 
                                             <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
-                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                             title="Download Subfolder">
-                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
+/>
                                             </a>
                                         </div>
 
@@ -172,9 +174,9 @@
                                             {{-- 3-dot button (top-right) --}}
                                             <button 
                                                 onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full hover:bg-gray-200 transition"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
                                                     <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
                                                 </svg>
                                             </button>
@@ -194,7 +196,7 @@
                                             </a>
                                         @elseif ($item['type'] === 'pdf')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
-                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="{{ $item['name'] }}">
                                                 <div class="text-3xl">📄</div>
                                                 <div class="mt-1 truncate w-full">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
@@ -256,7 +258,7 @@
             {{-- same merged items UI as above, but links refer to deeper levels --}}
             @foreach ($items as $date => $groupItems)
                 <div class="mb-4 border rounded">
-                    <button class="w-full text-left px-4 py-2 bg-gray-100 flex justify-between items-center accordion-header">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold">{{ $date }}</span>
                         <span class="text-sm">▼</span>
                     </button>
@@ -265,7 +267,7 @@
                         <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
                             @foreach ($groupItems as $item)
                                 @if ($item['type'] === 'folder')
-                                    <div class="relative w-32 h-36 bg-white rounded shadow border text-xs font-medium overflow-hidden flex flex-col">
+                                    <div class="relative w-32 h-36 bg-white dark:bg-gray-800 rounded shadow border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-hidden flex flex-col">
                                         {{-- Top row: checkbox + download button --}}
                                         <div class="flex justify-between items-start p-1">
                                             <input type="checkbox"
@@ -274,9 +276,10 @@
                                                 value="{{ route('download-folder', ['path' => $item['path']]) }}">
 
                                             <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
-                                            class="p-1 rounded-full hover:bg-gray-200"
+                                            class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                             title="Download Subfolder">
-                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700" />
+                                                <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
+/>
                                             </a>
                                         </div>
 
@@ -306,9 +309,9 @@
                                             {{-- 3-dot button (top-right) --}}
                                             <button 
                                                 onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full hover:bg-gray-200 transition"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
                                                     <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
                                                 </svg>
                                             </button>
@@ -328,7 +331,7 @@
                                             </a>
                                         @elseif ($item['type'] === 'pdf')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
-                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded text-center p-2 text-xs hover:bg-gray-200 transition"
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="{{ $item['name'] }}">
                                                 <div class="text-3xl">📄</div>
                                                 <div class="mt-1 truncate w-full">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
@@ -363,26 +366,51 @@
 
     <!-- Properties Modal -->
     <div id="propertiesModal"
-        class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        
-        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm relative p-6 overflow-hidden">
+        class="hidden fixed inset-0 bg-black/50 dark:bg-black/60 
+            flex items-center justify-center z-50 p-4 transition">
+
+        <div class="rounded-lg shadow-2xl w-full max-w-sm relative p-6
+                    bg-white dark:bg-gray-800
+                    border border-gray-200 dark:border-gray-700
+                    text-gray-900 dark:text-white">
+
             {{-- Close Button --}}
             <button onclick="closePropertiesModal()"
-                class="absolute top-3 right-3 text-gray-600 hover:text-gray-800 text-2xl leading-none focus:outline-none">
+                class="absolute top-3 right-3 text-gray-600 dark:text-white 
+                    hover:text-gray-800 dark:hover:text-white 
+                    text-2xl leading-none focus:outline-none transition">
                 &times;
             </button>
 
-            <h3 class="text-lg font-bold mb-4 text-center">File Properties</h3>
+            <h3 class="text-lg font-bold mb-4 text-center">
+                File Properties
+            </h3>
+
             <div class="space-y-3 text-sm break-words overflow-hidden">
-                <p class="truncate"><strong>Name:</strong> 
-                    <span id="prop-name" class="break-words block text-gray-700"></span>
+
+                {{-- File Name --}}
+                <p class="truncate">
+                    <strong>Name:</strong>
+                    <span id="prop-name"
+                        class="break-words block text-gray-700 dark:text-white">
+                    </span>
                 </p>
-                <p><strong>Created At:</strong> 
-                    <span id="prop-date" class="text-gray-700"></span>
+
+                {{-- Created At --}}
+                <p>
+                    <strong>Created At:</strong>
+                    <span id="prop-date" class="text-gray-700 dark:text-white"></span>
                 </p>
-                <p><strong>Path:</strong> 
-                    <span id="prop-path" 
-                        class="break-all text-blue-600 block max-h-24 overflow-y-auto p-1 bg-blue-50 rounded"></span>
+
+                {{-- File Path --}}
+                <p>
+                    <strong>Path:</strong>
+                    <span id="prop-path"
+                        class="break-all block max-h-24 overflow-y-auto p-2 rounded
+                            bg-blue-50 dark:bg-blue-900/30
+                            text-blue-600 dark:text-blue-300 border 
+                            border-blue-200 dark:border-blue-800">
+                    </span>
                 </p>
             </div>
         </div>

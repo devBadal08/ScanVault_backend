@@ -9,10 +9,10 @@
 
                     <?php if(config('app.editor')): ?>
                         <a href="<?php echo e($frame->editorHref()); ?>" class="text-blue-500 hover:underline">
-                            <span class="wrap text-gray-900 dark:text-gray-300"><?php echo e($frame->file()); ?></span>
+                            <span class="wrap text-gray-900 dark:text-white"><?php echo e($frame->file()); ?></span>
                         </a>
                     <?php else: ?>
-                        <span class="wrap text-gray-900 dark:text-gray-300"><?php echo e($frame->file()); ?></span>
+                        <span class="wrap text-gray-900 dark:text-white"><?php echo e($frame->file()); ?></span>
                     <?php endif; ?>
 
                     <span class="font-mono text-xs">:<?php echo e($frame->line()); ?></span>

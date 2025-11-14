@@ -1,6 +1,6 @@
 <div class="hidden overflow-x-auto sm:col-span-1 lg:block">
     <div
-        class="h-[35.5rem] scrollbar-hidden trace text-sm text-gray-400 dark:text-gray-300"
+        class="h-[35.5rem] scrollbar-hidden trace text-sm text-gray-400 dark:text-white"
     >
         <div class="mb-2 inline-block rounded-full bg-red-500/20 px-3 py-2 dark:bg-red-500/20 sm:col-span-1">
             <button
@@ -133,9 +133,9 @@
                         "
                     >
                         <div class="scrollbar-hidden overflow-x-auto border-l-2 border-transparent p-2">
-                            <div class="nowrap text-gray-900 dark:text-gray-300">
+                            <div class="nowrap text-gray-900 dark:text-white">
                                 <span class="inline-flex items-baseline">
-                                    <span class="text-gray-900 dark:text-gray-300"><?php echo e($frame->source()); ?></span>
+                                    <span class="text-gray-900 dark:text-white"><?php echo e($frame->source()); ?></span>
                                     <span class="font-mono text-xs">:<?php echo e($frame->line()); ?></span>
                                 </span>
                             </div>

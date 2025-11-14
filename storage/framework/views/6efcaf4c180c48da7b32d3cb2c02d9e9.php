@@ -1,5 +1,4 @@
 <?php use Illuminate\Support\Facades\Auth; ?>
-
 <?php if (isset($component)) { $__componentOriginalbe23554f7bded3778895289146189db7 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalbe23554f7bded3778895289146189db7 = $attributes; } ?>
 <?php $component = Filament\View\LegacyComponents\Page::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -11,44 +10,14 @@
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
     <div>
-
         
-        <!--[if BLOCK]><![endif]--><?php if(!$selectedManager && !$selectedUser): ?>
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Select Manager or Admin User
-            </h2>
-
-            <div class="grid gap-2 mb-6"
-                 style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-
-                
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $manager): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <div onclick="window.location.href='?manager=<?php echo e($manager->id); ?>'"
-                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
-                               bg-white dark:bg-gray-800
-                               border-gray-200 dark:border-gray-700
-                               hover:bg-orange-100 dark:hover:bg-orange-900/40
-                               text-center overflow-hidden cursor-pointer transition group">
-
-                        <div class="text-3xl">👨‍💼</div>
-
-                        <div class="mt-1 text-[10px] font-semibold 
-                                    text-gray-800 dark:text-gray-200
-                                    truncate w-full px-1">
-                            <?php echo e($manager->name); ?>
-
-                        </div>
-                    </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-
-                
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $adminUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <!--[if BLOCK]><![endif]--><?php if(!$selectedUser): ?>
+            <h2 class="text-xl font-bold mb-4">Select User</h2>
+            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managerUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <a href="?user=<?php echo e($user->id); ?>"
-                        class="flex flex-col items-center justify-center text-center font-medium rounded-lg p-2
-                               text-gray-900 dark:text-gray-100
-                               transition duration-150 ease-in-out
-                               hover:text-blue-700 dark:hover:text-blue-300">
-
+                       class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
+                        
                         <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -58,7 +27,7 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-20 h-16 text-blue-600','style' => 'color:#1D4ED8;']); ?>
+<?php $component->withAttributes(['class' => 'w-20 h-16','style' => 'color:#1D4ED8;']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
@@ -69,19 +38,18 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-
-                        <span class="mt-1 text-sm truncate w-24">
-                            <?php echo e($user->name); ?>
-
-                        </span>
+                        
+                        <span class="mt-1 text-sm text-gray-900 dark:text-white truncate w-24"><?php echo e($user->name); ?></span>
                     </a>
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
             </div>
 
         
-        <?php elseif($selectedManager && !$selectedUser): ?>
+        <?php elseif($selectedUser && !$selectedFolder): ?>
+            <h2 class="text-xl font-bold mb-4">Folders of <?php echo e($selectedUser->name); ?></h2>
 
-            <div class="mb-4">
+            <div class="mb-4 flex justify-between items-center">
+                
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(url()->current()).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -92,77 +60,6 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['tag' => 'a','href' => ''.e(url()->current()).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-            </div>
-
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Users under <?php echo e($selectedManager->name); ?>
-
-            </h2>
-
-            <div class="grid gap-2"
-                 style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
-
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <a href="?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($user->id); ?>"
-                        class="flex flex-col items-center justify-center text-center font-medium rounded-lg p-2
-                               text-gray-900 dark:text-gray-100
-                               transition duration-150 ease-in-out
-                               hover:text-blue-700 dark:hover:text-blue-300" style="color:#1D4ED8;">
-
-                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-user'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-20 h-16 text-blue-600 dark:text-blue-300']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-
-                        <span class="mt-1 text-sm truncate w-24">
-                            <?php echo e($user->name); ?>
-
-                        </span>
-                    </a>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-            </div>
-
-        
-        <?php elseif($selectedUser && !$selectedFolder): ?>
-
-            <div class="mb-4">
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to Users
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -174,24 +71,18 @@
 <?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
 <?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
 <?php endif; ?>
-            </div>
 
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Folders of <?php echo e($selectedUser->name); ?>
-
-            </h2>
-
-            <div class="mb-4 flex justify-end">
+                
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(route('download-today-folders')).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(route('download-today-folders', ['user' => $selectedUser->id])).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => ''.e(route('download-today-folders')).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => ''.e(route('download-today-folders', ['user' => $selectedUser->id])).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']); ?>
                     Download Today’s Folders
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -204,34 +95,20 @@
 <?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
 <?php endif; ?>
             </div>
-
+            
             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $folders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $group => $items): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                <div class="mb-2 border rounded 
-                            border-gray-200 dark:border-gray-700 
-                            bg-white dark:bg-gray-800">
-
-                    
-                    <button class="w-full text-left px-4 py-2 flex justify-between items-center
-                                bg-gray-100 dark:bg-gray-700 
-                                hover:bg-gray-200 dark:hover:bg-gray-600 
-                                accordion-header 
-                                text-gray-900 dark:text-gray-100">
+                <div class="mb-2 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold"><?php echo e($group); ?></span>
                         <span class="text-sm">▼</span>
                     </button>
-
-                    
-                    <div class="accordion-content px-4 py-2 bg-white dark:bg-gray-800">
+                    <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
-
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center justify-center text-center relative">
-
+                                <div class="flex flex-col items-center justify-center text-center">
                                     
                                     <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full
-                                            hover:bg-gray-200 dark:hover:bg-gray-600 
-                                            transition"
+                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                         title="Download Folder">
                                         <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
@@ -254,19 +131,9 @@
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
                                     </a>
-
                                     
-                                    <!--[if BLOCK]><![endif]--><?php if(isset($folder['linked']) && $folder['linked']): ?>
-                                        <span class="absolute top-0 left-0 
-                                                    bg-blue-500 text-white text-xs px-1 rounded-br">
-                                            Linked
-                                        </span>
-                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
-                                    
-                                    <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
-                                        class="flex flex-col items-center hover:text-yellow-600 dark:hover:text-yellow-400 transition duration-150 ease-in-out">
-
+                                    <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
+                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
                                         <div class="w-24 h-24 flex items-center justify-center">
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
@@ -289,17 +156,13 @@
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
                                         </div>
-
-                                        <span class="mt-1 text-xs truncate w-24
-                                                    text-gray-900 dark:text-gray-200"
-                                            title="<?php echo e($folder['name']); ?>">
+                                        <span class="mt-1 text-xs text-black truncate w-24" title="<?php echo e($folder['name']); ?>">
                                             <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
 
                                         </span>
                                     </a>
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-
                         </div>
                     </div>
                 </div>
@@ -308,60 +171,35 @@
             
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-4 flex justify-center space-x-2">
-
                     <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Previous
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
-                            class="px-3 py-1 rounded
-                                <?php echo e($i == $page 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'); ?>">
-                            <?php echo e($i); ?>
-
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>" class="px-3 py-1 rounded <?php echo e($i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'); ?>"><?php echo e($i); ?></a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
 
                     <!--[if BLOCK]><![endif]--><?php if($page < ceil($total / $perPage)): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Next
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                 </div>
             <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
         
         <?php elseif($selectedFolder && !$selectedSubfolder): ?>
-
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Content in <?php echo e(basename($selectedFolder)); ?>
-
-            </h2>
+            <h2 class="text-xl font-bold mb-4">Content in <?php echo e(basename($selectedFolder)); ?></h2>
 
             <div class="mb-4">
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -376,82 +214,41 @@
             </div>
 
             
-            <div class="flex items-center justify-between mb-2 
-                        text-gray-900 dark:text-gray-100">
+            <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" id="select-all" class="form-checkbox 
-                            text-blue-600 dark:text-blue-400 
-                            bg-white dark:bg-gray-800 
-                            border-gray-300 dark:border-gray-600">
+                    <input type="checkbox" id="select-all" class="form-checkbox">
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count">0</span>)
                 </label>
-
-                <button id="download-selected"
-                    class="inline-flex items-center justify-center px-4 py-2 rounded
-                        bg-primary-600 text-white 
-                        hover:bg-primary-700 dark:hover:bg-primary-500 
-                        transition">
+                <button id="download-selected" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
                     Download
                 </button>
             </div>
 
             
             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $date => $groupItems): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-
-                <div class="mb-4 rounded border 
-                            border-gray-200 dark:border-gray-700 
-                            bg-white dark:bg-gray-800">
-
-                    
-                    <button class="w-full text-left px-4 py-2 flex justify-between items-center
-                                bg-gray-100 dark:bg-gray-700
-                                hover:bg-gray-200 dark:hover:bg-gray-600
-                                accordion-header
-                                text-gray-900 dark:text-gray-100">
+                <div class="mb-4 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold"><?php echo e($date); ?></span>
                         <span class="text-sm">▼</span>
                     </button>
 
-                    
-                    <div class="accordion-content px-4 py-3 bg-white dark:bg-gray-800">
-                        <div class="grid gap-3" 
-                            style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-
+                    <div class="accordion-content px-4 py-3">
+                        <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $groupItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-
-                                
                                 <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'folder'): ?>
-                                    <div class="relative w-40 h-36 rounded shadow border 
-                                                bg-white dark:bg-gray-800
-                                                border-gray-300 dark:border-gray-700 
-                                                text-xs font-medium overflow-hidden flex flex-col">
-
+                                    
+                                    <div class="relative w-32 h-36 bg-white dark:bg-gray-800 rounded shadow border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-hidden flex flex-col">
                                         
                                         <div class="flex justify-between items-start p-1">
+                                            <input type="checkbox"
+                                                class="folder-checkbox"
+                                                style="transform: scale(1.2);"
+                                                value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
 
-                                            
-                                            <div class="flex items-center space-x-1">
-                                                <input type="checkbox"
-                                                    class="folder-checkbox 
-                                                        text-blue-600 dark:text-blue-400 
-                                                        bg-white dark:bg-gray-800 
-                                                        border-gray-300 dark:border-gray-600"
-                                                    value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
-
-                                                
-                                                <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
-                                                        Linked
-                                                    </span>
-                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-                                            </div>
-
-                                            
-                                            <a href="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>"
-                                                class="p-1 rounded-full 
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
-                                                title="Download Subfolder">
+                                            <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
+                                            class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                                            title="Download Subfolder">
                                                 <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -476,163 +273,103 @@
                                         </div>
 
                                         
-                                        <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>
-
-                                                &user=<?php echo e($selectedUser->id); ?>
-
-                                                &folder=<?php echo e(urlencode($selectedFolder)); ?>
-
-                                                &subfolder=<?php echo e(urlencode($item['path'])); ?>"
-                                        class="flex flex-col items-center justify-center flex-1 
-                                                text-gray-900 dark:text-gray-100">
-
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
+                                        class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
-
-                                            <div class="mt-1 truncate w-full text-center"
-                                                title="<?php echo e($item['name']); ?>">
+                                            <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">
                                                 <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
 
                                             </div>
                                         </a>
                                     </div>
 
-                                
                                 <?php else: ?>
-                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group 
-                                                bg-white dark:bg-gray-800
-                                                border border-gray-300 dark:border-gray-700">
-
+                                    
+                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
                                         
                                         <div class="flex justify-between items-start p-1">
-
-                                            
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="image-checkbox 
-                                                        text-blue-600 dark:text-blue-400 
-                                                        bg-white dark:bg-gray-800 
-                                                        border-gray-300 dark:border-gray-600"
+                                                    class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                     value="<?php echo e(asset('storage/' . $item['path'])); ?>">
-
-                                                
                                                 <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
-                                                        Linked
-                                                    </span>
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
                                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                             </div>
 
                                             
-                                            <button onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full 
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button 
+                                                onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" 
-                                                    class="w-4 h-4 text-gray-700 dark:text-white" 
-                                                    fill="currentColor" 
-                                                    viewBox="0 0 20 20">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
                                                 </svg>
                                             </button>
                                         </div>
 
-                                        
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="block w-full h-full">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
-                                                    class="w-full h-full object-cover rounded"
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" 
+                                                    class="w-full h-full object-cover rounded" 
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
-
-                                        
                                         <?php elseif($item['type'] === 'video'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="block w-full h-full">
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
                                                 <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
                                             </a>
-
-                                        
                                         <?php elseif($item['type'] === 'pdf'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="block w-full h-full p-2 rounded text-center text-xs 
-                                                    bg-gray-100 dark:bg-gray-700 
-                                                    text-gray-900 dark:text-gray-100 
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600">
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                                title="<?php echo e($item['name']); ?>">
                                                 <div class="text-3xl">📄</div>
-                                                <div class="mt-1 truncate"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
                                             </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                         </div>
                     </div>
                 </div>
-
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-4 flex justify-center space-x-2">
-
                     <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Previous
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
-                            class="px-3 py-1 rounded
-                                <?php echo e($i == $page 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'); ?>">
-                            <?php echo e($i); ?>
-
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>" class="px-3 py-1 rounded <?php echo e($i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'); ?>"><?php echo e($i); ?></a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
 
                     <!--[if BLOCK]><![endif]--><?php if($page < ceil($total / $perPage)): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Next
-                        </a>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                 </div>
             <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
         
         <?php elseif($selectedSubfolder): ?>
-
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Content in <?php echo e(basename($selectedSubfolder)); ?>
-
-            </h2>
+            <h2 class="text-xl font-bold mb-4">Content in <?php echo e(basename($selectedSubfolder)); ?></h2>
 
             <div class="mb-4">
                 <?php $parentPath = dirname($selectedSubfolder); ?>
 
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to <?php echo e(basename($parentPath)); ?>
 
                  <?php echo $__env->renderComponent(); ?>
@@ -648,75 +385,40 @@
             </div>
 
             
-            <div class="flex items-center justify-between mb-2 
-                        text-gray-900 dark:text-gray-100">
-
+            <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" id="select-all-subfolder"
-                        class="form-checkbox
-                            text-blue-600 dark:text-blue-400
-                            bg-white dark:bg-gray-800
-                            border-gray-300 dark:border-gray-600">
+                    <input type="checkbox" id="select-all-subfolder" class="form-checkbox">
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count-subfolder">0</span>)
                 </label>
-
-                <button id="download-selected-subfolder"
-                    class="inline-flex items-center justify-center px-4 py-2 rounded
-                        bg-primary-600 text-white
-                        hover:bg-primary-700 dark:hover:bg-primary-500 
-                        transition">
+                <button id="download-selected-subfolder" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
                     Download
                 </button>
             </div>
 
             
             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $date => $groupItems): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-
-                <div class="mb-4 rounded border 
-                            border-gray-200 dark:border-gray-700 
-                            bg-white dark:bg-gray-800">
-
-                    
-                    <button class="w-full text-left px-4 py-2 flex justify-between items-center
-                                bg-gray-100 dark:bg-gray-700
-                                hover:bg-gray-200 dark:hover:bg-gray-600
-                                accordion-header
-                                text-gray-900 dark:text-gray-100">
+                <div class="mb-4 border rounded">
+                    <button class="w-full text-left px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white flex justify-between items-center accordion-header">
                         <span class="text-sm font-semibold"><?php echo e($date); ?></span>
                         <span class="text-sm">▼</span>
                     </button>
 
-                    
-                    <div class="accordion-content px-4 py-3 bg-white dark:bg-gray-800">
-                        <div class="grid gap-3"
-                            style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-
+                    <div class="accordion-content px-4 py-3">
+                        <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $groupItems; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-
-                                
                                 <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'folder'): ?>
-
-                                    <div class="relative w-32 h-36 rounded shadow border
-                                                bg-white dark:bg-gray-800
-                                                border-gray-300 dark:border-gray-700
-                                                text-xs font-medium overflow-hidden flex flex-col">
-
+                                    <div class="relative w-32 h-36 bg-white dark:bg-gray-800 rounded shadow border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-hidden flex flex-col">
+                                        
                                         <div class="flex justify-between items-start p-1">
-
-                                            
                                             <input type="checkbox"
-                                                class="folder-checkbox-subfolder
-                                                        text-blue-600 dark:text-blue-400
-                                                        bg-white dark:bg-gray-800
-                                                        border-gray-300 dark:border-gray-600"
+                                                class="folder-checkbox"
+                                                style="transform: scale(1.2);"
                                                 value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
 
-                                            
                                             <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
-                                                class="p-1 rounded-full
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
-                                                title="Download Subfolder">
+                                            class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                                            title="Download Subfolder">
                                                 <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -741,98 +443,62 @@
                                         </div>
 
                                         
-                                        <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>
-
-                                                &user=<?php echo e($selectedUser->id); ?>
-
-                                                &folder=<?php echo e(urlencode($selectedFolder)); ?>
-
-                                                &subfolder=<?php echo e(urlencode($item['path'])); ?>"
-                                        class="flex flex-col items-center justify-center flex-1
-                                                text-gray-900 dark:text-gray-100 px-2">
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
+                                        class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
-                                            <div class="mt-1 truncate w-full text-center"
-                                                title="<?php echo e($item['name']); ?>">
+                                            <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">
                                                 <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
 
                                             </div>
                                         </a>
                                     </div>
-
-                                
                                 <?php else: ?>
-                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group 
-                                                bg-white dark:bg-gray-800
-                                                border border-gray-300 dark:border-gray-700">
-
+                                    
+                                    <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+                                        
                                         <div class="flex justify-between items-start p-1">
-
-                                            
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="image-checkbox-subfolder
-                                                        text-blue-600 dark:text-blue-400
-                                                        bg-white dark:bg-gray-800
-                                                        border-gray-300 dark:border-gray-600"
+                                                    class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
                                                     value="<?php echo e(asset('storage/' . $item['path'])); ?>">
-
-                                                
                                                 <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
-                                                        Linked
-                                                    </span>
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
                                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                             </div>
 
                                             
-                                            <button onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button 
+                                                onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                                                 title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg"
-                                                    class="w-4 h-4 text-gray-700 dark:text-white"
-                                                    viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
                                                 </svg>
                                             </button>
                                         </div>
 
-                                        
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="block w-full h-full">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
-                                                    class="w-full h-full object-cover rounded"
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" 
+                                                    class="w-full h-full object-cover rounded" 
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
-
-                                        
                                         <?php elseif($item['type'] === 'video'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="block w-full h-full">
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
                                                 <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
                                             </a>
-
-                                        
                                         <?php elseif($item['type'] === 'pdf'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="block w-full h-full p-2 rounded text-center text-xs
-                                                    bg-gray-100 dark:bg-gray-700
-                                                    text-gray-900 dark:text-gray-100
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600">
+                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                                title="<?php echo e($item['name']); ?>">
                                                 <div class="text-3xl">📄</div>
-                                                <div class="mt-1 truncate">
-                                                    <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
-
-                                                </div>
+                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
                                             </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                         </div>
                     </div>
@@ -866,7 +532,7 @@
         <div class="rounded-lg shadow-2xl w-full max-w-sm relative p-6
                     bg-white dark:bg-gray-800
                     border border-gray-200 dark:border-gray-700
-                    text-gray-900 dark:text-gray-100">
+                    text-gray-900 dark:text-white">
 
             
             <button onclick="closePropertiesModal()"
@@ -1010,4 +676,4 @@
         );
     });
 </script>
-<?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/filament/admin/pages/admin-users-page.blade.php ENDPATH**/ ?>
+<?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/filament/admin/pages/manager-users-page.blade.php ENDPATH**/ ?>
