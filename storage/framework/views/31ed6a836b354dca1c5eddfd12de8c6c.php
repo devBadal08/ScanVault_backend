@@ -48,7 +48,7 @@
         
         <div class="shadow rounded-lg p-6
                     bg-white dark:bg-gray-800
-                    text-gray-600 dark:text-gray-100">
+                    text-gray-900 dark:text-gray-100">
             <form wire:submit.prevent="saveUser">
                 <?php echo e($form); ?>
 

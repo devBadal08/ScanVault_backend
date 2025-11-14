@@ -142,7 +142,6 @@ class CompanyDashboard extends Page
             Forms\Components\TextInput::make('max_storage')
                 ->label('Max Storage (GB)')
                 ->numeric()
-                ->required()
                 ->helperText('Enter value in GB (e.g., 1 = 1GB, 2 = 2GB)'),
         ];
     }
