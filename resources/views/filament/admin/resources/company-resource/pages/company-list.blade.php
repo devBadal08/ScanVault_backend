@@ -21,30 +21,30 @@
                     class="block">
 
                     <x-filament::card 
-    class="relative w-full h-72 bg-white dark:bg-gray-800 overflow-hidden rounded-2xl flex flex-col"
->
+                        class="relative w-full h-72 bg-white dark:bg-gray-800 overflow-hidden rounded-2xl flex flex-col"
+                    >
 
-    {{-- FIXED SIZE LOGO BOX (square, same for all logos) --}}
-    <div class="w-full flex justify-center mt-10">
-        <div class="w-32 h-32 flex items-center justify-center">
-            <img 
-                src="{{ asset('storage/' . $company->company_logo) }}" 
-                class="max-w-full max-h-full object-contain"
-            />
-        </div>
-    </div>
+                        {{-- FIXED SIZE LOGO BOX (square, same for all logos) --}}
+                        <div class="w-full flex justify-center mt-10">
+                            <div class="w-32 h-32 flex items-center justify-center">
+                                <img 
+                                    src="{{ asset('storage/' . $company->company_logo) }}" 
+                                    class="max-w-full max-h-full object-contain"
+                                />
+                            </div>
+                        </div>
 
-    {{-- Divider --}}
-    <div class="w-10/12 mx-auto h-px bg-gray-300 dark:bg-gray-700 mt-4"></div>
+                        {{-- Divider --}}
+                        <div class="w-10/12 mx-auto h-px bg-gray-300 dark:bg-gray-700 mt-4"></div>
 
-    {{-- Company Name --}}
-    <div class="flex-1 flex items-center justify-center">
-        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 text-center">
-            {{ $company->company_name }}
-        </h2>
-    </div>
+                        {{-- Company Name --}}
+                        <div class="flex-1 flex items-center justify-center">
+                            <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 text-center">
+                                {{ $company->company_name }}
+                            </h2>
+                        </div>
 
-</x-filament::card>
+                    </x-filament::card>
                 </a>
 
             </div>
