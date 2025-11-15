@@ -10,6 +10,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Auth::routes(['verify' => false]);
+
 // Default dashboard (optional fallback)
 Route::get('/dashboard', function () {
     return view('dashboard');
