@@ -59,28 +59,28 @@
 <?php endif; ?>
 <?php $component->withAttributes(['class' => 'relative w-full h-72 bg-white dark:bg-gray-800 overflow-hidden rounded-2xl flex flex-col']); ?>
 
-    
-    <div class="w-full flex justify-center mt-10">
-        <div class="w-32 h-32 flex items-center justify-center">
-            <img 
-                src="<?php echo e(asset('storage/' . $company->company_logo)); ?>" 
-                class="max-w-full max-h-full object-contain"
-            />
-        </div>
-    </div>
+                        
+                        <div class="w-full flex justify-center mt-10">
+                            <div class="w-32 h-32 flex items-center justify-center">
+                                <img 
+                                    src="<?php echo e(asset('storage/' . $company->company_logo)); ?>" 
+                                    class="max-w-full max-h-full object-contain"
+                                />
+                            </div>
+                        </div>
 
-    
-    <div class="w-10/12 mx-auto h-px bg-gray-300 dark:bg-gray-700 mt-4"></div>
+                        
+                        <div class="w-10/12 mx-auto h-px bg-gray-300 dark:bg-gray-700 mt-4"></div>
 
-    
-    <div class="flex-1 flex items-center justify-center">
-        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 text-center">
-            <?php echo e($company->company_name); ?>
+                        
+                        <div class="flex-1 flex items-center justify-center">
+                            <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100 text-center">
+                                <?php echo e($company->company_name); ?>
 
-        </h2>
-    </div>
+                            </h2>
+                        </div>
 
- <?php echo $__env->renderComponent(); ?>
+                     <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9b945b32438afb742355861768089b04)): ?>
 <?php $attributes = $__attributesOriginal9b945b32438afb742355861768089b04; ?>

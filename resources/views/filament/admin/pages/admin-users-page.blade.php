@@ -39,7 +39,7 @@
                                transition duration-150 ease-in-out
                                hover:text-blue-700 dark:hover:text-blue-300">
 
-                        <x-heroicon-s-user class="w-20 h-16 text-blue-600" style="color:#1D4ED8;"/>
+                        <x-heroicon-s-user class="w-20 h-16 text-blue-600" style="color:#1D4ED8;" />
 
                         <span class="mt-1 text-sm truncate w-24">
                             {{ $user->name }}
@@ -310,11 +310,8 @@
                                         </div>
 
                                         {{-- Folder icon + name --}}
-                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}
-                                                &user={{ $selectedUser->id }}
-                                                &folder={{ urlencode($selectedFolder) }}
-                                                &subfolder={{ urlencode($item['path']) }}"
-                                        class="flex flex-col items-center justify-center flex-1 
+                                        <a href="?{{ $selectedManager ? 'manager='.$selectedManager->id.'&' : '' }}user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                            class="flex flex-col items-center justify-center flex-1 
                                                 text-gray-900 dark:text-gray-100">
 
                                             <div class="text-3xl">📁</div>
