@@ -211,44 +211,44 @@ class FolderShareController extends Controller
         return response()->json(['success' => true, 'uploaded' => $uploaded]);
     }
 
-    private function getAccessToken()
-    {
-        $jsonPath = storage_path('app/firebase/firebase-key.json');
+    // private function getAccessToken()
+    // {
+    //     $jsonPath = storage_path('app/firebase/firebase-key.json');
 
-        $json = json_decode(file_get_contents($jsonPath), true);
+    //     $json = json_decode(file_get_contents($jsonPath), true);
 
-        $now = time();
-        $header = ['alg' => 'RS256', 'typ' => 'JWT'];
-        $claim = [
-            'iss' => $json['client_email'],
-            'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
-            'aud' => 'https://oauth2.googleapis.com/token',
-            'exp' => $now + 3600,
-            'iat' => $now,
-        ];
+    //     $now = time();
+    //     $header = ['alg' => 'RS256', 'typ' => 'JWT'];
+    //     $claim = [
+    //         'iss' => $json['client_email'],
+    //         'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+    //         'aud' => 'https://oauth2.googleapis.com/token',
+    //         'exp' => $now + 3600,
+    //         'iat' => $now,
+    //     ];
 
-        $headerEncoded = rtrim(strtr(base64_encode(json_encode($header)), '+/', '-_'), '=');
-        $claimEncoded = rtrim(strtr(base64_encode(json_encode($claim)), '+/', '-_'), '=');
+    //     $headerEncoded = rtrim(strtr(base64_encode(json_encode($header)), '+/', '-_'), '=');
+    //     $claimEncoded = rtrim(strtr(base64_encode(json_encode($claim)), '+/', '-_'), '=');
 
-        openssl_sign("$headerEncoded.$claimEncoded", $signature, $json['private_key'], 'SHA256');
-        $signatureEncoded = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+    //     openssl_sign("$headerEncoded.$claimEncoded", $signature, $json['private_key'], 'SHA256');
+    //     $signatureEncoded = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
 
-        $jwt = "$headerEncoded.$claimEncoded.$signatureEncoded";
+    //     $jwt = "$headerEncoded.$claimEncoded.$signatureEncoded";
 
-        $post_fields = http_build_query([
-            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion' => $jwt,
-        ]);
+    //     $post_fields = http_build_query([
+    //         'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    //         'assertion' => $jwt,
+    //     ]);
 
-        $ch = curl_init('https://oauth2.googleapis.com/token');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($ch);
-        curl_close($ch);
+    //     $ch = curl_init('https://oauth2.googleapis.com/token');
+    //     curl_setopt($ch, CURLOPT_POST, true);
+    //     curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+    //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    //     $response = curl_exec($ch);
+    //     curl_close($ch);
 
-        return json_decode($response, true)['access_token'];
-    }
+    //     return json_decode($response, true)['access_token'];
+    // }
 
     private function sendPushV1($token, $title, $body)
     {
