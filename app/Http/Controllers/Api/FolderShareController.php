@@ -56,11 +56,24 @@ class FolderShareController extends Controller
             return response()->json(['success' => false, 'message' => 'Folder already shared with this user.'], 200);
         }
 
+        // CREATE SHARE RECORD
         $share = FolderShare::create([
             'folder_id'   => $request->folder_id,
             'shared_by'   => auth()->id(),
             'shared_with' => $sharedWithUser->id,
         ]);
+
+        // 🔥 SEND NOTIFICATION HERE (Correct place)
+        if ($sharedWithUser->device_token) {
+            $folderName = Folder::find($request->folder_id)->name;
+            $senderName = Auth::user()->name;
+
+            $this->sendPushV1(
+                $sharedWithUser->device_token,
+                "New Shared Folder",
+                "$senderName shared \"$folderName\" with you."
+            );
+        }
 
         return response()->json(['success' => true, 'share' => $share]);
     }
@@ -197,4 +210,78 @@ class FolderShareController extends Controller
 
         return response()->json(['success' => true, 'uploaded' => $uploaded]);
     }
+
+    private function getAccessToken()
+    {
+        $jsonPath = storage_path('app/firebase/firebase-key.json');
+
+        $json = json_decode(file_get_contents($jsonPath), true);
+
+        $now = time();
+        $header = ['alg' => 'RS256', 'typ' => 'JWT'];
+        $claim = [
+            'iss' => $json['client_email'],
+            'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+            'aud' => 'https://oauth2.googleapis.com/token',
+            'exp' => $now + 3600,
+            'iat' => $now,
+        ];
+
+        $headerEncoded = rtrim(strtr(base64_encode(json_encode($header)), '+/', '-_'), '=');
+        $claimEncoded = rtrim(strtr(base64_encode(json_encode($claim)), '+/', '-_'), '=');
+
+        openssl_sign("$headerEncoded.$claimEncoded", $signature, $json['private_key'], 'SHA256');
+        $signatureEncoded = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        $jwt = "$headerEncoded.$claimEncoded.$signatureEncoded";
+
+        $post_fields = http_build_query([
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion' => $jwt,
+        ]);
+
+        $ch = curl_init('https://oauth2.googleapis.com/token');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post_fields);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        return json_decode($response, true)['access_token'];
+    }
+
+    private function sendPushV1($token, $title, $body)
+    {
+        $accessToken = $this->getAccessToken();
+
+        $projectId = 'scanvault-app-8a335';
+
+        $url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
+
+        $message = [
+            "message" => [
+                "token" => $token,
+                "notification" => [
+                    "title" => $title,
+                    "body" => $body
+                ]
+            ]
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Authorization: Bearer $accessToken",
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
+
+        $result = curl_exec($ch);
+        curl_close($ch);
+
+        return $result;
+    }
+
 }

@@ -16,6 +16,7 @@ class AdminUsersPage extends Page
     protected static ?string $navigationGroup = 'Photos';
     protected static ?string $navigationLabel = 'Admin Users';
     protected static ?int $navigationSort = 7;
+    protected static ?string $recordTitleAttribute = 'name';
 
     public $managers = [];
     public $adminUsers = [];
@@ -24,6 +25,8 @@ class AdminUsersPage extends Page
     public $subfolders = [];
     public $images = [];
     public $items = [];
+    public $globalSearch = '';
+    public $globalResults = [];
 
     public $selectedManager = null;
     public $selectedUser = null;
@@ -73,6 +76,59 @@ class AdminUsersPage extends Page
 
         return array_filter($groups);
     }
+
+    public function updatedGlobalSearch()
+{
+    if(strlen($this->globalSearch) < 2){
+        $this->globalResults = [];
+        return;
+    }
+
+    $query = strtolower($this->globalSearch);
+
+    $results = [];
+
+    // ✅ Loop all users created by admin
+    $users = User::where('created_by', auth()->id())->get();
+
+    foreach($users as $user){
+
+        $basePath = $user->id;
+
+        // Folders
+        $folders = Storage::disk('public')->allDirectories($basePath);
+
+        foreach($folders as $folder){
+
+            if(str_contains(strtolower(basename($folder)), $query)){
+                $results[] = [
+                    'type' => 'folder',
+                    'name' => basename($folder),
+                    'user' => $user->name,
+                    'user_id' => $user->id,
+                    'path' => $folder
+                ];
+            }
+
+            // Files inside folder
+            $files = Storage::disk('public')->files($folder);
+
+            foreach($files as $file){
+                if(str_contains(strtolower(basename($file)), $query)){
+                    $results[] = [
+                        'type' => pathinfo($file, PATHINFO_EXTENSION),
+                        'name' => basename($file),
+                        'user' => $user->name,
+                        'user_id' => $user->id,
+                        'path' => $file
+                    ];
+                }
+            }
+        }
+    }
+
+    $this->globalResults = collect($results)->take(50)->values()->toArray();
+}
 
     public function mount(): void
     {

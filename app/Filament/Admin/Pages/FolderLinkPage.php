@@ -37,7 +37,13 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             // Source Folder
             Forms\Components\Select::make('sourceFolder')
                 ->label('Select Source Folder')
-                ->options(Folder::whereNull('parent_id')->pluck('name', 'id'))
+                ->options(
+                    Folder::whereNull('parent_id')
+                        ->whereHas('user', function ($q) {
+                            $q->where('company_id', auth()->user()->company_id);
+                        })
+                        ->pluck('name', 'id')
+                )
                 ->searchable()
                 ->reactive() // Livewire reacts to changes
                 ->afterStateUpdated(fn() => $this->reset('targetFolders'))
@@ -50,22 +56,23 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
                 ->searchable()
                 ->reactive()
                 ->options(function () {
-                    $query = Folder::whereNull('parent_id'); // Only main folders
-
-                    // Exclude source folder itself
+                    $companyId = auth()->user()->company_id;
+                    $query = Folder::whereNull('parent_id')
+                        ->whereHas('user', function ($q) use ($companyId) {
+                            $q->where('company_id', $companyId);
+                        });
+                    // Exclude source folder
                     if ($this->sourceFolder) {
                         $query->where('id', '!=', $this->sourceFolder);
                     }
-
-                    // Exclude folders already fully linked if current type is 'full'
+                    // Exclude fully linked folders
                     if ($this->linkType === 'full') {
                         $linkedFullIds = DB::table('folder_links')
-                            ->where('link_type', 'full')
                             ->pluck('target_folder_id')
                             ->toArray();
+
                         $query->whereNotIn('id', $linkedFullIds);
                     }
-
                     return $query->pluck('name', 'id')->toArray();
                 })
                 ->required(),
@@ -163,9 +170,13 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             return collect();
         }
 
+        $companyId = auth()->user()->company_id;
+
         return DB::table('folder_links')
             ->leftJoin('folders as f', 'f.id', '=', 'folder_links.target_folder_id')
+            ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
             ->where('folder_links.source_folder_id', $this->sourceFolder)
+            ->where('u.company_id', $companyId)
             ->select('folder_links.*', 'f.name as target_name')
             ->get();
     }

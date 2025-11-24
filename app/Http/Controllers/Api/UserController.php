@@ -81,4 +81,18 @@ class UserController extends Controller
             'message' => 'User deleted successfully'
         ], 200);
     }
+
+    public function saveFcmToken(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'device_token' => 'required'
+        ]);
+
+        $user = User::find($request->user_id);
+        $user->device_token = $request->device_token;
+        $user->save();
+
+        return response()->json(['success' => true, 'message' => 'Token saved']);
+    }
 }
