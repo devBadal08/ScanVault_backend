@@ -40,7 +40,7 @@ class PhotoController extends Controller
         $query = Photo::where('user_id', $user->id);
 
         if ($folder) {
-            $query->where('path', 'like', "%$folder/%");
+            $query->where('path', 'like', "$user->id/$folder%");
         }
         return response()->json($query->get());
     }
@@ -217,7 +217,7 @@ class PhotoController extends Controller
             return response()->json(['message' => 'Folder not found'], 404);
         }
 
-        $files = Storage::disk('public')->files($folderPath);
+        $files = Storage::disk('public')->allFiles($folderPath);
 
         $images = array_map(function ($filePath) {
             return asset('storage/' . $filePath); // convert to public URL
