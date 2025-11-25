@@ -23,13 +23,13 @@ class TotalCompanies extends BaseWidget
         |--------------------------------------------------------------------------
         */
         if ($currentUser?->hasRole('Super Admin')) {
-            $cards[] = Card::make('Total Companies', Company::count())
+            $cards[] = Card::make('Total Companies Techstrota', Company::count())
                 ->description('Registered in system')
                 ->descriptionIcon('heroicon-o-building-office')
                 ->chart([7, 10, 12, 15, 20, 25, 30])
                 ->color('success');
 
-            $cards[] = Card::make('Total Admins', User::where('role', 'admin')->count())
+            $cards[] = Card::make('Total Admins Techstrota', User::where('role', 'admin')->count())
                 ->description('All admins in system')
                 ->descriptionIcon('heroicon-m-user-group')
                 ->color('primary');
