@@ -13,52 +13,51 @@
     <div>
 
     <div class="mb-6">
-    <input
-        type="text"
-        wire:model.live="globalSearch"
-        placeholder="🔍 Global Search (users, folders, images...)"
-        class="w-full px-4 py-3 rounded-xl border
-        border-gray-300 dark:border-gray-700
-        bg-white dark:bg-gray-900
-        text-gray-900 dark:text-white
-        focus:ring-2 focus:ring-orange-500 shadow"
-    >
-</div>
-
-<!--[if BLOCK]><![endif]--><?php if(!empty($globalResults)): ?>
-
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow border">
-
-        <h3 class="text-lg font-bold mb-2">Search Results</h3>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-
-            <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $globalResults; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-
-                <a
-                    href="?user=<?php echo e($item['user_id']); ?>&folder=<?php echo e(urlencode($item['path'])); ?>"
-                    class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
-                >
-                    <div class="text-sm font-semibold">
-                        <?php echo e($item['name']); ?>
-
-                    </div>
-
-                    <div class="text-xs text-gray-500">
-                        <?php echo e(strtoupper($item['type'])); ?> in <?php echo e($item['user']); ?>
-
-                    </div>
-
-                </a>
-
-            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-
-        </div>
+        <input
+            type="text"
+            wire:model.live="globalSearch"
+            placeholder="🔍 Global Search (users, folders, images...)"
+            class="w-full px-4 py-3 rounded-xl border
+            border-gray-300 dark:border-gray-700
+            bg-white dark:bg-gray-900
+            text-gray-900 dark:text-white
+            focus:ring-2 focus:ring-orange-500 shadow"
+        >
     </div>
 
-<?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+    <!--[if BLOCK]><![endif]--><?php if(!empty($globalResults)): ?>
 
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow border">
 
+            <h3 class="text-lg font-bold mb-2">Search Results</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+
+                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $globalResults; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+
+                    <a
+                        href="?user=<?php echo e($item['user_id']); ?>&folder=<?php echo e(urlencode($item['path'])); ?>"
+                        class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
+                    >
+                        <div class="text-sm font-semibold">
+                            <?php echo e($item['name']); ?>
+
+                        </div>
+
+                        <div class="text-xs text-gray-500">
+                            <?php echo e(strtoupper($item['type'])); ?> in <?php echo e($item['user']); ?>
+
+                        </div>
+
+                    </a>
+
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+
+            </div>
+        </div>
+
+    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+    <br>
         
         <!--[if BLOCK]><![endif]--><?php if(!$selectedManager && !$selectedUser): ?>
             <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
@@ -165,7 +164,7 @@
                         class="flex flex-col items-center justify-center text-center font-medium rounded-lg p-2
                                text-gray-900 dark:text-gray-100
                                transition duration-150 ease-in-out
-                               hover:text-blue-700 dark:hover:text-blue-300" style="color:#1D4ED8;">
+                               hover:text-blue-700 dark:hover:text-blue-300">
 
                         <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
@@ -176,7 +175,7 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-20 h-16 text-blue-600 dark:text-blue-300']); ?>
+<?php $component->withAttributes(['class' => 'w-20 h-16 text-blue-600 dark:text-blue-300','style' => 'color:#1D4ED8;']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
@@ -222,7 +221,6 @@
 <?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
 <?php endif; ?>
             </div>
-
             <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                 Folders of <?php echo e($selectedUser->name); ?>
 

@@ -24,6 +24,8 @@ class ManagerUsersPage extends Page
     public $images = [];
     public $users = [];
     public $items = [];
+    public $globalSearch = '';
+    public $globalResults = [];
 
     public $selectedUser = null;
     public $selectedFolder = null;
@@ -70,6 +72,86 @@ class ManagerUsersPage extends Page
         }
 
         return array_filter($groups);
+    }
+
+    public function updatedGlobalSearch()
+    {
+        if (strlen($this->globalSearch) < 2) {
+            $this->globalResults = [];
+            return;
+        }
+
+        $query = strtolower($this->globalSearch);
+        $results = [];
+
+        $authUser = auth()->user();
+
+        // ✅ Get users based on role
+        if ($authUser->role === 'manager') {
+
+            $users = User::where('role', 'user')
+                ->where('created_by', $authUser->id)
+                ->get();
+
+        } else {
+
+            // If admin → get users under their managers
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $authUser->id)
+                ->pluck('id');
+
+            $users = User::whereIn('created_by', $managerIds)->get();
+        }
+
+        foreach ($users as $user) {
+
+            $basePath = (string) $user->id;
+
+            if (!Storage::disk('public')->exists($basePath)) {
+                continue;
+            }
+
+            // ✅ Root + subfolders
+            $allFolders = collect([$basePath])
+                            ->merge(Storage::disk('public')->allDirectories($basePath))
+                            ->unique();
+
+            foreach ($allFolders as $folder) {
+
+                // ✅ Match folder name
+                if (str_contains(strtolower(basename($folder)), $query)) {
+                    $results[] = [
+                        'type'    => 'folder',
+                        'name'    => basename($folder),
+                        'user'    => $user->name,
+                        'user_id' => $user->id,
+                        'path'    => $folder,
+                    ];
+                }
+
+                // ✅ Match files
+                $files = Storage::disk('public')->files($folder);
+
+                foreach ($files as $file) {
+
+                    if (str_contains(strtolower(basename($file)), $query)) {
+                        $results[] = [
+                            'type'    => pathinfo($file, PATHINFO_EXTENSION),
+                            'name'    => basename($file),
+                            'user'    => $user->name,
+                            'user_id' => $user->id,
+                            'path'    => $file,
+                        ];
+                    }
+                }
+            }
+        }
+
+        $this->globalResults = collect($results)
+            ->sortByDesc('name')
+            ->take(60)
+            ->values()
+            ->toArray();
     }
 
     public function mount(): void

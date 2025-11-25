@@ -1,6 +1,44 @@
 @php use Illuminate\Support\Facades\Auth; @endphp
 <x-filament::page>
     <div>
+        <div class="mb-6">
+            <input
+                type="text"
+                wire:model.live="globalSearch"
+                wire:ignore.self
+                placeholder="🔍 Global Search (folders, images, files...)"
+                class="w-full px-4 py-3 rounded-xl border
+                    border-gray-300 dark:border-gray-700
+                    bg-white dark:bg-gray-900
+                    text-gray-900 dark:text-white
+                    focus:ring-2 focus:ring-orange-500 shadow"
+            >
+        </div>
+
+        @if(!empty($globalResults))
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-4 mb-6 shadow border">
+                <h3 class="text-lg font-bold mb-2">Search Results</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    @foreach($globalResults as $item)
+                        <a
+                            href="?user={{ $item['user_id'] }}&folder={{ urlencode($item['path']) }}"
+                            class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
+                        >
+                            <div class="text-sm font-semibold">
+                                {{ $item['name'] }}
+                            </div>
+
+                            <div class="text-xs text-gray-500">
+                                {{ strtoupper($item['type']) }} in {{ $item['user'] }}
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+        <br>
+
         {{-- Step 1: Show Users --}}
         @if (!$selectedUser)
             <h2 class="text-xl font-bold mb-4">Select User</h2>

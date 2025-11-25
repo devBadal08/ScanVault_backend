@@ -78,57 +78,79 @@ class AdminUsersPage extends Page
     }
 
     public function updatedGlobalSearch()
-{
-    if(strlen($this->globalSearch) < 2){
-        $this->globalResults = [];
-        return;
-    }
+    {
+        if (strlen($this->globalSearch) < 2) {
+            $this->globalResults = [];
+            return;
+        }
 
-    $query = strtolower($this->globalSearch);
+        $query = strtolower($this->globalSearch);
+        $results = [];
 
-    $results = [];
+        // ✅ Get managers under admin
+        $managerIds = User::where('role', 'manager')
+            ->where('created_by', auth()->id())
+            ->pluck('id');
 
-    // ✅ Loop all users created by admin
-    $users = User::where('created_by', auth()->id())->get();
+        // ✅ Get all users created by admin AND managers
+        $users = User::where(function($q) use ($managerIds) {
+                $q->where('created_by', auth()->id())
+                ->orWhereIn('created_by', $managerIds)
+                ->orWhere('id', auth()->id());
+            })
+            ->get();
 
-    foreach($users as $user){
+        foreach ($users as $user) {
 
-        $basePath = $user->id;
+            $basePath = (string) $user->id;
 
-        // Folders
-        $folders = Storage::disk('public')->allDirectories($basePath);
-
-        foreach($folders as $folder){
-
-            if(str_contains(strtolower(basename($folder)), $query)){
-                $results[] = [
-                    'type' => 'folder',
-                    'name' => basename($folder),
-                    'user' => $user->name,
-                    'user_id' => $user->id,
-                    'path' => $folder
-                ];
+            if (!Storage::disk('public')->exists($basePath)) {
+                continue;
             }
 
-            // Files inside folder
-            $files = Storage::disk('public')->files($folder);
+            // ✅ Include root + all sub folders
+            $allFolders = collect([$basePath])
+                            ->merge(Storage::disk('public')->allDirectories($basePath))
+                            ->unique();
 
-            foreach($files as $file){
-                if(str_contains(strtolower(basename($file)), $query)){
+            foreach ($allFolders as $folder) {
+
+                // ✅ Folder match
+                if (str_contains(strtolower(basename($folder)), $query)) {
                     $results[] = [
-                        'type' => pathinfo($file, PATHINFO_EXTENSION),
-                        'name' => basename($file),
-                        'user' => $user->name,
-                        'user_id' => $user->id,
-                        'path' => $file
+                        'type'     => 'folder',
+                        'name'     => basename($folder),
+                        'user'     => $user->name,
+                        'user_id'  => $user->id,
+                        'path'     => $folder,
                     ];
+                }
+
+                // ✅ File match
+                $files = Storage::disk('public')->files($folder);
+
+                foreach ($files as $file) {
+                    if (str_contains(strtolower(basename($file)), $query)) {
+
+                        $results[] = [
+                            'type'    => pathinfo($file, PATHINFO_EXTENSION),
+                            'name'    => basename($file),
+                            'user'    => $user->name,
+                            'user_id' => $user->id,
+                            'path'    => $file,
+                        ];
+                    }
                 }
             }
         }
-    }
 
-    $this->globalResults = collect($results)->take(50)->values()->toArray();
-}
+        // ✅ Limit + sort
+        $this->globalResults = collect($results)
+            ->sortByDesc('name')
+            ->take(60)
+            ->values()
+            ->toArray();
+    }
 
     public function mount(): void
     {
