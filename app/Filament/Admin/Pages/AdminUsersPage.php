@@ -127,7 +127,7 @@ class AdminUsersPage extends Page
                 }
 
                 // ✅ File match
-                $files = Storage::disk('public')->files($folder);
+                $files = Storage::disk('public')->allFiles($folder);
 
                 foreach ($files as $file) {
                     if (str_contains(strtolower(basename($file)), $query)) {

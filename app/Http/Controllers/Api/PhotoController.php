@@ -121,7 +121,7 @@ class PhotoController extends Controller
                         'type'      => 'image',
                     ]);
 
-                    $uploaded[] = asset('storage/' . $path);
+                    $uploaded[] = Storage::url($path);
                 } catch (\Exception $e) {
                     \Log::error("Image upload failed: " . $e->getMessage());
                     $failed[] = $image->getClientOriginalName();
@@ -156,7 +156,7 @@ class PhotoController extends Controller
                         'type'      => 'video',
                     ]);
 
-                    $uploaded[] = asset('storage/' . $path);
+                    $uploaded[] = Storage::url($path);
                 } catch (\Exception $e) {
                     \Log::error("Video upload failed: " . $e->getMessage());
                     $failed[] = $video->getClientOriginalName();
@@ -191,7 +191,7 @@ class PhotoController extends Controller
                         'type'      => 'pdf',
                     ]);
 
-                    $uploaded[] = asset('storage/' . $path);
+                    $uploaded[] = Storage::url($path);
                 } catch (\Exception $e) {
                     \Log::error("PDF upload failed: " . $e->getMessage());
                     $failed[] = $pdf->getClientOriginalName();
@@ -210,20 +210,16 @@ class PhotoController extends Controller
         ]);
     }
 
-    public function getImagesByFolder($folderName)
+    public function getImagesByFolder($folderPath)
     {
-        $folderPath = "{$userId}/{$originalFolder}";
-
         if (!Storage::disk('public')->exists($folderPath)) {
-            Storage::disk('public')->makeDirectory($folderPath, 0755, true);
+            return response()->json(['error' => 'Folder not found'], 404);
         }
-
-        $path = $image->storeAs($folderPath, $filename, 'public');
 
         $files = Storage::disk('public')->allFiles($folderPath);
 
         $images = array_map(function ($filePath) {
-            return asset('storage/' . $filePath); // convert to public URL
+            return Storage::url($filePath);
         }, $files);
 
         return response()->json($images);
