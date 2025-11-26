@@ -6,6 +6,7 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Models\Folder;
 use Carbon\Carbon;
 
 class AdminUsersPage extends Page
@@ -15,6 +16,7 @@ class AdminUsersPage extends Page
     protected static ?string $navigationGroup = 'Photos';
     protected static ?string $navigationLabel = 'Admin Users';
     protected static ?int $navigationSort = 7;
+    protected static ?string $recordTitleAttribute = 'name';
 
     public $managers = [];
     public $adminUsers = [];
@@ -23,6 +25,8 @@ class AdminUsersPage extends Page
     public $subfolders = [];
     public $images = [];
     public $items = [];
+    public $globalSearch = '';
+    public $globalResults = [];
 
     public $selectedManager = null;
     public $selectedUser = null;
@@ -179,9 +183,9 @@ class AdminUsersPage extends Page
             $this->selectedUser = User::find($userId);
             if (!$this->selectedUser) return;
 
-            $baseUserPath = $userId;
+            $baseUserPath = $userId; // top-level storage folder
 
-            // Top-level folders grouped by date
+            // Top-level folders (if no folder selected)
             if (!$folder) {
                 $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
                     ->map(fn($dir) => [
@@ -190,17 +194,18 @@ class AdminUsersPage extends Page
                         'name' => basename($dir),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
                                             ->toDateTimeString(),
-                    ])
-                    ->toArray();
+                        'linked' => false,
+                    ])->toArray();
 
                 $this->folders = $this->groupByDate($rawFolders);
+
             } else {
-                // Selected folder/subfolder
+                // Selected folder / subfolder
                 $this->selectedFolder = $folder;
                 $targetPath = $subfolder ?: $folder;
                 if ($subfolder) $this->selectedSubfolder = $subfolder;
 
-                // Subfolders inside targetPath
+                // 🔹 Physical subfolders
                 $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
                     ->map(fn($dir) => [
                         'type' => 'folder',
@@ -208,36 +213,57 @@ class AdminUsersPage extends Page
                         'name' => basename($dir),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
                                             ->toDateTimeString(),
-                    ]);
-                $this->subfolders = $rawSubfolders->values()->toArray();
+                        'linked' => false,
+                    ])->toArray();
 
-                // Allowed extensions for media
-                $allowedExtensions = ['jpg','jpeg','png','mp4'];
+                // 🔹 Linked folders from DB
+                $linkedFolders = [];
+                $selectedFolderModel = Folder::where('user_id', $this->selectedUser->id)
+                    ->where('name', basename($folder))
+                    ->first();
 
-                // All media files (images + videos)
+                if ($selectedFolderModel) {
+                    $linkedFolders = $selectedFolderModel->linkedFolders
+                        ->map(fn($f) => [
+                            'type' => 'folder',
+                            'path' => $f->user_id . '/' . $f->name, // full storage path
+                            'name' => $f->name,
+                            'created_at' => $f->created_at->toDateTimeString(),
+                            'linked' => true, // highlight linked
+                        ])->toArray();
+                }
+
+                // Merge physical + linked folders
+                $this->subfolders = collect($rawSubfolders)
+                    ->merge($linkedFolders)
+                    ->sortByDesc(fn($i) => $i['created_at'])
+                    ->values()
+                    ->toArray();
+
+                // 🔹 Fetch media files (images + videos)
+                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
                 $allMedia = collect(Storage::disk('public')->files($targetPath))
                     ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
                     ->map(fn($file) => [
-                        'type' => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['mp4'])
-                            ? 'video'
-                            : 'image',
+                        'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
+                            'mp4' => 'video',
+                            'pdf' => 'pdf',
+                            default => 'image',
+                        },
                         'path' => $file,
                         'name' => basename($file),
                         'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
                                             ->toDateTimeString(),
-                    ])
-                    ->values();
+                        'merged_from' => \App\Models\Photo::where('path', $file)->first()?->source_folder_id,
+                    ])->values();
 
                 $this->total = $allMedia->count();
 
-                // Pagination for media
+                // Pagination
                 $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();
 
-                // Merge folders and paged media
-                $foldersSorted = $rawSubfolders->sortByDesc(fn($i) => $i['created_at'])->values();
-                $mediaSorted = $mediaPaged->sortByDesc(fn($i) => $i['created_at'])->values();
-                $merged = $foldersSorted->merge($mediaSorted)->values();
-
+                // Merge folders + paged media
+                $merged = collect($this->subfolders)->merge($mediaPaged)->values();
                 $this->items = $this->groupByDate($merged->toArray());
                 $this->images = $mediaPaged->toArray();
             }

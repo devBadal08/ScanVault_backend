@@ -130,7 +130,7 @@ class ManagerUsersPage extends Page
                 }
 
                 // ✅ Match files
-                $files = Storage::disk('public')->files($folder);
+                $files = Storage::disk('public')->allFiles($folder);
 
                 foreach ($files as $file) {
 
