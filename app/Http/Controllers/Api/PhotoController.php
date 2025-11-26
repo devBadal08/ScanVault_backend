@@ -212,10 +212,13 @@ class PhotoController extends Controller
 
     public function getImagesByFolder($folderName)
     {
-        $folderPath = $folderName; // not 'public/...'
+        $folderPath = "{$userId}/{$originalFolder}";
+
         if (!Storage::disk('public')->exists($folderPath)) {
-            return response()->json(['message' => 'Folder not found'], 404);
+            Storage::disk('public')->makeDirectory($folderPath, 0755, true);
         }
+
+        $path = $image->storeAs($folderPath, $filename, 'public');
 
         $files = Storage::disk('public')->allFiles($folderPath);
 
