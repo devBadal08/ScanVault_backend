@@ -181,6 +181,24 @@ class AdminUsersPage extends Page
         // 🔹 If a user is selected → folders, subfolders, images
         if ($userId) {
             $this->selectedUser = User::find($userId);
+            // ✅ SHARED FOLDERS FROM DATABASE
+            $sharedFolders = \App\Models\FolderShare::with('folder')
+                ->where('shared_with', $userId)
+                ->get()
+                ->map(function ($share) {
+                    $folder = $share->folder;
+                    if (!$folder) return null;
+
+                    return [
+                        'type' => 'folder',
+                        'path' => $folder->user_id.'/'.$folder->name,   // real physical path
+                        'name' => $folder->name,
+                        'created_at' => $share->created_at->toDateTimeString(),
+                        'linked' => true,
+                    ];
+                })
+                ->filter()
+                ->toArray();
             if (!$this->selectedUser) return;
 
             $baseUserPath = $userId; // top-level storage folder
@@ -196,6 +214,13 @@ class AdminUsersPage extends Page
                                             ->toDateTimeString(),
                         'linked' => false,
                     ])->toArray();
+
+                    // MERGE SHARED FOLDERS
+                    $rawFolders = collect($rawFolders)
+                        ->merge($sharedFolders)
+                        ->unique('path')
+                        ->values()
+                        ->toArray();
 
                 $this->folders = $this->groupByDate($rawFolders);
 

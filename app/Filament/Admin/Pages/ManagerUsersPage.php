@@ -248,7 +248,9 @@ class ManagerUsersPage extends Page
 
                 $linkedFolders = [];
 
-                $selectedFolderModel = Folder::where('user_id', $userId)
+                $folderOwnerId = explode('/', $folder)[0];
+
+                $selectedFolderModel = Folder::where('user_id', $folderOwnerId)
                     ->where('name', basename($folder))
                     ->first();
 
