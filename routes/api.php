@@ -37,6 +37,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shared-folders/{id}/upload', [\App\Http\Controllers\Api\FolderShareController::class, 'uploadToSharedFolder']);
     Route::get('/storage-usage', [UserStorageController::class, 'getStorageUsage']);
     Route::post('/save-fcm-token', [UserController::class, 'saveFcmToken']);
-
+    Route::get('/shared-folder/by-path', [FolderShareController::class, 'getSharedFolderByPath']);
 });
 

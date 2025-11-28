@@ -10,6 +10,7 @@ use App\Models\Folder;
 use App\Models\Photo;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class FolderShareController extends Controller
 {
@@ -83,16 +84,23 @@ class FolderShareController extends Controller
      */
     public function mySharedFolders()
     {
-        $folders = FolderShare::with(['folder.photos'])->where('shared_with', auth()->id())->get();
+        $shares = FolderShare::where('shared_with', auth()->id())
+            ->with('folder')
+            ->get();
 
-        $folders->each(function ($share) {
-            $share->folder->photos->each(function ($photo) {
-                $photo->url = asset('storage/' . $photo->path);
-                $photo->uploader = User::find($photo->uploaded_by)?->name ?? 'Unknown';
-            });
+        $folders = $shares->map(function ($share) {
+            return [
+                'id'        => $share->folder->id,
+                'name'      => $share->folder->name,
+                'user_id'   => $share->folder->user_id,   // OWNER
+                'shared_by' => $share->shared_by,
+            ];
         });
 
-        return response()->json(['success' => true, 'folders' => $folders]);
+        return response()->json([
+            'success' => true,
+            'folders' => $folders
+        ]);
     }
 
     /**
@@ -126,7 +134,8 @@ class FolderShareController extends Controller
     {
         $userId = auth()->id();
 
-        $hasAccess = Folder::where('id', $id)->where('user_id', $userId)->exists()
+        $hasAccess =
+            Folder::where('id', $id)->where('user_id', $userId)->exists()
             || FolderShare::where('folder_id', $id)->where('shared_with', $userId)->exists();
 
         if (!$hasAccess) {
@@ -136,18 +145,110 @@ class FolderShareController extends Controller
             ], 404);
         }
 
-        $folder = Folder::with('photos')->findOrFail($id);
+        $folder = Folder::findOrFail($id);
 
-        $photos = $folder->photos->map(function ($photo) {
-            return [
-                'id'        => $photo->id,
-                'path'      => $photo->path,
-                'url'       => asset('storage/' . $photo->path),
-                'uploaded_by' => User::find($photo->uploaded_by)?->name ?? 'Unknown',
-            ];
-        });
+        // ✅ REAL STORAGE PATH (IMPORTANT)
+        $basePath = $folder->user_id . '/' . Str::slug($folder->name, '_');
 
-        return response()->json(['success' => true, 'folder_id' => $id, 'photos' => $photos]);
+        // ✅ GET ALL SUBFOLDERS FROM STORAGE
+        $folders = [];
+        if (Storage::disk('public')->exists($basePath)) {
+            $folders = collect(Storage::disk('public')->directories($basePath))
+                ->map(function ($dir) {
+                    return [
+                        'id'   => null,
+                        'name' => basename($dir),
+                        'path' => $dir,
+                    ];
+                })->values();
+        }
+
+        // ✅ 1. FILES ONLY in MAIN (not subfolders)
+        $mainPhotos = [];
+
+        if (Storage::disk('public')->exists($basePath)) {
+            $mainPhotos = collect(Storage::disk('public')->files($basePath))
+                ->map(function ($file) {
+                    return [
+                        'name' => basename($file),
+                        'path' => $file,
+                        'url'  => asset('storage/' . $file),
+                        'type' => pathinfo($file, PATHINFO_EXTENSION),
+                    ];
+                })->values();
+        }
+
+        // ✅ 2. SUBFOLDERS + THEIR FILES
+        $folders = [];
+
+        if (Storage::disk('public')->exists($basePath)) {
+            $folders = collect(Storage::disk('public')->directories($basePath))
+                ->map(function ($dir) {
+
+                    $files = collect(Storage::disk('public')->files($dir))
+                        ->map(function ($file) {
+                            return [
+                                'name' => basename($file),
+                                'path' => $file,
+                                'url'  => asset('storage/' . $file),
+                                'type' => pathinfo($file, PATHINFO_EXTENSION),
+                            ];
+                        })->values();
+
+                    return [
+                        'id'    => null,
+                        'name'  => basename($dir),
+                        'path'  => $dir,
+                        'files' => $files,
+                    ];
+                })->values();
+        }
+
+        return response()->json([
+            'success'   => true,
+            'folder_id' => $id,
+            'folder'    => [
+                'name' => $folder->name,
+            ],
+            'main_files' => $mainPhotos,  // ✅ ONLY main folder files
+            'folders'    => $folders,     // ✅ your Flutter uses this
+        ]);
+    }
+
+    public function getSharedFolderByPath(Request $request)
+    {
+        $request->validate(['path' => 'required|string']);
+
+        $basePath = $request->path;
+
+        if (!Storage::disk('public')->exists($basePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Folder not found'
+            ], 404);
+        }
+
+        $folders = collect(Storage::disk('public')->directories($basePath))
+            ->map(function ($dir) {
+                return [
+                    'name' => basename($dir),
+                    'path' => $dir,
+                ];
+            })->values();
+
+        $photos = collect(Storage::disk('public')->files($basePath))
+            ->map(function ($file) {
+                return [
+                    'path' => $file,
+                    'url' => asset("storage/" . $file)
+                ];
+            })->values();
+
+        return response()->json([
+            'success' => true,
+            'folders' => $folders,
+            'photos' => $photos
+        ]);
     }
 
     /**
