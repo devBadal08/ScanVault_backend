@@ -12,40 +12,6 @@ use Illuminate\Support\Facades\Auth;
 
 class PhotoController extends Controller
 {
-  
-    public function store(Request $request)
-    {
-        if (!Auth::check()) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-        if ($request->hasFile('image')) {
-            $folder = $request->input('folder', 'default'); // Optional: choose folder like "test18"
-            $path = $request->file('image')->store("$userId/$folder", 'public');
-
-            // Save path in DB
-            Photo::create([
-                'path' => $path, // e.g., "test18/image.jpg"
-                'user_id' => Auth::id(),
-            ]);
-            return response()->json(['message' => 'Uploaded successfully']);
-        }
-        return response()->json(['error' => 'No image found'], 422);
-    }
-
-    public function getUserPhotos(Request $request)
-    {
-        $user = Auth::user();
-        $folder = $request->input('folder');
-
-        $query = Photo::where('user_id', $user->id);
-
-        if ($folder) {
-            $query->where('path', 'like', "$user->id/$folder%");
-        }
-        return response()->json($query->get());
-    }
-    
-
     public function uploadAll(Request $request)
     {
         $userId = Auth::id();
@@ -58,35 +24,24 @@ class PhotoController extends Controller
         $maxStorage = $user->max_storage ?? 0; // in MB
         $usedStorage = $this->calculateUsedStorageMB($user->id);
 
-        // ✅ Check if usage is between 99.5% and 100%
         if ($maxStorage > 0) {
             $percentUsed = round(($usedStorage / $maxStorage) * 100, 2);
 
-            // Block if usage is between 99.5% and 100%
             if ($percentUsed >= 99 && $percentUsed <= 100) {
                 return response()->json([
-                    'error' => '🚫 Upload blocked: your storage is almost full (' . $percentUsed . '% used). 
-                                Delete some files or contact admin.',
-                    'used_storage_mb' => $usedStorage,
-                    'max_storage_mb' => $maxStorage,
-                    'percent_used' => $percentUsed,
+                    'error' => "🚫 Storage almost full ($percentUsed% used)",
                 ], 403);
             }
 
-            // Block if storage limit exceeded
             if ($percentUsed > 100) {
                 return response()->json([
-                    'error' => '❌ Upload blocked: storage limit exceeded (' . $percentUsed . '% used). 
-                                Please delete some files.',
-                    'used_storage_mb' => $usedStorage,
-                    'max_storage_mb' => $maxStorage,
-                    'percent_used' => $percentUsed,
+                    'error' => "❌ Storage limit exceeded ($percentUsed% used)",
                 ], 403);
             }
         }
 
-        // ✅ Proceed with uploads if under threshold
-        $folders = $request->input('folders'); // array of folder names
+        $folders = $request->input('folders'); // array like: ["parent", "parent/child"]
+
         if (!$folders || !is_array($folders)) {
             return response()->json(['error' => 'Folders array required'], 422);
         }
@@ -94,7 +49,43 @@ class PhotoController extends Controller
         $uploaded = [];
         $failed = [];
 
-        // ---------- Upload Images ----------
+        /**************************************
+         *     COMMON FOLDER LOGIC FUNCTION
+         **************************************/
+        $getFolder = function ($originalFolder) use ($userId) {
+
+            $parts = explode('/', $originalFolder);
+
+            $parentName = $parts[0];
+            $childName  = $parts[1] ?? null;
+
+            // ✅ Parent folder
+            $parent = Folder::firstOrCreate([
+                'name'    => $parentName,
+                'user_id' => $userId,
+                'parent_id' => null,
+            ]);
+
+            // ✅ Subfolder if exists
+            if ($childName) {
+                $folder = Folder::firstOrCreate([
+                    'name'      => $childName,
+                    'parent_id' => $parent->id,
+                    'user_id'   => $userId,
+                ]);
+
+                $storagePath = "$userId/$parentName/$childName";
+            } else {
+                $folder = $parent;
+                $storagePath = "$userId/$parentName";
+            }
+
+            return [$folder, $storagePath];
+        };
+
+        /**************************************
+         *     UPLOAD IMAGES
+         **************************************/
         if ($request->hasFile('images')) {
             $images = $request->file('images');
 
@@ -104,15 +95,12 @@ class PhotoController extends Controller
 
             foreach ($images as $index => $image) {
                 try {
-                    $originalFolder = $folders[$index];
-                    $filename = $image->getClientOriginalName();
 
-                    $folder = Folder::firstOrCreate(
-                        ['name' => $originalFolder, 'user_id' => $userId],
-                        ['name' => $originalFolder, 'user_id' => $userId]
-                    );
+                    [$folder, $storagePath] = $getFolder($folders[$index]);
 
-                    $path = $image->storeAs("$userId/$originalFolder", $filename, 'public');
+                    $filename = time().'_'.uniqid().'_'.$image->getClientOriginalName();
+
+                    $path = $image->storeAs($storagePath, $filename, 'public');
 
                     Photo::create([
                         'path'      => $path,
@@ -121,7 +109,8 @@ class PhotoController extends Controller
                         'type'      => 'image',
                     ]);
 
-                    $uploaded[] = Storage::url($path);
+                    $uploaded[] = asset('storage/'.$path);
+
                 } catch (\Exception $e) {
                     \Log::error("Image upload failed: " . $e->getMessage());
                     $failed[] = $image->getClientOriginalName();
@@ -129,7 +118,9 @@ class PhotoController extends Controller
             }
         }
 
-        // ---------- Upload Videos ----------
+        /**************************************
+         *     UPLOAD VIDEOS
+         **************************************/
         if ($request->hasFile('videos')) {
             $videos = $request->file('videos');
 
@@ -139,15 +130,12 @@ class PhotoController extends Controller
 
             foreach ($videos as $index => $video) {
                 try {
-                    $originalFolder = $folders[$index];
-                    $filename = $video->getClientOriginalName();
 
-                    $folder = Folder::firstOrCreate(
-                        ['name' => $originalFolder, 'user_id' => $userId],
-                        ['name' => $originalFolder, 'user_id' => $userId]
-                    );
+                    [$folder, $storagePath] = $getFolder($folders[$index]);
 
-                    $path = $video->storeAs("$userId/$originalFolder", $filename, 'public');
+                    $filename = time().'_'.uniqid().'_'.$video->getClientOriginalName();
+
+                    $path = $video->storeAs($storagePath, $filename, 'public');
 
                     Photo::create([
                         'path'      => $path,
@@ -156,7 +144,8 @@ class PhotoController extends Controller
                         'type'      => 'video',
                     ]);
 
-                    $uploaded[] = Storage::url($path);
+                    $uploaded[] = asset('storage/'.$path);
+
                 } catch (\Exception $e) {
                     \Log::error("Video upload failed: " . $e->getMessage());
                     $failed[] = $video->getClientOriginalName();
@@ -164,7 +153,9 @@ class PhotoController extends Controller
             }
         }
 
-        // ---------- Upload PDFs ----------
+        /**************************************
+         *     UPLOAD PDFs
+         **************************************/
         if ($request->hasFile('pdfs')) {
             $pdfs = $request->file('pdfs');
 
@@ -174,15 +165,12 @@ class PhotoController extends Controller
 
             foreach ($pdfs as $index => $pdf) {
                 try {
-                    $originalFolder = $folders[$index];
-                    $filename = $pdf->getClientOriginalName();
 
-                    $folder = Folder::firstOrCreate(
-                        ['name' => $originalFolder, 'user_id' => $userId],
-                        ['name' => $originalFolder, 'user_id' => $userId]
-                    );
+                    [$folder, $storagePath] = $getFolder($folders[$index]);
 
-                    $path = $pdf->storeAs("$userId/$originalFolder", $filename, 'public');
+                    $filename = time().'_'.uniqid().'_'.$pdf->getClientOriginalName();
+
+                    $path = $pdf->storeAs($storagePath, $filename, 'public');
 
                     Photo::create([
                         'path'      => $path,
@@ -191,7 +179,8 @@ class PhotoController extends Controller
                         'type'      => 'pdf',
                     ]);
 
-                    $uploaded[] = Storage::url($path);
+                    $uploaded[] = asset('storage/'.$path);
+
                 } catch (\Exception $e) {
                     \Log::error("PDF upload failed: " . $e->getMessage());
                     $failed[] = $pdf->getClientOriginalName();
@@ -204,42 +193,12 @@ class PhotoController extends Controller
         }
 
         return response()->json([
-            'message'  => 'Upload finished',
+            'message'  => 'Upload completed successfully',
             'uploaded' => $uploaded,
             'failed'   => $failed,
         ]);
     }
 
-    public function getImagesByFolder($folderPath)
-    {
-        if (!Storage::disk('public')->exists($folderPath)) {
-            return response()->json(['error' => 'Folder not found'], 404);
-        }
-
-        $files = Storage::disk('public')->allFiles($folderPath);
-
-        $images = array_map(function ($filePath) {
-            return Storage::url($filePath);
-        }, $files);
-
-        return response()->json($images);
-    }
-
-    public function index()
-    {
-        $photos = Photo::all()->map(function ($photo) {
-            return [
-                'id' => $photo->id,
-                'path' => $photo->path,
-                'image_url' => asset('storage/' . $photo->path),
-            ];
-        });
-        return response()->json($photos);
-    }
-
-        /**
-     * Calculate total used storage in MB for a user (or their company)
-     */
     private function calculateUsedStorageMB($userId)
     {
         $totalSize = 0;
@@ -253,7 +212,6 @@ class PhotoController extends Controller
             }
         }
 
-        return round($totalSize / (1024 ** 2), 2); // Convert bytes to MB
+        return round($totalSize / (1024 ** 2), 2);
     }
 }
-
