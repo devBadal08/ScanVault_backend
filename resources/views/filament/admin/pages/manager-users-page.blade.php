@@ -42,16 +42,27 @@
         {{-- Step 1: Show Users --}}
         @if (!$selectedUser)
             <h2 class="text-xl font-bold mb-4">Select User</h2>
-            <div class="grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
+            <div class="grid gap-4 mb-6"
+                style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+
                 @foreach ($managerUsers as $user)
-                    <a href="?user={{ $user->id }}"
-                       class="flex flex-col items-center justify-center text-center font-medium transition duration-150 ease-in-out hover:text-blue-700">
-                        {{-- User Icon --}}
-                        <x-heroicon-s-user class="w-20 h-16" style="color:#1D4ED8;"/>
-                        {{-- User Name --}}
-                        <span class="mt-1 text-sm text-gray-900 dark:text-white truncate w-24">{{ $user->name }}</span>
-                    </a>
+                    <div onclick="window.location.href='?user={{ $user->id }}'"
+                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
+                            bg-white dark:bg-gray-800
+                            border-gray-200 dark:border-gray-700
+                            hover:bg-orange-100 dark:hover:bg-orange-900/40
+                            text-center overflow-hidden cursor-pointer transition group">
+
+                        <x-heroicon-s-user class="w-11 h-11 text-blue-600 dark:text-blue-400" style="color:#1D4ED8;"/>
+
+                        <div class="mt-1 text-[10px] font-semibold 
+                                    text-gray-800 dark:text-gray-200
+                                    truncate w-full px-1">
+                            {{ $user->name }}
+                        </div>
+                    </div>
                 @endforeach
+
             </div>
 
         {{-- Step 2: Show Folders --}}

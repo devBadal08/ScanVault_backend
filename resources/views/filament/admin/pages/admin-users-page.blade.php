@@ -78,18 +78,22 @@
 
                 {{-- Admin Users --}}
                 @foreach ($adminUsers as $user)
-                    <a href="?user={{ $user->id }}"
-                        class="flex flex-col items-center justify-center text-center font-medium rounded-lg p-2
-                               text-gray-900 dark:text-gray-100
-                               transition duration-150 ease-in-out
-                               hover:text-blue-700 dark:hover:text-blue-300">
+                    <div onclick="window.location.href='?user={{ $user->id }}'"
+                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
+                            bg-white dark:bg-gray-800
+                            border-gray-200 dark:border-gray-700
+                            hover:bg-orange-100 dark:hover:bg-orange-900/40
+                            text-center overflow-hidden cursor-pointer transition group">
 
-                        <x-heroicon-s-user class="w-20 h-16 text-blue-600" style="color:#1D4ED8;" />
+                        {{-- Same blue icon as your screenshot --}}
+                        <x-heroicon-s-user class="w-11 h-11 text-blue-600 dark:text-blue-400" style="color:#1D4ED8;"/>
 
-                        <span class="mt-1 text-sm truncate w-24">
+                        <div class="mt-1 text-[10px] font-semibold 
+                                    text-gray-800 dark:text-gray-200
+                                    truncate w-full px-1">
                             {{ $user->name }}
-                        </span>
-                    </a>
+                        </div>
+                    </div>
                 @endforeach
             </div>
 
@@ -110,22 +114,25 @@
                 Users under {{ $selectedManager->name }}
             </h2>
 
-            <div class="grid gap-2"
-                 style="grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));">
+            <div class="grid gap-4"
+                 style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
 
                 @foreach ($users as $user)
-                    <a href="?manager={{ $selectedManager->id }}&user={{ $user->id }}"
-                        class="flex flex-col items-center justify-center text-center font-medium rounded-lg p-2
-                               text-gray-900 dark:text-gray-100
-                               transition duration-150 ease-in-out
-                               hover:text-blue-700 dark:hover:text-blue-300">
+                    <div onclick="window.location.href='?manager={{ $selectedManager->id }}&user={{ $user->id }}'"
+                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
+                            bg-white dark:bg-gray-800
+                            border-gray-200 dark:border-gray-700
+                            hover:bg-orange-100 dark:hover:bg-orange-900/40
+                            text-center overflow-hidden cursor-pointer transition group">
 
-                        <x-heroicon-s-user class="w-20 h-16 text-blue-600 dark:text-blue-300" style="color:#1D4ED8;"/>
+                        <x-heroicon-s-user class="w-11 h-11 text-blue-600 dark:text-blue-400" style="color:#1D4ED8;"/>
 
-                        <span class="mt-1 text-sm truncate w-24">
+                        <div class="mt-1 text-[10px] font-semibold 
+                                    text-gray-800 dark:text-gray-200
+                                    truncate w-full px-1">
                             {{ $user->name }}
-                        </span>
-                    </a>
+                        </div>
+                    </div>
                 @endforeach
             </div>
 
