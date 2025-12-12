@@ -156,7 +156,15 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
                 'assigned_to'=> $currentUser->id,
                 'company_id' => $currentUser->company_id,
             ]);
+
             $user->assignRole('user');
+
+            // 🚀 Assign company from pivot of the Manager
+            $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
+            if (!empty($companyIds)) {
+                $user->companies()->syncWithoutDetaching($companyIds);
+            }
+
             Notification::make()->title('User Created')->success()->send();
         }
 
@@ -175,11 +183,9 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
         ];
     }
 
-    public static function canAccess(): bool
+    public static function shouldRegisterNavigation(): bool
     {
-        return auth()->check() && (
-            auth()->user()->hasRole('manager') ||
-            auth()->user()->hasRole('Super Admin')
-        );
+        $user = auth()->user();
+        return $user && in_array($user->role, ['manager']);
     }
 }

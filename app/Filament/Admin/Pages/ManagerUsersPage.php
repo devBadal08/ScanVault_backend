@@ -87,7 +87,7 @@ class ManagerUsersPage extends Page
 
     public function updatedGlobalSearch()
     {
-        if (strlen($this->globalSearch) < 2) {
+        if (strlen($this->globalSearch) < 1) {
             $this->globalResults = [];
             return;
         }
@@ -164,6 +164,19 @@ class ManagerUsersPage extends Page
         $authUser = Auth::user();
 
         $userId = request()->get('user');
+
+        $companyId = request()->get('company_id');
+
+        if ($userId) {
+            $this->selectedUser = User::find($userId);
+            if (!$this->selectedUser) return;
+
+            // Default: if not passed, load the admin's own company
+            if (!$companyId) {
+                $companyId = $authUser->companies()->first()?->id;
+            }
+        }
+
         $folder = request()->get('folder');
         $subfolder = request()->get('subfolder');
 
@@ -190,7 +203,7 @@ class ManagerUsersPage extends Page
             $this->selectedUser = User::find($userId);
             if (!$this->selectedUser) return;
 
-            $baseUserPath = $userId;
+            $baseUserPath = "{$companyId}/{$userId}";
 
             if (!$folder) {
 
@@ -212,7 +225,7 @@ class ManagerUsersPage extends Page
                         $folder = $share->folder;
                         return [
                             'type' => 'folder',
-                            'path' => $folder->user_id . '/' . $folder->name,
+                            'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
                             'name' => $folder->name,
                             'created_at' => $folder->created_at->toDateTimeString(),
                             'linked' => true,
@@ -230,12 +243,22 @@ class ManagerUsersPage extends Page
 
             } else {
 
-                $this->selectedFolder = $folder;
-                $targetPath = $subfolder ?: $folder;
-                if ($subfolder) $this->selectedSubfolder = $subfolder;
+                // Normalize folder and subfolder to names only
+                $folderName = basename($folder);
+                $subfolderName = $subfolder ? basename($subfolder) : null;
+
+                $this->selectedFolder = $folderName;
+                if ($subfolderName) {
+                    $this->selectedSubfolder = $subfolderName;
+                }
+
+                // Build correct relative storage path
+                $targetPath = $subfolderName
+                    ? "{$companyId}/{$userId}/{$folderName}/{$subfolderName}"
+                    : "{$companyId}/{$userId}/{$folderName}";
 
                 // ✅ permission fix
-                $this->mountedFolderPermissionsCheck($targetPath);
+                $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
 
                 $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
                     ->map(fn($dir) => [
@@ -258,7 +281,7 @@ class ManagerUsersPage extends Page
                     $linkedFolders = $selectedFolderModel->linkedFolders
                         ->map(fn($f) => [
                             'type' => 'folder',
-                            'path' => $f->user_id . '/' . $f->name,
+                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
                             'name' => $f->name,
                             'created_at' => $f->created_at->toDateTimeString(),
                             'linked' => true,
@@ -273,7 +296,7 @@ class ManagerUsersPage extends Page
 
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
-                $allMedia = collect(Storage::disk('public')->files($targetPath))
+                $allMedia = collect(Storage::disk('public')->allFiles($targetPath))
                     ->filter(fn($file) =>
                         in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions)
                     )

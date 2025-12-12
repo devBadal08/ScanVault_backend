@@ -193,8 +193,6 @@ class CompanyDashboard extends Page
     public function saveUser()
     {
         $data = $this->form->getState();
-
-        // Convert GB → MB before saving
         $maxStorageInMB = isset($data['max_storage']) ? $data['max_storage'] * 1024 : 0;
 
         if ($this->editingUserId) {
@@ -204,9 +202,10 @@ class CompanyDashboard extends Page
                 'email' => $data['email'],
                 'password' => $data['password'] ? Hash::make($data['password']) : $user->password,
                 'max_limit' => $data['max_limit'],
-                'max_storage' => $maxStorageInMB, // ✅ save in MB
+                'max_storage' => $maxStorageInMB,
             ]);
         } else {
+
             $currentUser = auth()->user();
             $createdCount = User::where('created_by', $currentUser->id)->count();
             $maxLimit = $currentUser->max_limit ?? 0;
@@ -220,26 +219,34 @@ class CompanyDashboard extends Page
                 return;
             }
 
+            // 🚀 Create new user
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
-                'company_id' => $this->company->id,
                 'role' => $data['role'],
                 'max_limit' => $data['max_limit'],
-                'max_storage' => $maxStorageInMB, // ✅ save in MB
+                'max_storage' => $maxStorageInMB,
                 'created_by' => auth()->id(),
+                'company_id' => $this->company->id,
             ]);
+
             $user->assignRole($data['role']);
+
+            // IMPORTANT — Add to pivot
+            $user->companies()->syncWithoutDetaching([$this->company->id]);
+
         }
 
+        // Reset form/view after finishing creation or update
         $this->showFormPage = false;
         $this->editingUserId = null;
+
         $this->loadUsers();
         $this->refreshCounts();
 
         Notification::make()
-            ->title($this->editingUserId ? 'User Updated' : 'User Created')
+            ->title('User Saved')
             ->success()
             ->send();
     }

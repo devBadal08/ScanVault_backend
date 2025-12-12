@@ -79,7 +79,7 @@ class AdminUsersPage extends Page
 
     public function updatedGlobalSearch()
     {
-        if (strlen($this->globalSearch) < 2) {
+        if (strlen($this->globalSearch) < 1) {
             $this->globalResults = [];
             return;
         }
@@ -102,8 +102,14 @@ class AdminUsersPage extends Page
 
         foreach ($users as $user) {
 
-            $basePath = (string) $user->id;
-
+            $companyId = Auth::user()->companies()->first()?->id;
+            $creator = User::find($user->created_by);
+            if ($creator && $creator->role === 'manager') {
+                $basePath = "{$companyId}/{$creator->id}/{$user->id}";
+            } else {
+                $basePath = "{$companyId}/{$user->id}";
+            }
+            
             if (!Storage::disk('public')->exists($basePath)) {
                 continue;
             }
@@ -166,14 +172,35 @@ class AdminUsersPage extends Page
 
         $adminId = $authUser->id;
 
-        // 🔹 Managers and Admin Users
-        $this->managers = User::where('role', 'manager')->where('created_by', $adminId)->get();
-        $this->adminUsers = User::where('role', 'user')->where('created_by', $adminId)->get();
+        // Managers and Admin Users
+        $companyId = $authUser->companies()->first()?->id;
+
+        $this->managers = User::where('role', 'manager')
+            ->whereHas('companies', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->get();
+        $managerIds = $this->managers->pluck('id');
+
+        $this->adminUsers = User::where('role', 'user')
+            ->whereHas('companies', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->when($managerIds->isNotEmpty(), function ($q) use ($managerIds) {
+                // Exclude users created by managers of this company
+                $q->whereNotIn('created_by', $managerIds);
+            })
+            ->get();
 
         // 🔹 Manager selection → show their users
         if ($managerId) {
             $this->selectedManager = $this->managers->firstWhere('id', $managerId);
-            $this->users = User::where('role', 'user')->where('created_by', $managerId)->get();
+            $this->users = User::where('role', 'user')
+                ->where('created_by', $managerId)
+                ->whereHas('companies', function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId);
+                })
+                ->get();
         } else {
             $this->users = $this->adminUsers;
         }
@@ -191,7 +218,7 @@ class AdminUsersPage extends Page
 
                     return [
                         'type' => 'folder',
-                        'path' => $folder->user_id.'/'.$folder->name,   // real physical path
+                        'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",   // real physical path
                         'name' => $folder->name,
                         'created_at' => $share->created_at->toDateTimeString(),
                         'linked' => true,
@@ -201,7 +228,9 @@ class AdminUsersPage extends Page
                 ->toArray();
             if (!$this->selectedUser) return;
 
-            $baseUserPath = $userId; // top-level storage folder
+            //$companyId = $authUser->company_id;
+
+            $baseUserPath = "{$companyId}/{$userId}";
 
             // Top-level folders (if no folder selected)
             if (!$folder) {
@@ -227,10 +256,23 @@ class AdminUsersPage extends Page
             } else {
                 // Selected folder / subfolder
                 $this->selectedFolder = $folder;
-                $targetPath = $subfolder ?: $folder;
+                $base = $subfolder ?: $folder;
+
+                if (substr_count($base, '/') >= 2) {
+                    // already complete physical path
+                    $targetPath = $base;
+                } else {
+                    $creator = User::find($this->selectedUser->created_by);
+
+                    if ($creator && $creator->role === 'manager') {
+                        $targetPath = "{$companyId}/{$creator->id}/{$base}";
+                    } else {
+                        $targetPath = "{$companyId}/{$userId}/{$base}";
+                    }
+                }
                 if ($subfolder) $this->selectedSubfolder = $subfolder;
 
-                // 🔹 Physical subfolders
+                // Physical subfolders
                 $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
                     ->map(fn($dir) => [
                         'type' => 'folder',
@@ -251,7 +293,7 @@ class AdminUsersPage extends Page
                     $linkedFolders = $selectedFolderModel->linkedFolders
                         ->map(fn($f) => [
                             'type' => 'folder',
-                            'path' => $f->user_id . '/' . $f->name, // full storage path
+                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}", // full storage path
                             'name' => $f->name,
                             'created_at' => $f->created_at->toDateTimeString(),
                             'linked' => true, // highlight linked
@@ -267,7 +309,7 @@ class AdminUsersPage extends Page
 
                 // 🔹 Fetch media files (images + videos)
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
-                $allMedia = collect(Storage::disk('public')->files($targetPath))
+                $allMedia = collect(Storage::disk('public')->allFiles($targetPath))
                     ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
                     ->map(fn($file) => [
                         'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {

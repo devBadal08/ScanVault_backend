@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -54,9 +55,14 @@ class User extends Authenticatable
         ];
     }
 
-    public function company()
+    // public function company()
+    // {
+    //     return $this->belongsTo(Company::class);
+    // }
+
+    public function companies(): BelongsToMany
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsToMany(Company::class, 'company_user', 'user_id', 'company_id')->withTimestamps();
     }
 
     public function createdBy()

@@ -21,8 +21,28 @@ class PhotoController extends Controller
         }
 
         $user = Auth::user();
-        $maxStorage = $user->max_storage ?? 0; // in MB
-        $usedStorage = $this->calculateUsedStorageMB($user->id);
+
+        $companyId = $request->input('company_id');
+        if (!$companyId) {
+            return response()->json(['error' => 'company_id is required'], 422);
+        }
+
+        // OPTIONAL SECURITY CHECK
+        if (!Auth::user()->companies()->where('companies.id', $companyId)->exists()) {
+            return response()->json(['error' => 'You do not have access to this company'], 403);
+        }
+
+        // Each company has separate storage tracking
+        $usedStorage = $this->calculateUsedStorageMB($userId, $companyId);
+
+        $companyAdmin = \DB::table('company_user')
+            ->join('users', 'users.id', '=', 'company_user.user_id')
+            ->where('company_user.company_id', $companyId)
+            ->where('users.role', 'admin')
+            ->select('users.max_storage')
+            ->first();
+
+        $maxStorage = $companyAdmin->max_storage ?? 0; // MB
 
         if ($maxStorage > 0) {
             $percentUsed = round(($usedStorage / $maxStorage) * 100, 2);
@@ -52,32 +72,35 @@ class PhotoController extends Controller
         /**************************************
          *     COMMON FOLDER LOGIC FUNCTION
          **************************************/
-        $getFolder = function ($originalFolder) use ($userId) {
+        $getFolder = function ($originalFolder) use ($userId, $companyId) {
 
             $parts = explode('/', $originalFolder);
-
             $parentName = $parts[0];
             $childName  = $parts[1] ?? null;
 
-            // ✅ Parent folder
+            // Parent folder
             $parent = Folder::firstOrCreate([
-                'name'    => $parentName,
-                'user_id' => $userId,
-                'parent_id' => null,
+                'name'       => $parentName,
+                'user_id'    => $userId,
+                'parent_id'  => null,
+                'company_id' => $companyId,
             ]);
 
-            // ✅ Subfolder if exists
             if ($childName) {
+
                 $folder = Folder::firstOrCreate([
-                    'name'      => $childName,
-                    'parent_id' => $parent->id,
-                    'user_id'   => $userId,
+                    'name'       => $childName,
+                    'parent_id'  => $parent->id,
+                    'user_id'    => $userId,
+                    'company_id' => $companyId,
                 ]);
 
-                $storagePath = "$userId/$parentName/$childName";
+                // STORAGE PATH
+                $storagePath = "{$companyId}/{$userId}/{$parentName}/{$childName}";
+
             } else {
                 $folder = $parent;
-                $storagePath = "$userId/$parentName";
+                $storagePath = "{$companyId}/{$userId}/{$parentName}";
             }
 
             return [$folder, $storagePath];
@@ -107,6 +130,7 @@ class PhotoController extends Controller
                         'user_id'   => $userId,
                         'folder_id' => $folder->id,
                         'type'      => 'image',
+                        'company_id'=> $companyId,
                     ]);
 
                     $uploaded[] = asset('storage/'.$path);
@@ -142,6 +166,7 @@ class PhotoController extends Controller
                         'user_id'   => $userId,
                         'folder_id' => $folder->id,
                         'type'      => 'video',
+                        'company_id'=> $companyId,
                     ]);
 
                     $uploaded[] = asset('storage/'.$path);
@@ -177,6 +202,7 @@ class PhotoController extends Controller
                         'user_id'   => $userId,
                         'folder_id' => $folder->id,
                         'type'      => 'pdf',
+                        'company_id'=> $companyId,
                     ]);
 
                     $uploaded[] = asset('storage/'.$path);
@@ -199,10 +225,10 @@ class PhotoController extends Controller
         ]);
     }
 
-    private function calculateUsedStorageMB($userId)
+    private function calculateUsedStorageMB($userId, $companyId)
     {
         $totalSize = 0;
-        $userPath = storage_path("app/public/{$userId}");
+        $userPath = storage_path("app/public/{$companyId}/{$userId}");
 
         if (is_dir($userPath)) {
             foreach (new \RecursiveIteratorIterator(

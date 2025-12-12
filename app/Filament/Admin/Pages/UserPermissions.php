@@ -43,46 +43,52 @@ class UserPermissions extends Page
         }
     }
 
-    public function selectUser($userId)
+    public function selectUser($id)
     {
-        $this->selectedUser = User::findOrFail($userId);
-        $permissionModel = UserPermission::firstOrCreate([
-            'company_id' => $this->company->id,
-            'user_id' => $userId
-        ]);
+        // Reset UI first
+        $this->reset('permissions');
 
+        // Now set selected user
+        $this->selectedUser = User::find($id);
+
+        // Fetch previous permissions
+        $record = UserPermission::where('company_id', $this->company->id)
+                    ->where('user_id', $id)
+                    ->first();
+
+        // Load from DB or set fresh defaults
         $this->permissions = [
-            'show_total_users' => $permissionModel->show_total_users,
-            'show_total_managers' => $permissionModel->show_total_managers,
-            'show_total_admins' => $permissionModel->show_total_admins,
-            'show_total_limit' => $permissionModel->show_total_limit,
-            'show_total_storage' => $permissionModel->show_total_storage,
-            'show_total_photos' => $permissionModel->show_total_photos, // ✅ load value
+            'show_total_users'    => $record->show_total_users    ?? false,
+            'show_total_managers' => $record->show_total_managers ?? false,
+            'show_total_admins'   => $record->show_total_admins   ?? false,
+            'show_total_limit'    => $record->show_total_limit    ?? false,
+            'show_total_storage'  => $record->show_total_storage  ?? false,
+            'show_total_photos'   => $record->show_total_photos   ?? false,
         ];
     }
 
     public function savePermissions()
     {
-        if ($this->selectedUser) {
-            UserPermission::updateOrCreate(
-                [
-                    'company_id' => $this->company->id,
-                    'user_id' => $this->selectedUser->id
-                ],
-                [
-                    'show_total_users' => (bool)($this->permissions['show_total_users'] ?? false),
-                    'show_total_managers' => (bool)($this->permissions['show_total_managers'] ?? false),
-                    'show_total_admins' => (bool)($this->permissions['show_total_admins'] ?? false),
-                    'show_total_limit' => (bool)($this->permissions['show_total_limit'] ?? false),
-                    'show_total_storage' => (bool)($this->permissions['show_total_storage'] ?? false),
-                    'show_total_photos' => (bool)($this->permissions['show_total_photos'] ?? false), // ✅ save new
-                ]
-            );
+        UserPermission::updateOrCreate(
+            [
+                'company_id' => $this->company->id,
+                'user_id' => $this->selectedUser->id,
+            ],
+            [
+                'show_total_users'    => $this->permissions['show_total_users'] ?? false,
+                'show_total_managers' => $this->permissions['show_total_managers'] ?? false,
+                'show_total_admins'   => $this->permissions['show_total_admins'] ?? false,
+                'show_total_limit'    => $this->permissions['show_total_limit'] ?? false,
+                'show_total_storage'  => $this->permissions['show_total_storage'] ?? false,
+                'show_total_photos'   => $this->permissions['show_total_photos'] ?? false,
+            ]
+        );
 
-            Notification::make()
-                ->title('Permissions updated successfully!')
-                ->success()
-                ->send();
-        }
+        $this->selectUser($this->selectedUser->id);
+
+        Notification::make()
+            ->title('Permissions updated successfully!')
+            ->success()
+            ->send();
     }
 }

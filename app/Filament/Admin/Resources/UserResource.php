@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\Select;
+use App\Models\Company;
 
 class UserResource extends Resource
 {
@@ -88,6 +89,13 @@ class UserResource extends Resource
                     ->required()
                     ->reactive(),
 
+                Select::make('company_id')
+                    ->label('Company')
+                    ->options(Company::pluck('company_name', 'id'))
+                    ->searchable()
+                    ->visible(fn () => auth()->user()?->hasRole('Super Admin')) // only SA sees it
+                    ->required(fn () => auth()->user()?->hasRole('Super Admin')),
+
                 TextInput::make('max_limit')
                     ->label('Max Limit')
                     ->numeric()
@@ -113,11 +121,6 @@ class UserResource extends Resource
                     ->label('Created By')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('assignedTo.name')
-                    ->label('Assigned To')
-                    ->sortable()
-                    ->searchable(),
-
             ])
             ->filters([
                 //
@@ -142,52 +145,10 @@ class UserResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListUsers::route('/'),
-            'create' => Pages\CreateUser::route('/create'),
-            'edit' => Pages\EditUser::route('/{record}/edit'),
+            'index' => \App\Filament\Admin\Resources\UserResource\Pages\ListUsers::route('/'),
+            'create' => \App\Filament\Admin\Resources\UserResource\Pages\CreateUser::route('/create'),
+            'edit' => \App\Filament\Admin\Resources\UserResource\Pages\EditUser::route('/{record}/edit'),
         ];
-    }
-
-    public static function mutateFormDataBeforeCreate(array $data): array
-    {
-        $currentUser = \Filament\Facades\Filament::auth()->user();
-
-        // Only enforce for admin (skip Super Admin or adapt if needed)
-        if ($currentUser && $currentUser->hasRole('admin')) {
-            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
-            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
-            $directCount = count($directUserIds);
-            $createdCount = $directCount + $indirectCount;
-
-            // ✅ Sum of limits already given to managers
-            $assignedLimitToManagers = User::where('created_by', $currentUser->id)
-                ->where('role', 'manager')
-                ->sum('max_limit');
-
-            $totalUsed = $createdCount + $assignedLimitToManagers;
-            $maxLimit = $currentUser->max_limit ?? 0;
-
-            if ($totalUsed >= $maxLimit) {
-                \Filament\Notifications\Notification::make()
-                    ->title('Limit Reached')
-                    ->body('You have reached your maximum limit.')
-                    ->danger()
-                    ->send();
-
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    'name' => ['You have reached your maximum user creation limit.'],
-                ]);
-            }
-        }
-
-        // Automatically attach who created this user
-        $data['created_by'] = $currentUser->id;
-        $data['assigned_to'] = $currentUser->id;
-        $data['company_id'] = $currentUser->company_id ?? null; // optional if you have it
-        // Hash the password manually
-        $data['password'] = \Illuminate\Support\Facades\Hash::make($data['password']);
-
-        return $data;
     }
 
     public static function canCreate(): bool
@@ -219,4 +180,53 @@ class UserResource extends Resource
             auth()->user()->hasRole('Super Admin')
         );
     }
+
+    public static function mutateFormDataBeforeCreate(array $data): array
+    {
+        $currentUser = auth()->user();
+
+        // Who created
+        $data['created_by'] = $currentUser->id;
+        $data['assigned_to'] = $currentUser->id;
+
+        // Super Admin needs to select company manually
+        if ($currentUser->hasRole('Super Admin')) {
+            if (empty($data['company_id'])) {
+                throw ValidationException::withMessages([
+                    'company_id' => ['Please select a company.'],
+                ]);
+            }
+        } else {
+            // Prevent write to users table
+            unset($data['company_id']);
+        }
+
+        // Hash password
+        $data['password'] = \Hash::make($data['password']);
+
+        return $data;
+    }
+
+    // public static function afterCreate(User $user, array $data): void
+    // {
+    //     $currentUser = auth()->user();
+    //     $user = $this->record; // just created user
+
+    //     if ($user->role) {
+    //         $user->syncRoles([$user->role]);
+    //     }
+
+    //     if ($currentUser->hasRole('Super Admin')) {
+    //         $companyId = $this->data['company_id'] ?? null;
+    //         if ($companyId) {
+    //             $user->companies()->syncWithoutDetaching([$companyId]);
+    //         }
+    //     } else {
+    //         // Admin or Manager → assign same companies as creator
+    //         $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
+    //         if (!empty($companyIds)) {
+    //             $user->companies()->syncWithoutDetaching($companyIds);
+    //         }
+    //     }
+    // }
 }

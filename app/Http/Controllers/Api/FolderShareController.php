@@ -76,36 +76,74 @@ class FolderShareController extends Controller
     }
 
     public function getSharedFolderPhotos($folderId)
-{
-    $folder = Folder::with(['photos', 'children'])->find($folderId);
+    {
+        $folder = Folder::with(['photos', 'children'])->find($folderId);
 
-    if (!$folder) {
+        if (!$folder) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Folder not found'
+            ], 404);
+        }
+
+        // Detect correct company ID
+        $companyId = $folder->company_id;
+        if (!$companyId) {
+            $companyId = auth()->user()->companies()->first()?->id;
+        }
+
+        // Build correct storage path
+        $path = "{$companyId}/{$folder->user_id}/{$folder->name}";
+
+        // Get all physical files inside storage/public/{company}/{user}/{folder}
+        if (!Storage::disk('public')->exists($path)) {
+            return response()->json([
+                'success' => true,
+                'photos'  => [],
+                'videos'  => [],
+                'pdfs'    => [],
+                'folders' => [],
+            ]);
+        }
+
+        $physicalFiles = Storage::disk('public')->files($path);
+
+        $photos = [];
+        $videos = [];
+        $pdfs = [];
+
+        foreach ($physicalFiles as $file) {
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+
+            $item = [
+                'path' => $file,
+                'url'  => asset("storage/$file"),
+            ];
+
+            if (in_array($ext, ['jpg', 'jpeg', 'png'])) {
+                $photos[] = $item;
+            } elseif ($ext === 'mp4') {
+                $videos[] = $item;
+            } elseif ($ext === 'pdf') {
+                $pdfs[] = $item;
+            }
+        }
+
+        // Subfolders
+        $subfolders = $folder->children->map(function ($sub) use ($companyId) {
+            return [
+                'id'   => $sub->id,
+                'name' => $sub->name,
+                'path' => "{$companyId}/{$sub->user_id}/{$sub->name}",
+            ];
+        });
+
         return response()->json([
-            'success' => false,
-            'message' => 'Folder not found'
-        ], 404);
+            'success' => true,
+            'photos'  => $photos,
+            'videos'  => $videos,
+            'pdfs'    => $pdfs,
+            'folders' => $subfolders,
+        ]);
     }
-
-    $photos = $folder->photos->map(function ($photo) {
-        return [
-            'id'   => $photo->id,
-            'path' => $photo->path,
-            'url'  => asset('storage/' . $photo->path),
-        ];
-    });
-
-    $subfolders = $folder->children->map(function ($sub) {
-        return [
-            'id'   => $sub->id,
-            'name' => $sub->name,
-            'path' => $sub->path,
-        ];
-    });
-
-    return response()->json([
-        'success' => true,
-        'photos'  => $photos,
-        'folders' => $subfolders
-    ]);
-}
 }

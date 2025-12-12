@@ -36,7 +36,7 @@ class UserLoginController extends Controller
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
-            'user'  => $user->load('company'),
+            'user'  => $user->load('companies'),
         ]);
     }
 }

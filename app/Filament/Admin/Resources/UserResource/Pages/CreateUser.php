@@ -3,69 +3,61 @@
 namespace App\Filament\Admin\Resources\UserResource\Pages;
 
 use App\Filament\Admin\Resources\UserResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
-use App\Models\User;
-use Illuminate\Validation\ValidationException;
-use Filament\Notifications\Notification;
 
 class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
-    public $remainingSlots = null;
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $currentUser = auth()->user();
 
-        if ($currentUser && $currentUser->hasRole('admin')) {
-            $createdCount = User::where('created_by', $currentUser->id)->count();
-            $maxLimit = $currentUser->max_limit ?? 0;
+        // Save who created this user
+        $data['created_by'] = $currentUser->id;
+        $data['assigned_to'] = $currentUser->id;
 
-            if ($maxLimit > 0) {
-                $percentUsed = ($createdCount / $maxLimit) * 100;
-
-                if ($percentUsed >= 80 && $percentUsed < 100) {
-                    Notification::make()
-                        ->title('Almost at Limit')
-                        ->body("You have used {$percentUsed}% of your limit. Only " . ($maxLimit - $createdCount) . " slots left.")
-                        ->warning()
-                        ->send();
-                }
-
-                if ($createdCount >= $maxLimit) {
-                    Notification::make()
-                        ->title('Limit Reached')
-                        ->body('You have reached your maximum user creation limit.')
-                        ->danger()
-                        ->send();
-
-                    throw ValidationException::withMessages([
-                        'name' => ['You have reached your maximum user creation limit.'],
-                    ]);
-                }
+        if ($currentUser->hasRole('Super Admin')) {
+            if (empty($data['company_id'])) {
+                throw ValidationException::withMessages([
+                    'company_id' => ['Please select a company.'],
+                ]);
             }
+        } else {
+            // storing company_id inside users table
+            $data['company_id'] = $currentUser->company_id;
         }
 
-        $data['created_by'] = $currentUser->id;
-        $data['company_id'] = $currentUser->company_id ?? null;
+        $data['password'] = \Hash::make($data['password']);
 
         return $data;
-    }
-    protected function getViewData(): array
-    {
-        return [
-            'remainingSlots' => $this->remainingSlots,
-        ];
     }
 
     protected function afterCreate(): void
     {
-        $this->record->assignRole($this->record->role);
+        $currentUser = auth()->user();
+        $user = $this->record; // just created user
+
+        if ($user->role) {
+            $user->syncRoles([$user->role]);
+        }
+
+        if ($currentUser->hasRole('Super Admin')) {
+            $companyId = $this->data['company_id'] ?? null;
+            if ($companyId) {
+                $user->companies()->syncWithoutDetaching([$companyId]);
+            }
+        } else {
+            // Admin or Manager → assign same companies as creator
+            $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
+            if (!empty($companyIds)) {
+                $user->companies()->syncWithoutDetaching($companyIds);
+            }
+        }
     }
 
     protected function getRedirectUrl(): string
     {
-        // Redirect to the list page instead of edit page
         return $this->getResource()::getUrl('index');
     }
 }
