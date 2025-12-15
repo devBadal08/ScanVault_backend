@@ -93,58 +93,65 @@ class AdminUsersPage extends Page
             ->pluck('id');
 
         // ✅ Get all users created by admin AND managers
-        $users = User::where(function($q) use ($managerIds) {
-                $q->where('created_by', auth()->id())
-                ->orWhereIn('created_by', $managerIds)
-                ->orWhere('id', auth()->id());
+        $companyId = Auth::user()->companies()->first()?->id;
+
+        $users = User::whereHas('companies', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
             })
             ->get();
 
+        $companyId = Auth::user()->companies()->first()?->id;
+
         foreach ($users as $user) {
 
-            $companyId = Auth::user()->companies()->first()?->id;
+            // build paths PER USER
+            $basePaths = [];
+
+            // admin-created user
+            $basePaths[] = "{$companyId}/{$user->id}";
+
+            // manager-created user
             $creator = User::find($user->created_by);
             if ($creator && $creator->role === 'manager') {
-                $basePath = "{$companyId}/{$creator->id}/{$user->id}";
-            } else {
-                $basePath = "{$companyId}/{$user->id}";
-            }
-            
-            if (!Storage::disk('public')->exists($basePath)) {
-                continue;
+                $basePaths[] = "{$companyId}/{$creator->id}/{$user->id}";
             }
 
-            // ✅ Include root + all sub folders
-            $allFolders = collect([$basePath])
-                            ->merge(Storage::disk('public')->allDirectories($basePath))
-                            ->unique();
+            foreach ($basePaths as $basePath) {
 
-            foreach ($allFolders as $folder) {
-
-                // ✅ Folder match
-                if (str_contains(strtolower(basename($folder)), $query)) {
-                    $results[] = [
-                        'type'     => 'folder',
-                        'name'     => basename($folder),
-                        'user'     => $user->name,
-                        'user_id'  => $user->id,
-                        'path'     => $folder,
-                    ];
+                if (!Storage::disk('public')->exists($basePath)) {
+                    continue;
                 }
 
-                // ✅ File match
-                $files = Storage::disk('public')->allFiles($folder);
+                // root + all subfolders
+                $allFolders = collect([$basePath])
+                    ->merge(Storage::disk('public')->allDirectories($basePath))
+                    ->unique();
 
-                foreach ($files as $file) {
-                    if (str_contains(strtolower(basename($file)), $query)) {
+                foreach ($allFolders as $folder) {
 
+                    // folder name match
+                    if (str_contains(strtolower(basename($folder)), $query)) {
                         $results[] = [
-                            'type'    => pathinfo($file, PATHINFO_EXTENSION),
-                            'name'    => basename($file),
+                            'type'    => 'folder',
+                            'name'    => basename($folder),
                             'user'    => $user->name,
                             'user_id' => $user->id,
-                            'path'    => $file,
+                            'path'    => $folder,
                         ];
+                    }
+
+                    // recursive file match
+                    foreach (Storage::disk('public')->allFiles($folder) as $file) {
+                        if (str_contains(strtolower(basename($file)), $query)) {
+                            $results[] = [
+                                'type'    => pathinfo($file, PATHINFO_EXTENSION),
+                                'name'    => basename($file),
+                                'user'    => $user->name,
+                                'user_id' => $user->id,
+                                'path'    => $file,
+                                'parent'  => dirname($file),
+                            ];
+                        }
                     }
                 }
             }
@@ -152,6 +159,7 @@ class AdminUsersPage extends Page
 
         // ✅ Limit + sort
         $this->globalResults = collect($results)
+            ->unique('path') 
             ->sortByDesc('name')
             ->take(60)
             ->values()
@@ -309,7 +317,7 @@ class AdminUsersPage extends Page
 
                 // 🔹 Fetch media files (images + videos)
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
-                $allMedia = collect(Storage::disk('public')->allFiles($targetPath))
+                $allMedia = collect(Storage::disk('public')->files($targetPath))
                     ->filter(fn($file) => in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions))
                     ->map(fn($file) => [
                         'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
