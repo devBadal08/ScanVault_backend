@@ -5,8 +5,7 @@
             <input
                 type="text"
                 wire:model.live="globalSearch"
-                wire:ignore.self
-                placeholder="🔍 Global Search (folders, images, files...)"
+                placeholder="🔍 Global Search (folders ...)"
                 class="w-full px-4 py-3 rounded-xl border
                     border-gray-300 dark:border-gray-700
                     bg-white dark:bg-gray-900
@@ -41,28 +40,53 @@
 
         {{-- Step 1: Show Users --}}
         @if (!$selectedUser)
-            <h2 class="text-xl font-bold mb-4">Select User</h2>
-            <div class="grid gap-4 mb-6"
-                style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+            <div wire:ignore.self>
+                <h2 class="text-xl font-bold mb-4">Select User</h2>
+                <div class="grid gap-6"
+                    style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
 
-                @foreach ($managerUsers as $user)
-                    <div onclick="window.location.href='?user={{ $user->id }}'"
-                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
-                            bg-white dark:bg-gray-800
-                            border-gray-200 dark:border-gray-700
-                            hover:bg-orange-100 dark:hover:bg-orange-900/40
-                            text-center overflow-hidden cursor-pointer transition group">
+                    @foreach ($managerUsers as $user)
+                        <div
+                            onclick="window.location.href='?{{ isset($selectedManager) ? 'manager='.$selectedManager->id.'&' : '' }}user={{ $user->id }}'"
+                            class="app-card cursor-pointer px-10 py-6
+                                flex items-center justify-between
+                                min-h-[160px]">
 
-                        <x-heroicon-s-user class="w-11 h-11 text-blue-600 dark:text-blue-400" style="color:#1D4ED8;"/>
+                            {{-- LEFT: User info --}}
+                            <div class="flex items-center gap-6">
+                                <div class="w-16 h-16 rounded-full overflow-hidden border
+                                    border-gray-300 dark:border-gray-600
+                                    bg-gray-100 flex-shrink-0">
+                                    <img
+                                        src="{{ $user->profile_photo
+                                            ? asset('storage/' . $user->profile_photo)
+                                            : asset('images/user_icon2.png') }}"
+                                        alt="User Avatar"
+                                        class="w-full h-full object-cover"
+                                    />
+                                </div>
 
-                        <div class="mt-1 text-[10px] font-semibold 
-                                    text-gray-800 dark:text-gray-200
-                                    truncate w-full px-1">
-                            {{ $user->name }}
+                                <div class="flex flex-col justify-center">
+                                    <div class="text-base font-semibold text-gray-900 dark:text-white truncate max-w-[180px]">
+                                        {{ $user->name }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- RIGHT: Photo count --}}
+                            <div class="flex flex-col items-center justify-center ml-auto mr-6 text-center">
+                                <div class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
+                                    {{ $user->photo_count ?? 0 }}
+                                </div>
+
+                                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    Total Photos
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
 
+                </div>
             </div>
 
         {{-- Step 2: Show Folders --}}
@@ -151,7 +175,7 @@
                     href="?user={{ $selectedUser->id }}"
                     color="primary"
                     icon="heroicon-o-arrow-left">
-                    Back
+                    Back to Main Folders
                 </x-filament::button>
             </div>
 
@@ -197,7 +221,7 @@
                                         </div>
 
                                         {{-- Folder icon + name --}}
-                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode(basename($item['path'])) }}"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
                                             <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">
@@ -281,14 +305,17 @@
             <h2 class="text-xl font-bold mb-4">Content in {{ basename($selectedSubfolder) }}</h2>
 
             <div class="mb-4">
-                @php $parentPath = dirname($selectedSubfolder); @endphp
+                @php
+                    $parentPath = $selectedFolder;
+                    $parentName = basename($selectedFolder);
+                @endphp
 
                 <x-filament::button 
                     tag="a" 
                     href="?user={{ $selectedUser->id }}&folder={{ urlencode($parentPath) }}"
                     color="primary" 
                     icon="heroicon-o-arrow-left">
-                    Back to {{ basename($parentPath) }}
+                    Back to {{ $parentName }}
                 </x-filament::button>
             </div>
 
@@ -333,7 +360,7 @@
                                         </div>
 
                                         {{-- Folder icon + name --}}
-                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($item['path']) }}"
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode(basename($item['path'])) }}"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
                                             <div class="mt-1 truncate w-full text-center" title="{{ $item['name'] }}">

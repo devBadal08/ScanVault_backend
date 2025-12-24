@@ -24,7 +24,7 @@ class UserPermissions extends Page
         'permissions.show_total_admins' => 'boolean',
         'permissions.show_total_limit' => 'boolean',
         'permissions.show_total_storage' => 'boolean',
-        'permissions.show_total_photos' => 'boolean', // ✅ new rule added
+        'permissions.show_total_photos' => 'boolean',
     ];
 
     public static function shouldRegisterNavigation(): bool

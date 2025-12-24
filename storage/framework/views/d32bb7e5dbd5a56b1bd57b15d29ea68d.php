@@ -133,27 +133,26 @@
                 <div class="grid sm:grid-cols-2 gap-4 bg-white dark:bg-gray-800 p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700">
 
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <label class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                        <label
+                            wire:key="permission-checkbox-<?php echo e($key); ?>"
+                            class="flex items-center justify-between p-3 rounded-lg
+                                bg-gray-50 dark:bg-gray-900
+                                hover:bg-gray-100 dark:hover:bg-gray-700
+                                transition cursor-pointer"
+                        >
                             <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
                                 <?php echo e($label); ?>
 
                             </span>
 
-                            
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox"
-                                    wire:model="permissions.<?php echo e($key); ?>"
-                                    class="sr-only peer">
-
-                                
-                                <div class="w-11 h-6 rounded-full transition-all
-                                    bg-gray-300 dark:bg-gray-600
-                                    peer-checked:bg-blue-600 peer-checked:dark:bg-blue-500"></div>
-
-                                
-                                <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-all shadow
-                                    peer-checked:translate-x-5 peer-checked:bg-white border"></div>
-                            </label>
+                            <input
+                                type="checkbox"
+                                wire:model.defer="permissions.<?php echo e($key); ?>"
+                                class="h-5 w-5 rounded
+                                    border-gray-300 text-blue-600
+                                    focus:ring-blue-500
+                                    dark:bg-gray-800 dark:border-gray-600"
+                            />
                         </label>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 

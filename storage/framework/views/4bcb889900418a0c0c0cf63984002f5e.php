@@ -16,7 +16,7 @@
             <input
                 type="text"
                 wire:model.live="globalSearch"
-                placeholder="🔍 Global Search (users, folders, images...)"
+                placeholder="🔍 Global Search (folders ...)"
                 class="w-full px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
                 bg-white dark:bg-gray-900
@@ -60,77 +60,63 @@
         <br>
         
         
-        <!--[if BLOCK]><![endif]--><?php if(!$selectedManager && !$selectedUser): ?>
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Select Manager or Admin User
-            </h2>
+        <!--[if BLOCK]><![endif]--><?php if(!$selectedUser): ?>
+            <div wire:ignore>
+                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                    Select User
+                </h2>
 
-            <div class="grid gap-2 mb-6"
-                 style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
+                <div class="grid gap-6 mb-6"
+                    style="grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));">
 
-                
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $manager): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <div onclick="window.location.href='?manager=<?php echo e($manager->id); ?>'"
-                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
-                               bg-white dark:bg-gray-800
-                               border-gray-200 dark:border-gray-700
-                               hover:bg-orange-100 dark:hover:bg-orange-900/40
-                               text-center overflow-hidden cursor-pointer transition group">
+                    
+                    <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <div
+                            onclick="window.location.href='?user=<?php echo e($user->id); ?>'"
+                            class="app-card cursor-pointer px-10 py-6
+                                flex items-center justify-between
+                                min-h-[160px]">
 
-                        <div class="text-3xl">👨‍💼</div>
+                            
+                            <div class="flex items-center gap-6">
+                                <div class="w-16 h-16 rounded-full overflow-hidden border
+                                    border-gray-300 dark:border-gray-600
+                                    bg-gray-100 flex-shrink-0">
+                                    <img
+                                        src="<?php echo e($user->profile_photo
+                                            ? asset('storage/' . $user->profile_photo)
+                                            : asset('images/user_icon2.png')); ?>"
+                                        alt="User Avatar"
+                                        class="w-full h-full object-cover"
+                                    />
+                                </div>
 
-                        <div class="mt-1 text-[10px] font-semibold 
-                                    text-gray-800 dark:text-gray-200
-                                    truncate w-full px-1">
-                            <?php echo e($manager->name); ?>
+                                <div class="flex flex-col justify-center">
+                                    <div class="text-base font-semibold text-gray-900 dark:text-white truncate max-w-[180px]">
+                                        <?php echo e($user->name); ?>
 
+                                    </div>
+                                </div>
+                            </div>
+
+                            
+                            <div class="flex flex-col items-center justify-center ml-auto mr-6 text-center">
+                                <div class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
+                                    <?php echo e($user->photo_count ?? 0); ?>
+
+                                </div>
+
+                                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    Total Photos
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-
-                
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $adminUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <div onclick="window.location.href='?user=<?php echo e($user->id); ?>'"
-                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
-                            bg-white dark:bg-gray-800
-                            border-gray-200 dark:border-gray-700
-                            hover:bg-orange-100 dark:hover:bg-orange-900/40
-                            text-center overflow-hidden cursor-pointer transition group">
-
-                        
-                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-user'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-11 h-11 text-blue-600 dark:text-blue-400','style' => 'color:#1D4ED8;']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-
-                        <div class="mt-1 text-[10px] font-semibold 
-                                    text-gray-800 dark:text-gray-200
-                                    truncate w-full px-1">
-                            <?php echo e($user->name); ?>
-
-                        </div>
-                    </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+                </div>
             </div>
 
         
-        <?php elseif($selectedManager && !$selectedUser): ?>
+        <?php elseif($selectedUser && !$selectedFolder): ?>
 
             <div class="mb-4">
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
@@ -143,80 +129,6 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['tag' => 'a','href' => ''.e(url()->current()).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-            </div>
-
-            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                Users under <?php echo e($selectedManager->name); ?>
-
-            </h2>
-
-            <div class="grid gap-4"
-                 style="grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));">
-
-                <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                    <div onclick="window.location.href='?manager=<?php echo e($selectedManager->id); ?>&user=<?php echo e($user->id); ?>'"
-                        class="flex flex-col items-center justify-center w-32 h-32 rounded-lg shadow border
-                            bg-white dark:bg-gray-800
-                            border-gray-200 dark:border-gray-700
-                            hover:bg-orange-100 dark:hover:bg-orange-900/40
-                            text-center overflow-hidden cursor-pointer transition group">
-
-                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-user'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-11 h-11 text-blue-600 dark:text-blue-400','style' => 'color:#1D4ED8;']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-
-                        <div class="mt-1 text-[10px] font-semibold 
-                                    text-gray-800 dark:text-gray-200
-                                    truncate w-full px-1">
-                            <?php echo e($user->name); ?>
-
-                        </div>
-                    </div>
-                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
-            </div>
-
-        
-        <?php elseif($selectedUser && !$selectedFolder): ?>
-
-            <div class="mb-4">
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to Users
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -317,7 +229,7 @@
                                     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                                     
-                                    <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>&user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
+                                    <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
                                         class="flex flex-col items-center hover:text-yellow-600 dark:hover:text-yellow-400 transition duration-150 ease-in-out">
 
                                         <div class="w-24 h-24 flex items-center justify-center">
@@ -407,15 +319,15 @@
             <div class="mb-4">
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
-                    Back
+<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+                    Back to Main Folders
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
@@ -529,7 +441,7 @@
                                         </div>
 
                                         
-                                        <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($item['path'])); ?>"
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode(basename($item['path']))); ?>"
                                             class="flex flex-col items-center justify-center flex-1 
                                                 text-gray-900 dark:text-gray-100">
 
@@ -668,18 +580,18 @@
             </h2>
 
             <div class="mb-4">
-                <?php $parentPath = dirname($selectedSubfolder); ?>
+                <?php $parentPath = $selectedFolder; ?>
 
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?'.e($selectedManager ? 'manager='.$selectedManager->id.'&' : '').'&user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to <?php echo e(basename($parentPath)); ?>
 
                  <?php echo $__env->renderComponent(); ?>
@@ -788,13 +700,7 @@
                                         </div>
 
                                         
-                                        <a href="?<?php echo e($selectedManager ? 'manager='.$selectedManager->id.'&' : ''); ?>
-
-                                                &user=<?php echo e($selectedUser->id); ?>
-
-                                                &folder=<?php echo e(urlencode($selectedFolder)); ?>
-
-                                                &subfolder=<?php echo e(urlencode($item['path'])); ?>"
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode(basename($item['path']))); ?>"
                                         class="flex flex-col items-center justify-center flex-1
                                                 text-gray-900 dark:text-gray-100 px-2">
                                             <div class="text-3xl">📁</div>

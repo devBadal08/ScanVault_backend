@@ -17,8 +17,18 @@ class ManagerUsersPage extends Page
     protected static string $view = 'filament.admin.pages.manager-users-page';
     protected static ?string $navigationIcon = 'heroicon-o-photo';
     protected static ?string $navigationGroup = 'Photos';
-    protected static ?string $navigationLabel = 'Manager Users';
-    protected static ?int $navigationSort = 8;
+    protected static ?int $navigationSort = 4;
+
+    public static function getNavigationLabel(): string
+    {
+        $user = auth()->user();
+
+        if ($user && $user->role === 'manager') {
+            return 'User Photos';
+        }
+
+        return 'Manager Photos';
+    }
 
     public $managerUsers = [];
     public $folders = [];
@@ -28,6 +38,7 @@ class ManagerUsersPage extends Page
     public $items = [];
     public $globalSearch = '';
     public $globalResults = [];
+    public bool $isSearching = false;
 
     public $selectedUser = null;
     public $selectedFolder = null;
@@ -87,10 +98,13 @@ class ManagerUsersPage extends Page
 
     public function updatedGlobalSearch()
     {
-        if (strlen($this->globalSearch) < 1) {
+        if (strlen($this->globalSearch) < 3) {
             $this->globalResults = [];
+            $this->isSearching = false;
             return;
         }
+
+        $this->isSearching = true;
 
         $query = strtolower($this->globalSearch);
         $results = [];
@@ -98,17 +112,16 @@ class ManagerUsersPage extends Page
         $authUser = Auth::user();
         $companyId = $authUser->companies()->first()?->id;
 
-        if ($authUser->role === 'manager') {
+        if (!$companyId) {
+            return;
+        }
 
-            // 🔒 Manager: ONLY their own users
+        if ($authUser->role === 'manager') {
             $users = User::where('role', 'user')
                 ->where('created_by', $authUser->id)
                 ->whereHas('companies', fn ($q) => $q->where('company_id', $companyId))
                 ->get();
-
         } else {
-
-            // Admin: users created by admin + their managers
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
@@ -116,42 +129,31 @@ class ManagerUsersPage extends Page
             $users = User::whereHas('companies', fn ($q) => $q->where('company_id', $companyId))
                 ->where(function ($q) use ($authUser, $managerIds) {
                     $q->where('created_by', $authUser->id)
-                    ->orWhereIn('created_by', $managerIds)
-                    ->orWhere('id', $authUser->id);
+                    ->orWhereIn('created_by', $managerIds);
                 })
                 ->get();
         }
 
-        $companyId = Auth::user()->companies()->first()?->id;
-
         foreach ($users as $user) {
-
-            // build paths PER USER
             $basePaths = [];
 
-            // admin-created user
             $basePaths[] = "{$companyId}/{$user->id}";
 
-            // manager-created user
             $creator = User::find($user->created_by);
             if ($creator && $creator->role === 'manager') {
                 $basePaths[] = "{$companyId}/{$creator->id}/{$user->id}";
             }
 
             foreach ($basePaths as $basePath) {
-
                 if (!Storage::disk('public')->exists($basePath)) {
                     continue;
                 }
 
-                // root + all subfolders
                 $allFolders = collect([$basePath])
                     ->merge(Storage::disk('public')->allDirectories($basePath))
                     ->unique();
 
                 foreach ($allFolders as $folder) {
-
-                    // folder name match
                     if (str_contains(strtolower(basename($folder)), $query)) {
                         $results[] = [
                             'type'    => 'folder',
@@ -162,7 +164,6 @@ class ManagerUsersPage extends Page
                         ];
                     }
 
-                    // recursive file match
                     foreach (Storage::disk('public')->allFiles($folder) as $file) {
                         if (str_contains(strtolower(basename($file)), $query)) {
                             $results[] = [
@@ -179,17 +180,45 @@ class ManagerUsersPage extends Page
             }
         }
 
-        // ✅ Limit + sort
         $this->globalResults = collect($results)
-            ->unique('path') 
+            ->unique('path')
             ->sortByDesc('name')
             ->take(60)
             ->values()
             ->toArray();
     }
 
+    protected function getUserPhotoCount(int $companyId, int $userId): int
+    {
+        $path = storage_path("app/public/{$companyId}/{$userId}");
+
+        if (!is_dir($path)) {
+            return 0;
+        }
+
+        $count = 0;
+        $extensions = ['jpg', 'jpeg', 'png'];
+
+        foreach (new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
+        ) as $file) {
+            if (
+                $file->isFile() &&
+                in_array(strtolower($file->getExtension()), $extensions)
+            ) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
     public function mount(): void
     {
+        if ($this->isSearching) {
+            return;
+        }
+
         $authUser = Auth::user();
 
         $userId = request()->get('user');
@@ -213,10 +242,20 @@ class ManagerUsersPage extends Page
             abort(403, 'Unauthorized');
         }
 
+        $companyId = $authUser->companies()->first()?->id;
+
+        if (!$companyId) {
+            abort(403, 'Company not found for this user');
+        }
+
         if ($authUser->role === 'manager') {
             $this->managerUsers = User::where('role', 'user')
                 ->where('created_by', $authUser->id)
-                ->get();
+                ->get()
+                ->map(function ($user) use ($companyId) {
+                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
+                    return $user;
+                });
         } else {
 
             $managerIds = User::where('role', 'manager')
@@ -225,7 +264,11 @@ class ManagerUsersPage extends Page
 
             $this->managerUsers = User::where('role', 'user')
                 ->whereIn('created_by', $managerIds)
-                ->get();
+                ->get()
+                ->map(function ($user) use ($companyId) {
+                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
+                    return $user;
+                });
         }
 
         if ($userId) {

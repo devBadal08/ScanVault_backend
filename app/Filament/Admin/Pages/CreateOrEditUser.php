@@ -8,6 +8,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Filament\Notifications\Notification;
 use Filament\Facades\Filament;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 {
@@ -15,13 +17,10 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
     protected static ?string $navigationGroup = 'Managers';
-    protected static ?string $navigationLabel = 'Manage Users';
+    protected static ?string $navigationLabel = 'Create Users';
     protected static string $view = 'filament.admin.pages.create-or-edit-user';
     protected static ?int $navigationSort = 3;
 
-    public bool $showFormPage = false;
-    public ?int $editingUserId = null;
-    public $users;
     public int $totalUsers = 0;
     public ?int $remainingLimit = null;
 
@@ -30,58 +29,30 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
     public $password;
     public $role;
 
+    public bool $limitReached = false;
+
     public function mount(): void
     {
-        $this->loadUsers();
+        $this->calculateLimit();
+
         $this->form->fill([]);
-    }
-
-    protected function loadUsers()
-    {
-        $currentUser = Filament::auth()->user();
-        $adminId = $currentUser->id;
-
-        $managerIds = []; // ✅ Define default empty array
-
-        if ($currentUser?->hasRole('Super Admin')) {
-            $this->users = User::where('role', 'user')->get();
-        } else {
-            $managerIds = User::where('created_by', $adminId)
-                            ->where('role', 'manager')
-                            ->pluck('id')
-                            ->toArray();
-
-            $this->users = User::where('role', 'user')
-                ->where(function($query) use ($adminId, $managerIds) {
-                    $query->where('created_by', $adminId)
-                        ->orWhereIn('created_by', $managerIds);
-                })
-                ->get();
-        }
-
-        // ✅ $managerIds is always defined now
-        $allCreatedUserIds = User::where(function ($query) use ($adminId, $managerIds) {
-            $query->where('created_by', $adminId)
-                ->orWhereIn('created_by', $managerIds);
-        })
-        ->whereIn('role', ['user', 'manager'])
-        ->count();
-
-        $this->totalUsers = $allCreatedUserIds;
-
-        $maxLimit = $currentUser->max_limit;
-        if (!is_null($maxLimit)) {
-            $this->remainingLimit = max($maxLimit - $this->totalUsers, 0);
-        } else {
-            $this->remainingLimit = null;
-        }
     }
 
     protected function getFormSchema(): array
     {
         return [
             Forms\Components\TextInput::make('name')->required(),
-            Forms\Components\TextInput::make('email')->email()->required(),
+            Forms\Components\TextInput::make('email')
+                ->label('Email')
+                ->email()
+                ->required()
+                ->rule(
+                    Rule::unique('users', 'email')
+                )
+                ->validationMessages([
+                    'unique' => 'This email already exists. Please enter a different email.',
+                ])
+                ->live(onBlur: true),
             Forms\Components\TextInput::make('password')->password()
                 ->revealable()
                 ->minLength(6)
@@ -91,45 +62,13 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
         ];
     }
 
-    public function createNewUserPage()
-    {
-        $this->showFormPage = true;
-        $this->editingUserId = null;
-        $this->form->fill([
-            'name' => '',
-            'email' => '',
-            'password' => '',
-            'role' => '',
-        ]);
-    }
-
-    public function editUserPage($userId)
-    {
-        $this->editingUserId = $userId;
-        $this->showFormPage = true;
-
-        $user = User::findOrFail($userId);
-        $this->form->fill([
-            'name' => $user->name,
-            'email' => $user->email,
-            'password' => '',
-        ]);
-    }
-
-    public function goBack()
-    {
-        $this->showFormPage = false;
-        $this->editingUserId = null;
-        $this->loadUsers();
-    }
-
     public function saveUser()
     {
-        $currentUser = Filament::auth()->user();
 
-        if (!$this->editingUserId && !is_null($this->remainingLimit) && $this->remainingLimit <= 0) {
+        if ($this->limitReached) {
             Notification::make()
-                ->title('User creation limit reached.')
+                ->title('User limit reached')
+                ->body('Your user creation limit is reached. Please contact admin.')
                 ->danger()
                 ->send();
 
@@ -138,54 +77,72 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
 
         $data = $this->form->getState();
 
-        if ($this->editingUserId) {
-            $user = User::findOrFail($this->editingUserId);
-            $user->update([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => $data['password'] ? Hash::make($data['password']) : $user->password,
+        if (User::where('email', $data['email'])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'This email is already registered. Please use another email.',
             ]);
-            Notification::make()->title('User Updated')->success()->send();
-        } else {
-            $user = User::create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password']),
-                'role' => 'user',
-                'created_by' => $currentUser->id,
-                'assigned_to'=> $currentUser->id,
-                'company_id' => $currentUser->company_id,
-            ]);
-
-            $user->assignRole('user');
-
-            // 🚀 Assign company from pivot of the Manager
-            $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
-            if (!empty($companyIds)) {
-                $user->companies()->syncWithoutDetaching($companyIds);
-            }
-
-            Notification::make()->title('User Created')->success()->send();
         }
 
-        $this->goBack();
-    }
+        $currentUser = Filament::auth()->user();
 
-    protected function getViewData(): array
-    {
-        return [
-            'users' => $this->users,
-            'showFormPage' => $this->showFormPage,
-            'editingUserId' => $this->editingUserId,
-            'form' => $this->form,
-            'remainingLimit' => $this->remainingLimit,
-            'totalUsers' => $this->totalUsers,
-        ];
+        $user = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'role' => 'user',
+            'created_by' => $currentUser->id,
+            'assigned_to'=> $currentUser->id,
+            'company_id' => $currentUser->company_id,
+        ]);
+
+        $user->assignRole('user');
+
+        $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
+        if (!empty($companyIds)) {
+            $user->companies()->syncWithoutDetaching($companyIds);
+        }
+
+        Notification::make()
+            ->title('User Created')
+            ->success()
+            ->send();
+
+        // ✅ FULL reset (this fixes your issue)
+        $this->resetExcept('remainingLimit', 'limitReached');
+        $this->form->fill([]);
+        $this->reset(['name', 'email', 'password']);
+        $this->resetErrorBag();
+        $this->resetValidation();
+
+        // Recalculate limit
+        $this->calculateLimit();
+
+        // Re-render
+        $this->dispatch('$refresh');
     }
 
     public static function shouldRegisterNavigation(): bool
     {
         $user = auth()->user();
         return $user && in_array($user->role, ['manager']);
+    }
+
+    protected function calculateLimit(): void
+    {
+        $currentUser = Filament::auth()->user();
+
+        $createdUsersCount = User::where('created_by', $currentUser->id)
+            ->where('role', 'user')
+            ->count();
+
+        $maxLimit = $currentUser->max_limit;
+
+        if (!is_null($maxLimit)) {
+            $this->remainingLimit = max($maxLimit - $createdUsersCount, 0);
+            $this->limitReached = $this->remainingLimit <= 0;
+        } else {
+            $this->remainingLimit = null;
+            $this->limitReached = false;
+        }
     }
 }

@@ -66,11 +66,43 @@ class CompanyResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+
+                Tables\Actions\Action::make('delete')
+                    ->label('Delete')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->modalHeading('Confirm Delete')
+                    ->modalDescription('Enter password to delete this company.')
+                    ->form([
+                        Forms\Components\TextInput::make('deletePassword')
+                            ->label('Confirm Password')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->rule('in:Delete@123#')
+                            ->validationMessages([
+                                'required' => 'You must enter the password.',
+                                'in' => 'You must enter the correct password.',
+                            ]),
+                    ])
+                    ->action(function (array $data, Company $record) {
+
+                        // delete users & children
+                        $users = \App\Models\User::where('company_id', $record->id)->get();
+
+                        foreach ($users as $user) {
+                            self::deleteUserRecursively($user->id);
+                        }
+
+                        $record->delete();
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Company deleted successfully')
+                            ->success()
+                            ->send();
+                    }),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
     }
 
@@ -103,5 +135,21 @@ class CompanyResource extends Resource
     public static function canViewAny(): bool
     {
         return auth()->check() && auth()->user()->hasRole('Super Admin');
+    }
+
+    public static function deleteUserRecursively(int $userId): void
+    {
+        $childUsers = \App\Models\User::where('created_by', $userId)->get();
+
+        foreach ($childUsers as $child) {
+            self::deleteUserRecursively($child->id);
+        }
+
+        $userFolder = storage_path("app/public/{$userId}");
+        if (is_dir($userFolder)) {
+            \File::deleteDirectory($userFolder);
+        }
+
+        \App\Models\User::where('id', $userId)->delete();
     }
 }

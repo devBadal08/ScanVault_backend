@@ -16,7 +16,7 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
     protected static string $view = 'filament.admin.pages.folder-link-page';
     protected static ?string $navigationIcon = 'heroicon-o-link';
     protected static ?string $navigationGroup = 'Folder Management';
-    protected static ?int $navigationSort = 9;
+    protected static ?int $navigationSort = 7;
 
     public $sourceFolder;
     public $targetFolders = [];
@@ -37,16 +37,24 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             // Source Folder
             Forms\Components\Select::make('sourceFolder')
                 ->label('Select Source Folder')
-                ->options(
-                    Folder::whereNull('parent_id')
-                        ->whereHas('user', function ($q) {
-                            $q->where('company_id', auth()->user()->company_id);
+                ->options(function () {
+                    $companyId = auth()->user()->companies()->first()->id;
+
+                    return Folder::where(function ($q) {
+                            $q->whereNull('parent_id')
+                            ->orWhere('parent_id', 0);
+                        })
+                        ->whereIn('user_id', function ($q) use ($companyId) {
+                            $q->select('user_id')
+                            ->from('company_user')
+                            ->where('company_id', $companyId);
                         })
                         ->pluck('name', 'id')
-                )
+                        ->toArray();
+                })
                 ->searchable()
-                ->reactive() // Livewire reacts to changes
-                ->afterStateUpdated(fn() => $this->reset('targetFolders'))
+                ->reactive()
+                ->afterStateUpdated(fn () => $this->reset('targetFolders'))
                 ->required(),
 
             // Target Folders (multi-select)
@@ -56,23 +64,37 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
                 ->searchable()
                 ->reactive()
                 ->options(function () {
-                    $companyId = auth()->user()->company_id;
-                    $query = Folder::whereNull('parent_id')
-                        ->whereHas('user', function ($q) use ($companyId) {
-                            $q->where('company_id', $companyId);
+                    $companyId = auth()->user()->companies()->first()->id;
+
+                    $query = Folder::where(function ($q) {
+                            $q->whereNull('parent_id')
+                            ->orWhere('parent_id', 0);
+                        })
+                        ->whereIn('user_id', function ($q) use ($companyId) {
+                            $q->select('user_id')
+                            ->from('company_user')
+                            ->where('company_id', $companyId);
                         });
-                    // Exclude source folder
+
                     if ($this->sourceFolder) {
+                        $isLocked = DB::table('folder_links')
+                            ->where('source_folder_id', $this->sourceFolder)
+                            ->where('link_type', 'full')
+                            ->exists();
+
+                        if ($isLocked) {
+                            return [];
+                        }
                         $query->where('id', '!=', $this->sourceFolder);
                     }
-                    // Exclude fully linked folders
-                    if ($this->linkType === 'full') {
-                        $linkedFullIds = DB::table('folder_links')
-                            ->pluck('target_folder_id')
-                            ->toArray();
 
-                        $query->whereNotIn('id', $linkedFullIds);
+                    if ($this->linkType === 'full') {
+                        $query->whereNotIn(
+                            'id',
+                            DB::table('folder_links')->pluck('target_folder_id')
+                        );
                     }
+
                     return $query->pluck('name', 'id')->toArray();
                 })
                 ->required(),
@@ -102,34 +124,48 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             return;
         }
 
-        foreach ($targetFolders as $targetId) {
-            // store the link
-            DB::table('folder_links')->updateOrInsert(
-                [
-                    'source_folder_id' => $sourceFolder,
-                    'target_folder_id' => $targetId,
-                ],
-                [
-                    'link_type' => $linkType,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
-            );
+        $hasFullLink = DB::table('folder_links')
+            ->where('source_folder_id', $sourceFolder)
+            ->where('link_type', 'full')
+            ->exists();
 
-            // Merge photos: add entries from target folder into source folder (database only)
-            if ($linkType === 'partial') {
-                $photos = Photo::where('folder_id', $targetId)->get();
-                foreach ($photos as $photo) {
-                    Photo::create([
-                        'folder_id' => $sourceFolder,
-                        'path' => $photo->path,
-                        'user_id' => $photo->user_id, // if applicable
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-            }
+        if ($hasFullLink) {
+            Notification::make()
+                ->danger()
+                ->title('This folder is fully linked')
+                ->body('You cannot link another folder once a full link is applied.')
+                ->send();
+            return;
         }
+
+        if ($linkType === 'full') {
+            DB::table('folder_links')
+                ->where('source_folder_id', $sourceFolder)
+                ->update(['link_type' => 'full']);
+        }
+
+        DB::transaction(function () use ($sourceFolder, $targetFolders, $linkType) {
+
+            foreach ($targetFolders as $targetId) {
+                DB::table('folder_links')->updateOrInsert(
+                    [
+                        'source_folder_id' => $sourceFolder,
+                        'target_folder_id' => $targetId,
+                    ],
+                    [
+                        'link_type' => $linkType,
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+
+            if ($linkType === 'full') {
+                DB::table('folder_links')
+                    ->where('source_folder_id', $sourceFolder)
+                    ->update(['link_type' => 'full']);
+            }
+        });
 
         // reset only the multi-select
         $this->form->fill(['targetFolders' => []]);
@@ -139,29 +175,12 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
 
     public function unlinkFolder($linkId)
     {
-        // Get the link record first
-        $link = DB::table('folder_links')->where('id', $linkId)->first();
+        DB::table('folder_links')->where('id', $linkId)->delete();
 
-        if ($link) {
-            $sourceFolder = $link->source_folder_id;
-            $targetFolder = $link->target_folder_id;
-
-            // Delete photos in source folder that came from this target folder
-            Photo::where('folder_id', $sourceFolder)
-                ->whereIn('path', function ($query) use ($targetFolder) {
-                    $query->select('path')
-                        ->from('photos')
-                        ->where('folder_id', $targetFolder);
-                })->delete();
-
-            // Delete the folder link
-            DB::table('folder_links')->where('id', $linkId)->delete();
-
-            Notification::make()
-                ->success()
-                ->title('Folder unlinked and merged photos removed')
-                ->send();
-        }
+        Notification::make()
+            ->success()
+            ->title('Folder unlinked successfully')
+            ->send();
     }
 
     public function getLinkedFoldersProperty()
@@ -170,14 +189,21 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             return collect();
         }
 
-        $companyId = auth()->user()->company_id;
+        $companyId = auth()->user()->companies()->first()->id;
 
         return DB::table('folder_links')
             ->leftJoin('folders as f', 'f.id', '=', 'folder_links.target_folder_id')
-            ->leftJoin('users as u', 'u.id', '=', 'f.user_id')
             ->where('folder_links.source_folder_id', $this->sourceFolder)
-            ->where('u.company_id', $companyId)
-            ->select('folder_links.*', 'f.name as target_name')
+            ->whereIn('f.user_id', function ($q) use ($companyId) {
+                $q->select('user_id')
+                ->from('company_user')
+                ->where('company_id', $companyId);
+            })
+            ->select(
+                'folder_links.id',
+                'folder_links.link_type',
+                'f.name as target_name'
+            )
             ->get();
     }
 

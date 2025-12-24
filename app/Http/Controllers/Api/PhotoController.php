@@ -9,6 +9,7 @@ use App\Models\Folder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PhotoController extends Controller
 {
@@ -68,17 +69,34 @@ class PhotoController extends Controller
 
         $uploaded = [];
         $failed = [];
+        $folderIds = [];
 
         /**************************************
          *     COMMON FOLDER LOGIC FUNCTION
          **************************************/
-        $getFolder = function ($originalFolder) use ($userId, $companyId) {
+        $getFolder = function ($folderData) use ($userId, $companyId) {
+
+            // NEW: folder_id-based upload
+            if (is_array($folderData) && isset($folderData['folder_id'])) {
+
+                $folder = Folder::where('id', $folderData['folder_id'])
+                    ->where('user_id', $userId)
+                    ->where('company_id', $companyId)
+                    ->firstOrFail();
+
+                $storagePath = "{$companyId}/{$userId}/{$folder->name}";
+                return [$folder, $storagePath];
+            }
+
+            // BACKWARD COMPATIBILITY (old uploads)
+            $originalFolder = is_array($folderData)
+                ? $folderData['path']
+                : $folderData;
 
             $parts = explode('/', $originalFolder);
             $parentName = $parts[0];
             $childName  = $parts[1] ?? null;
 
-            // Parent folder
             $parent = Folder::firstOrCreate([
                 'name'       => $parentName,
                 'user_id'    => $userId,
@@ -87,7 +105,6 @@ class PhotoController extends Controller
             ]);
 
             if ($childName) {
-
                 $folder = Folder::firstOrCreate([
                     'name'       => $childName,
                     'parent_id'  => $parent->id,
@@ -95,9 +112,7 @@ class PhotoController extends Controller
                     'company_id' => $companyId,
                 ]);
 
-                // STORAGE PATH
                 $storagePath = "{$companyId}/{$userId}/{$parentName}/{$childName}";
-
             } else {
                 $folder = $parent;
                 $storagePath = "{$companyId}/{$userId}/{$parentName}";
@@ -135,6 +150,8 @@ class PhotoController extends Controller
 
                     $uploaded[] = asset('storage/'.$path);
 
+                    $folderIds[$index] = $folder->id;
+
                 } catch (\Exception $e) {
                     \Log::error("Image upload failed: " . $e->getMessage());
                     $failed[] = $image->getClientOriginalName();
@@ -171,6 +188,7 @@ class PhotoController extends Controller
 
                     $uploaded[] = asset('storage/'.$path);
 
+                    $folderIds[$index] = $folder->id;
                 } catch (\Exception $e) {
                     \Log::error("Video upload failed: " . $e->getMessage());
                     $failed[] = $video->getClientOriginalName();
@@ -207,6 +225,7 @@ class PhotoController extends Controller
 
                     $uploaded[] = asset('storage/'.$path);
 
+                    $folderIds[$index] = $folder->id;
                 } catch (\Exception $e) {
                     \Log::error("PDF upload failed: " . $e->getMessage());
                     $failed[] = $pdf->getClientOriginalName();
@@ -222,6 +241,69 @@ class PhotoController extends Controller
             'message'  => 'Upload completed successfully',
             'uploaded' => $uploaded,
             'failed'   => $failed,
+            'folder_ids'=> array_values(array_unique($folderIds)),
+        ]);
+    }
+
+    public function renameFolder(Request $request, $id)
+    {
+        $request->validate([
+            'name'       => 'required|string|max:50',
+            'company_id' => 'required|integer',
+        ]);
+
+        $userId    = Auth::id();
+        $companyId = $request->company_id;
+        $newName   = $request->name;
+
+        // 1️⃣ Get folder with full scope
+        $folder = Folder::where('id', $id)
+            ->where('company_id', $companyId)
+            ->firstOrFail();
+
+        $oldName = $folder->name;
+
+        $basePath = "{$companyId}/{$folder->user_id}";
+
+        if ($folder->parent_id) {
+            $parent = Folder::find($folder->parent_id);
+            $oldPath = "{$basePath}/{$parent->name}/{$folder->name}";
+            $newPath = "{$basePath}/{$parent->name}/{$newName}";
+        } else {
+            $oldPath = "{$basePath}/{$folder->name}";
+            $newPath = "{$basePath}/{$newName}";
+        }
+
+        if (Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->move($oldPath, $newPath);
+        } else {
+            \Log::warning('RENAME STORAGE PATH NOT FOUND', [
+                'oldPath' => $oldPath,
+            ]);
+        }
+
+        // Update DB
+        $folder->name = $newName;
+        $folder->save();
+
+        \Log::info('RENAME DEBUG', [
+            'folder_id' => $id,
+            'auth_user' => Auth::id(),
+            'company_id' => $companyId,
+            'folder_exists_any' => Folder::where('id', $id)->exists(),
+            'folder_exists_user' => Folder::where('id', $id)
+                ->where('user_id', Auth::id())
+                ->exists(),
+            'folder_exists_company' => Folder::where('id', $id)
+                ->where('company_id', $companyId)
+                ->exists(),
+        ]);
+
+        return response()->json([
+            'success'   => true,
+            'folder_id'=> $folder->id,
+            'old_name' => $oldName,
+            'new_name' => $newName,
         ]);
     }
 

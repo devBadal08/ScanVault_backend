@@ -22,7 +22,7 @@ class CompanyUserResource extends Resource
     protected static ?string $navigationGroup = 'User Company Access';
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
     protected static ?string $navigationLabel = 'Assign User to Company';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
 
     public static function form(Form $form): Form
     {

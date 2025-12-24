@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Events\UserDeleted;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -25,6 +27,52 @@ class UserController extends Controller
                 'message' => 'User deleted or not found'
             ], 401); // Unauthorized
         }
+    }
+
+    public function uploadSelfie(Request $request)
+    {
+        $request->validate([
+            'selfie' => 'required|image|max:5120', // 5MB
+        ]);
+
+        $user = auth()->user();
+
+        $path = $request->file('selfie')
+            ->store('profile-photos', 'public');
+
+        // delete old photo (optional)
+        if ($user->profile_photo) {
+            Storage::disk('public')->delete($user->profile_photo);
+        }
+
+        $user->update([
+            'profile_photo' => $path
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'photo' => asset('storage/' . $path)
+        ]);
+    }
+
+    public function removeProfilePhoto(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->profile_photo) {
+            $path = str_replace('/storage/', '', $user->profile_photo);
+
+            if (Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+
+        $user->profile_photo = null;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Profile photo removed',
+        ]);
     }
 
     /**

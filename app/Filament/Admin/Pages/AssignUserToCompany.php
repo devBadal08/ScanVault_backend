@@ -13,7 +13,7 @@ class AssignUserToCompany extends Page
     protected static ?string $navigationIcon = 'heroicon-o-user-plus';
     protected static ?string $navigationGroup = 'User Company Access';
     protected static ?string $navigationLabel = 'Assign User to Company';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 9;
 
     protected static string $view = 'filament.admin.pages.assign-user-to-company';
 

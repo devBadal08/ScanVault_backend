@@ -11,7 +11,7 @@ class CompanyHierarchyAccess extends Page
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationGroup = 'User Company Access';
     protected static ?string $navigationLabel = 'Company Hierarchy Access';
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 8;
 
     protected static string $view = 'filament.admin.pages.company-hierarchy-access';
 

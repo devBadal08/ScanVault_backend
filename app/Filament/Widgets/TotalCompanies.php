@@ -10,7 +10,6 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
 use FilesystemIterator;
-use Illuminate\Support\Facades\Log;
 
 class TotalCompanies extends BaseWidget
 {
@@ -49,18 +48,30 @@ class TotalCompanies extends BaseWidget
                 ->color('info');
 
             // ✅ NEW: Global storage usage for Super Admin
-            $directory = storage_path('app/public');
             $totalSize = 0;
 
-            foreach (new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
-            ) as $file) {
-                $totalSize += $file->getSize();
+            $companyIds = Company::pluck('id');
+
+            foreach ($companyIds as $companyId) {
+
+                $companyPath = storage_path("app/public/{$companyId}");
+
+                if (!is_dir($companyPath)) {
+                    continue;
+                }
+
+                foreach (new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($companyPath, FilesystemIterator::SKIP_DOTS)
+                ) as $file) {
+                    if ($file->isFile()) {
+                        $totalSize += $file->getSize();
+                    }
+                }
             }
 
             $totalSizeMB = round($totalSize / (1024 ** 2), 2);
             $totalSizeGB = round($totalSize / (1024 ** 3), 2);
-            $displaySize = "{$totalSizeGB} GB (≈{$totalSizeMB} MB)";
+            $displaySize = "{$totalSizeGB} GB (~{$totalSizeMB} MB)";
 
             $cards[] = Card::make('Total Storage Used (All Users)', $displaySize)
                 ->description('Combined storage of all users')
@@ -68,14 +79,28 @@ class TotalCompanies extends BaseWidget
                 ->color('success');
 
             // ✅ NEW: Global total photo count (all users)
-            $imageExtensions = ['jpg', 'jpeg', 'png'];
+            $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
             $totalPhotos = 0;
 
-            foreach (new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
-            ) as $file) {
-                if (in_array(strtolower($file->getExtension()), $imageExtensions)) {
-                    $totalPhotos++;
+            $companyIds = Company::pluck('id');
+
+            foreach ($companyIds as $companyId) {
+
+                $companyPath = storage_path("app/public/{$companyId}");
+
+                if (!is_dir($companyPath)) {
+                    continue;
+                }
+
+                foreach (new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($companyPath, FilesystemIterator::SKIP_DOTS)
+                ) as $file) {
+                    if (
+                        $file->isFile() &&
+                        in_array(strtolower($file->getExtension()), $imageExtensions)
+                    ) {
+                        $totalPhotos++;
+                    }
                 }
             }
 
@@ -102,11 +127,21 @@ class TotalCompanies extends BaseWidget
             }
 
             if ($currentUser->canShow('total_users')) {
-                $cards[] = Card::make(
-                    'Total Users',
-                    User::where('role', 'user')->where('created_by', $currentUser->id)->count()
-                )
-                    ->description('Users created by you')
+
+                $managerIds = User::where('role', 'manager')
+                    ->where('created_by', $currentUser->id)
+                    ->pluck('id')
+                    ->toArray();
+
+                $totalUsers = User::where('role', 'user')
+                    ->where(function ($query) use ($currentUser, $managerIds) {
+                        $query->where('created_by', $currentUser->id)
+                            ->orWhereIn('created_by', $managerIds);
+                    })
+                    ->count();
+
+                $cards[] = Card::make('Total Users', $totalUsers)
+                    ->description('Users created by you and your managers')
                     ->descriptionIcon('heroicon-m-users')
                     ->color('info');
             }
@@ -162,7 +197,7 @@ class TotalCompanies extends BaseWidget
             $totalSizeGB = round($totalSize / (1024 ** 3), 2);
 
             $displaySize = ($totalSizeGB >= 1)
-                ? "{$totalSizeGB} GB (≈{$totalSizeMB} MB)"
+                ? "{$totalSizeGB} GB (~{$totalSizeMB} MB)"
                 : "{$totalSizeMB} MB";
 
             if ($currentUser->canShow('total_storage')) {
@@ -172,12 +207,12 @@ class TotalCompanies extends BaseWidget
 
                 // Used storage display
                 $usedStorageDisplay = ($totalSizeGB >= 1)
-                    ? "{$totalSizeGB} GB (≈{$totalSizeMB} MB)"
+                    ? "{$totalSizeGB} GB (~{$totalSizeMB} MB)"
                     : "{$totalSizeMB} MB";
 
                 // Max storage display
                 $maxStorageDisplay = ($maxStorageGB >= 1)
-                    ? "{$maxStorageGB} GB (≈{$maxStorageMB} MB)"
+                    ? "{$maxStorageGB} GB (~{$maxStorageMB} MB)"
                     : "{$maxStorageMB} MB";
 
                 // Progress or ratio (e.g., used vs max)
@@ -212,70 +247,70 @@ class TotalCompanies extends BaseWidget
             // ✅ NEW: Add Total Photos card for Admins and Managers
             if ($currentUser->canShow('total_photos')) {
 
-            $imageExtensions = ['jpg', 'jpeg', 'png'];
-            $totalPhotos = 0;
-            $companyId = $currentUser->company_id;
+                $imageExtensions = ['jpg', 'jpeg', 'png'];
+                $totalPhotos = 0;
+                $companyId = $currentUser->company_id;
 
-            // ================= ADMIN =================
-            if ($currentUser->hasRole('admin')) {
+                // ================= ADMIN =================
+                if ($currentUser->hasRole('admin')) {
 
-                $companyPath = storage_path("app/public/{$companyId}");
+                    $companyPath = storage_path("app/public/{$companyId}");
 
-                if (is_dir($companyPath)) {
-                    foreach (new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($companyPath, FilesystemIterator::SKIP_DOTS)
-                    ) as $file) {
-                        if (
-                            $file->isFile() &&
-                            in_array(strtolower($file->getExtension()), $imageExtensions)
-                        ) {
-                            $totalPhotos++;
+                    if (is_dir($companyPath)) {
+                        foreach (new RecursiveIteratorIterator(
+                            new RecursiveDirectoryIterator($companyPath, FilesystemIterator::SKIP_DOTS)
+                        ) as $file) {
+                            if (
+                                $file->isFile() &&
+                                in_array(strtolower($file->getExtension()), $imageExtensions)
+                            ) {
+                                $totalPhotos++;
+                            }
                         }
                     }
                 }
-            }
 
-            // ================= MANAGER =================
-            if ($currentUser->hasRole('manager')) {
+                // ================= MANAGER =================
+                if ($currentUser->hasRole('manager')) {
 
-                // users created by this manager
-                $userIds = User::where('created_by', $currentUser->id)
-                    ->pluck('id')
-                    ->toArray();
+                    // users created by this manager
+                    $userIds = User::where('created_by', $currentUser->id)
+                        ->pluck('id')
+                        ->toArray();
 
-                // optional: include manager’s own uploads
-                $userIds[] = $currentUser->id;
+                    // optional: include manager’s own uploads
+                    $userIds[] = $currentUser->id;
 
-                foreach ($userIds as $uid) {
+                    foreach ($userIds as $uid) {
 
-                    $userPath = storage_path("app/public/{$companyId}/{$uid}");
+                        $userPath = storage_path("app/public/{$companyId}/{$uid}");
 
-                    if (!is_dir($userPath)) {
-                        continue;
-                    }
+                        if (!is_dir($userPath)) {
+                            continue;
+                        }
 
-                    foreach (new RecursiveIteratorIterator(
-                        new RecursiveDirectoryIterator($userPath, FilesystemIterator::SKIP_DOTS)
-                    ) as $file) {
-                        if (
-                            $file->isFile() &&
-                            in_array(strtolower($file->getExtension()), $imageExtensions)
-                        ) {
-                            $totalPhotos++;
+                        foreach (new RecursiveIteratorIterator(
+                            new RecursiveDirectoryIterator($userPath, FilesystemIterator::SKIP_DOTS)
+                        ) as $file) {
+                            if (
+                                $file->isFile() &&
+                                in_array(strtolower($file->getExtension()), $imageExtensions)
+                            ) {
+                                $totalPhotos++;
+                            }
                         }
                     }
                 }
-            }
 
-            $cards[] = Card::make('Total Photos', number_format($totalPhotos))
-                ->description(
-                    $currentUser->hasRole('admin')
-                        ? 'All photos in your company'
-                        : 'Photos uploaded by your users'
-                )
-                ->descriptionIcon('heroicon-o-photo')
-                ->color('info');
-        }
+                $cards[] = Card::make('Total Photos', number_format($totalPhotos))
+                    ->description(
+                        $currentUser->hasRole('admin')
+                            ? 'All photos in your company'
+                            : 'Photos uploaded by your users'
+                    )
+                    ->descriptionIcon('heroicon-o-photo')
+                    ->color('info');
+            }
         }
 
         /*
@@ -305,7 +340,7 @@ class TotalCompanies extends BaseWidget
                     ->chart([$createdCount, 0]);
             } else {
                 $cards[] = Card::make('Total Limit', $maxLimit)
-                    ->description("You’ve used {$createdCount} of {$maxLimit}")
+                    ->description("You've used {$createdCount} of {$maxLimit}")
                     ->descriptionIcon('heroicon-o-adjustments-horizontal')
                     ->color('success');
             }

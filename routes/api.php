@@ -39,5 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/save-fcm-token', [UserController::class, 'saveFcmToken']);
     Route::post('/folder/{parentId}/create-sub', [FolderShareController::class, 'createSubFolder']);
     Route::post('/get-folder-id', [FolderShareController::class, 'getFolderId']);
+    Route::post('/upload-selfie', [UserController::class, 'uploadSelfie']);
+    Route::post('/remove-profile-photo', [UserController::class, 'removeProfilePhoto']);
+    Route::put('/folders/{id}/rename', [PhotoController::class, 'renameFolder']);
 });
 

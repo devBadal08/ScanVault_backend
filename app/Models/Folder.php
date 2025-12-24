@@ -9,7 +9,7 @@ class Folder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'parent_id'];
+    protected $fillable = ['name', 'user_id', 'parent_id', 'company_id'];
 
     public function user() {
         return $this->belongsTo(User::class, 'user_id');

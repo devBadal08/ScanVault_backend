@@ -6,16 +6,6 @@
 
             <div class="relative">
 
-                {{-- Delete Button --}}
-                <button 
-                    wire:click="deleteCompany({{ $company->id }})"
-                    onclick="return confirm('Are you sure you want to delete this company?')"
-                    class="absolute right-3 top-3 z-20 bg-red-100 text-red-600 
-                           p-2 rounded-full hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50"
-                >
-                    <x-heroicon-o-trash class="w-5 h-5"/>
-                </button>
-
                 {{-- Card --}}
                 <a href="{{ \App\Filament\Admin\Resources\CompanyResource::getUrl('dashboard', ['record' => $company->id]) }}"
                     class="block">
@@ -26,11 +16,15 @@
 
                         {{-- FIXED SIZE LOGO BOX (square, same for all logos) --}}
                         <div class="w-full flex justify-center mt-10">
-                            <div class="w-32 h-32 flex items-center justify-center">
-                                <img 
-                                    src="{{ asset('storage/' . $company->company_logo) }}" 
-                                    class="max-w-full max-h-full object-contain"
+                            <div class="w-32 h-32 rounded-xl bg-gray-50 dark:bg-gray-900
+                                        flex items-center justify-center overflow-hidden">
+
+                                <img
+                                    src="{{ asset('storage/' . $company->company_logo) }}"
+                                    alt="{{ $company->company_name }} logo"
+                                    class="w-full h-full object-contain scale-90"
                                 />
+
                             </div>
                         </div>
 

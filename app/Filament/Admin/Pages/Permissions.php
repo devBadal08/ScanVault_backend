@@ -11,7 +11,7 @@ class Permissions extends Page
     protected static string $view = 'filament.admin.pages.permissions';
     protected static ?string $navigationLabel = 'Permissions';
     protected static ?string $navigationGroup = 'Permission Management';
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 6;
 
      public $companies;
 

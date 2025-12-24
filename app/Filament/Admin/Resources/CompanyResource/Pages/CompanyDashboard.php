@@ -59,23 +59,29 @@ class CompanyDashboard extends Page
     {
         $totalSize = 0;
 
-        // Loop through each user in the company
-        foreach ($this->company->users as $user) {
-            $userFolder = storage_path('app/public/' . $user->id);
-            if (is_dir($userFolder)) {
-                foreach (new \RecursiveIteratorIterator(
+        $users = $this->company->users()->get();
+
+        foreach ($users as $user) {
+            $userFolder = storage_path(
+                'app/public/' . $this->company->id . '/' . $user->id
+            );
+
+            if (!is_dir($userFolder)) {
+                continue;
+            }
+
+            foreach (
+                new \RecursiveIteratorIterator(
                     new \RecursiveDirectoryIterator($userFolder, \FilesystemIterator::SKIP_DOTS)
-                ) as $file) {
+                ) as $file
+            ) {
+                if ($file->isFile()) {
                     $totalSize += $file->getSize();
                 }
             }
         }
 
-        // Convert bytes → MB & GB
-        $totalSizeMB = round($totalSize / (1024 ** 2), 2);
-        $totalSizeGB = round($totalSize / (1024 ** 3), 2);
-
-        return "{$totalSizeGB} GB (≈{$totalSizeMB} MB)";
+        return round($totalSize / 1024 / 1024 / 1024, 2) . ' GB';
     }
 
     public function refreshStorageUsage()
@@ -86,19 +92,29 @@ class CompanyDashboard extends Page
     private function calculateCompanyPhotos(): int
     {
         $totalPhotos = 0;
-        $imageExtensions = ['jpg', 'jpeg', 'png'];
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'webp'];
 
-        // Loop through each user in the company
-        foreach ($this->company->users as $user) {
-            $userFolder = storage_path('app/public/' . $user->id);
+        $users = $this->company->users()->get();
 
-            if (is_dir($userFolder)) {
-                foreach (new \RecursiveIteratorIterator(
+        foreach ($users as $user) {
+            $userFolder = storage_path(
+                'app/public/' . $this->company->id . '/' . $user->id
+            );
+
+            if (!is_dir($userFolder)) {
+                continue;
+            }
+
+            foreach (
+                new \RecursiveIteratorIterator(
                     new \RecursiveDirectoryIterator($userFolder, \FilesystemIterator::SKIP_DOTS)
-                ) as $file) {
-                    if (in_array(strtolower($file->getExtension()), $imageExtensions)) {
-                        $totalPhotos++;
-                    }
+                ) as $file
+            ) {
+                if (
+                    $file->isFile() &&
+                    in_array(strtolower($file->getExtension()), $imageExtensions)
+                ) {
+                    $totalPhotos++;
                 }
             }
         }
@@ -129,7 +145,6 @@ class CompanyDashboard extends Page
                 ->options([
                     'admin' => 'Admin',
                     'manager' => 'Manager',
-                    'user' => 'User',
                 ])
                 ->disabled(fn () => $this->editingUserId) // lock role on edit
                 ->required(),

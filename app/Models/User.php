@@ -23,6 +23,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'profile_photo',
         'password',
         'role',
         'company_id',
@@ -105,6 +106,11 @@ class User extends Authenticatable
     public function manager()
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class, 'created_by');
     }
 
     public function assignedUsers()

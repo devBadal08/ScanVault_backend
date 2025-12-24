@@ -12,10 +12,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\ValidationException;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Forms\Components\Select;
 use App\Models\Company;
+use Illuminate\Validation\Rule;
 
 class UserResource extends Resource
 {
@@ -25,10 +27,11 @@ class UserResource extends Resource
     protected static ?string $navigationLabel = 'Create Users';
     protected static ?string $navigationGroup = 'Admin';
     protected static ?int $navigationSort = 1;
-    // public static function getNavigationSort(): ?int
-    // {
-    //     return 1; // appear first in the Admin group
-    // }
+
+    public static function getNavigationUrl(): string
+    {
+        return static::getUrl('create');
+    }
 
     public static function form(Form $form): Form
     {
@@ -64,7 +67,10 @@ class UserResource extends Resource
                 TextInput::make('email')
                     ->email()
                     ->required()
-                    ->unique(ignoreRecord: true)
+                    ->unique(table: User::class, column: 'email', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'This email already exists. Please enter a different email.',
+                    ])
                     ->maxLength(255),
 
                 TextInput::make('password')
@@ -153,24 +159,10 @@ class UserResource extends Resource
 
     public static function canCreate(): bool
     {
-        $currentUser = auth()->user();
-
-        if ($currentUser && $currentUser->hasRole('admin')) {
-            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
-            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
-
-            // ✅ manager limits already assigned
-            $assignedLimitToManagers = User::where('role', 'manager')
-                ->where('created_by', $currentUser->id)
-                ->sum('max_limit');
-
-            $createdCount = count($directUserIds) + $indirectCount + $assignedLimitToManagers;
-            $maxLimit = $currentUser->max_limit ?? 0;
-
-            return $createdCount < $maxLimit; // ❌ disables button if limit reached
-        }
-
-        return true;
+        return auth()->check() && (
+            auth()->user()->hasRole('admin') ||
+            auth()->user()->hasRole('Super Admin')
+        );
     }
 
     public static function canViewAny(): bool
@@ -206,27 +198,4 @@ class UserResource extends Resource
 
         return $data;
     }
-
-    // public static function afterCreate(User $user, array $data): void
-    // {
-    //     $currentUser = auth()->user();
-    //     $user = $this->record; // just created user
-
-    //     if ($user->role) {
-    //         $user->syncRoles([$user->role]);
-    //     }
-
-    //     if ($currentUser->hasRole('Super Admin')) {
-    //         $companyId = $this->data['company_id'] ?? null;
-    //         if ($companyId) {
-    //             $user->companies()->syncWithoutDetaching([$companyId]);
-    //         }
-    //     } else {
-    //         // Admin or Manager → assign same companies as creator
-    //         $companyIds = $currentUser->companies()->pluck('companies.id')->toArray();
-    //         if (!empty($companyIds)) {
-    //             $user->companies()->syncWithoutDetaching($companyIds);
-    //         }
-    //     }
-    // }
 }
