@@ -42,8 +42,7 @@ class CompanyResource extends Resource
                     ->columns(1)
                     ->directory('company-logos') // optional: folder to store logos
                     ->required()
-                    ->visibility('public')         // make file public
-                    ->preserveFilenames()          // keep original file name (optional)
+                    ->visibility('public')
                     ->downloadable()               // allow download
                     ->openable()                   // allow opening
                     ->previewable(true),

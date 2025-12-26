@@ -202,7 +202,7 @@ class TotalCompanies extends BaseWidget
 
             if ($currentUser->canShow('total_storage')) {
                 // Get the user's max storage (in MB) and convert it for display
-                $maxStorageMB = $currentUser->company?->max_storage ?? 0;
+                $maxStorageMB = $currentUser->max_storage ?? 0;
                 $maxStorageGB = round($maxStorageMB / 1024, 2);
 
                 // Used storage display

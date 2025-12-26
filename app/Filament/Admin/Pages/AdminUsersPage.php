@@ -191,12 +191,17 @@ class AdminUsersPage extends Page
 
     public function mount(): void
     {
+        logger()->info('AdminUsersPage mount started', [
+            'user_param' => request()->get('user'),
+            'folder_param' => request()->get('folder'),
+            'subfolder_param' => request()->get('subfolder'),
+        ]);
+
         $authUser = Auth::user();
         $managerId = trim(request()->get('manager'));
         $userId = trim(request()->get('user'));
         $folder = trim(ltrim(urldecode(request()->get('folder')), '/'));
         $subfolder = ltrim(trim(urldecode(request()->get('subfolder'))), '/');
-        $subfolder = $subfolder ? basename($subfolder) : null;
 
         if ($authUser->role !== 'admin') {
             abort(403, 'Unauthorized');
@@ -231,7 +236,8 @@ class AdminUsersPage extends Page
 
                     return [
                         'type' => 'folder',
-                        'path' => "{$folder->company_id}/{$folder->user_id}/{$cleanName}",   // real physical path
+                        'folder_id' => $folder->id,
+                        'path' => "{$folder->company_id}/{$folder->user_id}/{$cleanName}",
                         'name' => $cleanName,
                         'created_at' => $share->created_at->toDateTimeString(),
                         'linked' => true,
@@ -239,7 +245,13 @@ class AdminUsersPage extends Page
                 })
                 ->filter()
                 ->toArray();
+
             if (!$this->selectedUser) return;
+
+            logger()->info('Shared folders from DB', [
+                'count' => count($sharedFolders),
+                'folders' => $sharedFolders,
+            ]);
 
             //$companyId = $authUser->company_id;
 
@@ -266,13 +278,22 @@ class AdminUsersPage extends Page
 
                 $this->folders = $this->groupByDate($rawFolders);
 
+                logger()->info('Top level folders after merge', [
+                    'folders' => $this->folders,
+                ]);
+
             } else {
                 // Selected folder / subfolder
                 $this->selectedFolder = $folder;
 
                 $isLinkedFolder = collect($sharedFolders)
-                    ->pluck('path')
-                    ->contains($folder);
+                    ->contains(fn ($f) => trim($f['path'], '/') === trim($folder, '/'));
+
+                logger()->info('Linked folder detection', [
+                    'clicked_folder' => $folder,
+                    'shared_paths' => collect($sharedFolders)->pluck('path')->toArray(),
+                    'is_linked' => $isLinkedFolder,
+                ]);
 
                 if ($isLinkedFolder) {
                     // Linked folder already has absolute path
@@ -300,26 +321,56 @@ class AdminUsersPage extends Page
                     ])->toArray();
 
                 // 🔹 Linked folders from DB
-                $linkedFolders = [];
-                $selectedFolderModel = Folder::where('company_id', $companyId)
-                    ->where('user_id', explode('/', $folder)[1] ?? null)
-                    ->whereRaw('TRIM(name) = ?', [basename($folder)])
+                $pathParts = explode('/', trim($folder, '/'));
+                $folderCompanyId = $pathParts[0] ?? null;
+                $folderUserId    = $pathParts[1] ?? null;
+                $folderName      = end($pathParts);
+
+                $selectedFolderModel = Folder::where('company_id', $folderCompanyId)
+                    ->where('user_id', $folderUserId)
+                    ->whereRaw('TRIM(name) = ?', [$folderName])
                     ->first();
+
+                $linkedFolders = collect();
 
                 if ($selectedFolderModel) {
                     $linkedFolders = $selectedFolderModel->linkedFolders
-                        ->map(fn($f) => [
+                        ->map(fn ($f) => [
                             'type' => 'folder',
-                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}", // full storage path
+                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
                             'name' => $f->name,
                             'created_at' => $f->created_at->toDateTimeString(),
-                            'linked' => true, // highlight linked
-                        ])->toArray();
+                            'linked' => true,
+                        ]);
+                }
+
+                $reverseLinkedFolders = collect();
+
+                if ($selectedFolderModel) {
+                    $reverseLinkedFolders = \DB::table('folder_links')
+                        ->join('folders as f', 'f.id', '=', 'folder_links.source_folder_id')
+                        ->where('folder_links.target_folder_id', $selectedFolderModel->id)
+                        ->select(
+                            'f.company_id',
+                            'f.user_id',
+                            'f.name',
+                            'folder_links.created_at'
+                        )
+                        ->get()
+                        ->map(fn ($f) => [
+                            'type' => 'folder',
+                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
+                            'name' => $f->name,
+                            'created_at' => $f->created_at,
+                            'linked' => true,
+                        ]);
                 }
 
                 // Merge physical + linked folders
                 $this->subfolders = collect($rawSubfolders)
                     ->merge($linkedFolders)
+                    ->merge($reverseLinkedFolders)
+                    ->unique('path')
                     ->sortByDesc(fn($i) => $i['created_at'])
                     ->values()
                     ->toArray();
@@ -342,6 +393,11 @@ class AdminUsersPage extends Page
                     ])->values();
 
                 $this->total = $allMedia->count();
+
+                logger()->info('Target path check', [
+                    'targetPath' => $targetPath,
+                    'exists' => Storage::disk('public')->exists($targetPath),
+                ]);
 
                 // Pagination
                 $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();

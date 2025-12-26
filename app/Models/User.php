@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Models\Company;
 
 class User extends Authenticatable
 {
@@ -56,10 +57,10 @@ class User extends Authenticatable
         ];
     }
 
-    // public function company()
-    // {
-    //     return $this->belongsTo(Company::class);
-    // }
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     public function companies(): BelongsToMany
     {
