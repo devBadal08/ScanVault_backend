@@ -19,6 +19,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use App\Filament\Widgets\TotalCompanies;
 use App\Filament\Admin\Widgets\UsagePieChart;
 use App\Filament\Widgets\ManagerUsageList;
+use App\Models\User;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -134,5 +135,10 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public function canAccessPanel(User $user): bool
+    {
+        return $user->hasAnyRole(['Super Admin', 'Admin', 'Manager']);
     }
 }
