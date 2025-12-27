@@ -9,8 +9,10 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles, HasApiTokens;
@@ -126,5 +128,19 @@ class User extends Authenticatable
             'total_photos' => (bool) $this->userPermission->show_total_photos,
             default => false,
         };
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Only allow admin panel
+        if ($panel->getId() !== 'admin') {
+            return false;
+        }
+
+        return $this->hasAnyRole([
+            'Super Admin',
+            'admin',
+            'manager',
+        ]);
     }
 }

@@ -136,13 +136,4 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ]);
     }
-
-    public function canAccessPanel(User $user): bool
-    {
-        return $user->hasAnyRole([
-            'Super Admin',
-            'admin',
-            'manager',
-        ]);
-    }
 }
