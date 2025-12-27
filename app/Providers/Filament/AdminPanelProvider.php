@@ -125,6 +125,7 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 VerifyCsrfToken::class,
                 SubstituteBindings::class,
@@ -134,5 +135,14 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+    }
+
+    public function canAccessPanel(User $user): bool
+    {
+        return $user->hasAnyRole([
+            'Super Admin',
+            'admin',
+            'manager',
+        ]);
     }
 }
