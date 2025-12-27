@@ -42,7 +42,6 @@ class CompanyResource extends Resource
                     ->disk('public')
                     ->columns(1)
                     ->directory('company-logos') // optional: folder to store logos
-                    ->required()
                     ->preserveFilenames()
                     ->maxSize(512)
                     ->visibility('public')
