@@ -14,6 +14,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Navigation\NavigationItem;
 use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\ImageColumn;
+use Illuminate\Support\Facades\Storage;
 
 class CompanyResource extends Resource
 {
