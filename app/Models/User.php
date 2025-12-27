@@ -9,7 +9,6 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Models\Company;
 
 class User extends Authenticatable
 {
@@ -60,11 +59,6 @@ class User extends Authenticatable
         ];
     }
 
-    public function company()
-    {
-        return $this->belongsTo(Company::class);
-    }
-
     public function companies(): BelongsToMany
     {
         return $this->belongsToMany(Company::class, 'company_user', 'user_id', 'company_id')->withTimestamps();
@@ -110,11 +104,6 @@ class User extends Authenticatable
     public function manager()
     {
         return $this->belongsTo(User::class, 'assigned_to');
-    }
-
-    public function users()
-    {
-        return $this->hasMany(User::class, 'created_by');
     }
 
     public function assignedUsers()
