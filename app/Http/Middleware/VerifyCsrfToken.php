@@ -14,7 +14,7 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        'livewire/*',   // if you want to exclude livewire
+        //'livewire/*',   // if you want to exclude livewire
         // 'api/*',     // (optional) if you have API routes without CSRF
     ];
 }
