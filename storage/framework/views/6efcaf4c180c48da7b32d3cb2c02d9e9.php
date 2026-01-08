@@ -54,20 +54,25 @@
             <div wire:ignore.self>
                 <h2 class="text-xl font-bold mb-4">Select User</h2>
                 <div class="grid gap-6"
-                    style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));">
+                    style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));">
 
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managerUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <div
                             onclick="window.location.href='?<?php echo e(isset($selectedManager) ? 'manager='.$selectedManager->id.'&' : ''); ?>user=<?php echo e($user->id); ?>'"
-                            class="app-card cursor-pointer px-10 py-6
+                            class="app-card cursor-pointer
                                 flex items-center justify-between
-                                min-h-[160px]">
+                                px-4 py-4
+                                h-[160px] w-full
+                                rounded-xl
+                                border border-gray-200 dark:border-gray-700
+                                bg-white dark:bg-gray-800
+                                hover:shadow-lg transition">
 
                             
-                            <div class="flex items-center gap-6">
+                            <div class="flex flex-col items-center text-center">
                                 <div class="w-16 h-16 rounded-full overflow-hidden border
                                     border-gray-300 dark:border-gray-600
-                                    bg-gray-100 flex-shrink-0">
+                                    bg-gray-100">
                                     <img
                                         src="<?php echo e($user->profile_photo
                                             ? asset('storage/' . $user->profile_photo)
@@ -77,11 +82,9 @@
                                     />
                                 </div>
 
-                                <div class="flex flex-col justify-center">
-                                    <div class="text-base font-semibold text-gray-900 dark:text-white truncate max-w-[180px]">
-                                        <?php echo e($user->name); ?>
+                                <div class="mt-2 text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]">
+                                    <?php echo e($user->name); ?>
 
-                                    </div>
                                 </div>
                             </div>
 
@@ -736,5 +739,4 @@
             download('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder')
         );
     });
-</script>
-<?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/filament/admin/pages/manager-users-page.blade.php ENDPATH**/ ?>
+</script><?php /**PATH C:\xampp\htdocs\ScanVault_backend-main\resources\views/filament/admin/pages/manager-users-page.blade.php ENDPATH**/ ?>

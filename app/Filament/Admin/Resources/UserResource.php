@@ -35,17 +35,25 @@ class UserResource extends Resource
 
     public static function form(Form $form): Form
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->user()->fresh();
         $adminMaxLimit = null;
         $availableLimit = null;
 
         if ($currentUser && $currentUser->hasRole('admin')) {
             $adminMaxLimit = $currentUser->max_limit ?? 0;
 
-            // direct + indirect users
-            $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
-            $indirectCount = User::whereIn('created_by', $directUserIds)->count();
+            // Get direct user IDs
+            $directUserIds = User::where('created_by', $currentUser->id)
+                ->where('role', 'user')
+                ->pluck('id')
+                ->toArray();
+
             $directCount = count($directUserIds);
+
+            // Get indirect users (users created by those users)
+            $indirectCount = empty($directUserIds)
+                ? 0
+                : User::whereIn('created_by', $directUserIds)->count();
 
             // ✅ manager limits already assigned
             $assignedLimitToManagers = User::where('role', 'manager')
@@ -94,13 +102,6 @@ class UserResource extends Resource
                     ->disabled(fn (string $context) => $context === 'edit')
                     ->required()
                     ->reactive(),
-
-                Select::make('company_id')
-                    ->label('Company')
-                    ->options(Company::pluck('company_name', 'id'))
-                    ->searchable()
-                    ->visible(fn () => auth()->user()?->hasRole('Super Admin')) // only SA sees it
-                    ->required(fn () => auth()->user()?->hasRole('Super Admin')),
 
                 TextInput::make('max_limit')
                     ->label('Max Limit')
@@ -168,8 +169,7 @@ class UserResource extends Resource
     public static function canViewAny(): bool
     {
         return auth()->check() && (
-            auth()->user()->hasRole('admin') ||
-            auth()->user()->hasRole('Super Admin')
+            auth()->user()->hasRole('admin')
         );
     }
 

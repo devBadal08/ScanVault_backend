@@ -114,46 +114,86 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
 
     public function linkFolders()
     {
-        $data = $this->form->getState(); // <-- get form state
-        $sourceFolder = $data['sourceFolder'] ?? null;
+        $data = $this->form->getState();
+
+        $sourceFolder  = $data['sourceFolder'] ?? null;
         $targetFolders = $data['targetFolders'] ?? [];
-        $linkType = $data['linkType'] ?? 'partial';
+        $linkType      = $data['linkType'] ?? 'partial';
 
         if (!$sourceFolder || empty($targetFolders)) {
-            Notification::make()->warning()->title('Select source and target folders')->send();
-            return;
-        }
-
-        $hasFullLink = DB::table('folder_links')
-            ->where('source_folder_id', $sourceFolder)
-            ->where('link_type', 'full')
-            ->exists();
-
-        if ($hasFullLink) {
             Notification::make()
-                ->danger()
-                ->title('This folder is fully linked')
-                ->body('You cannot link another folder once a full link is applied.')
+                ->warning()
+                ->title('Select source and target folders')
                 ->send();
             return;
         }
 
-        if ($linkType === 'full') {
-            DB::table('folder_links')
-                ->where('source_folder_id', $sourceFolder)
-                ->update(['link_type' => 'full']);
+        // 1️⃣ Prevent source folder being already a target
+        $sourceIsTarget = DB::table('folder_links')
+            ->where('target_folder_id', $sourceFolder)
+            ->exists();
+
+        if ($sourceIsTarget) {
+            Notification::make()
+                ->danger()
+                ->title('Invalid folder')
+                ->body('This folder is already linked as a target and cannot be used as a source.')
+                ->send();
+            return;
         }
 
-        DB::transaction(function () use ($sourceFolder, $targetFolders, $linkType) {
+        // 2️⃣ Load source folder (ID-based, not name-based)
+        $source = Folder::find($sourceFolder);
 
-            foreach ($targetFolders as $targetId) {
+        if (!$source) {
+            Notification::make()
+                ->danger()
+                ->title('Source folder not found')
+                ->send();
+            return;
+        }
+
+        // 3️⃣ Filter valid target folders (same company, not self)
+        $validTargets = Folder::whereIn('id', $targetFolders)
+            ->where('company_id', $source->company_id)
+            ->where('id', '!=', $sourceFolder)
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($validTargets)) {
+            Notification::make()
+                ->danger()
+                ->title('Invalid target folders')
+                ->send();
+            return;
+        }
+
+        // 4️⃣ Prevent multiple full links
+        if ($linkType === 'full') {
+            $hasFullLink = DB::table('folder_links')
+                ->where('source_folder_id', $sourceFolder)
+                ->where('link_type', 'full')
+                ->exists();
+
+            if ($hasFullLink) {
+                Notification::make()
+                    ->danger()
+                    ->title('This folder is already fully linked')
+                    ->send();
+                return;
+            }
+        }
+
+        // 5️⃣ Save links (ID → ID, clean and deterministic)
+        DB::transaction(function () use ($sourceFolder, $validTargets, $linkType) {
+            foreach ($validTargets as $targetId) {
                 DB::table('folder_links')->updateOrInsert(
                     [
                         'source_folder_id' => $sourceFolder,
                         'target_folder_id' => $targetId,
                     ],
                     [
-                        'link_type' => $linkType,
+                        'link_type'  => $linkType,
                         'updated_at' => now(),
                         'created_at' => now(),
                     ]
@@ -167,10 +207,12 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
             }
         });
 
-        // reset only the multi-select
         $this->form->fill(['targetFolders' => []]);
 
-        Notification::make()->success()->title('Folders linked successfully')->send();
+        Notification::make()
+            ->success()
+            ->title('Folders linked successfully')
+            ->send();
     }
 
     public function unlinkFolder($linkId)

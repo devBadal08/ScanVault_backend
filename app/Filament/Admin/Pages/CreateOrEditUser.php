@@ -38,6 +38,21 @@ class CreateOrEditUser extends Page implements Forms\Contracts\HasForms
         $this->form->fill([]);
     }
 
+    public function getSubheading(): ?string
+    {
+        $currentUser = Filament::auth()->user();
+
+        if ($this->remainingLimit === null) {
+            return 'No user limit assigned.';
+        }
+
+        if ($this->limitReached) {
+            return 'Your user creation limit is reached. Please contact admin.';
+        }
+
+        return "You can create {$this->remainingLimit} more users out of your total limit of {$currentUser->max_limit}.";
+    }
+
     protected function getFormSchema(): array
     {
         return [

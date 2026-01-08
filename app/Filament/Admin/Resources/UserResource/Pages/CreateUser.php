@@ -55,7 +55,7 @@ class CreateUser extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->user()?->fresh();
 
         $data['created_by'] = $currentUser->id;
         $data['assigned_to'] = $currentUser->id;
@@ -77,7 +77,7 @@ class CreateUser extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->user()?->fresh();
         $user = $this->record;
 
         // Assign role
@@ -114,21 +114,27 @@ class CreateUser extends CreateRecord
      */
     protected function calculateLimit(): void
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->user()?->fresh();
 
         if (!$currentUser || !$currentUser->hasRole('admin')) {
             $this->limitReached = false;
             return;
         }
 
-        $directUserIds = User::where('created_by', $currentUser->id)->pluck('id')->toArray();
+        $directUserIds = User::where('created_by', $currentUser->id)
+            ->where('role', 'user')
+            ->pluck('id')
+            ->toArray();
+
+        $directUsersCount = count($directUserIds);
+
         $indirectCount = User::whereIn('created_by', $directUserIds)->count();
 
         $assignedLimitToManagers = User::where('role', 'manager')
             ->where('created_by', $currentUser->id)
             ->sum('max_limit');
 
-        $used = count($directUserIds) + $indirectCount + $assignedLimitToManagers;
+        $used = $directUsersCount + $indirectCount + $assignedLimitToManagers;
         $maxLimit = $currentUser->max_limit ?? 0;
 
         $this->remainingLimit = max($maxLimit - $used, 0);

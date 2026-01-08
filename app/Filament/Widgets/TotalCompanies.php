@@ -71,7 +71,7 @@ class TotalCompanies extends BaseWidget
 
             $totalSizeMB = round($totalSize / (1024 ** 2), 2);
             $totalSizeGB = round($totalSize / (1024 ** 3), 2);
-            $displaySize = "{$totalSizeGB} GB (~{$totalSizeMB} MB)";
+            $displaySize = "{$totalSizeGB} GB";
 
             $cards[] = Card::make('Total Storage Used (All Users)', $displaySize)
                 ->description('Combined storage of all users')

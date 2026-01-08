@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\File;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Folder;
-use App\Models\FolderShare;
 use App\Models\Photo;
 
 class ManagerUsersPage extends Page
@@ -87,12 +86,10 @@ class ManagerUsersPage extends Page
         return array_filter($groups);
     }
 
-    public function mountedFolderPermissionsCheck($path)
+    public function mountedFolderPermissionsCheck($fullPath)
     {
-        $full = storage_path("app/public/$path");
-
-        if (is_dir($full)) {
-            @chmod($full, 0755);
+        if (is_dir($fullPath)) {
+            @chmod($fullPath, 0755);
         }
     }
 
@@ -223,7 +220,8 @@ class ManagerUsersPage extends Page
 
         $userId = request()->get('user');
 
-        $companyId = request()->get('company_id');
+        $companyId = request()->get('company_id')
+            ?? $authUser->companies()->first()?->id;
 
         if ($userId) {
             $this->selectedUser = User::find($userId);
@@ -231,7 +229,7 @@ class ManagerUsersPage extends Page
 
             // Default: if not passed, load the admin's own company
             if (!$companyId) {
-                $companyId = $authUser->companies()->first()?->id;
+                abort(403, 'Company not found');
             }
         }
 
@@ -290,23 +288,33 @@ class ManagerUsersPage extends Page
                         'owner_id' => $this->selectedUser->id,
                     ])->toArray();
 
-                $sharedToUser = FolderShare::where('shared_with', $this->selectedUser->id)
-                    ->with('folder')
-                    ->get()
-                    ->map(function ($share) {
-                        $folder = $share->folder;
-                        return [
-                            'type' => 'folder',
-                            'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
-                            'name' => $folder->name,
-                            'created_at' => $folder->created_at->toDateTimeString(),
-                            'linked' => true,
-                            'owner_id' => $folder->user_id,
-                        ];
-                    })->toArray();
+                // 🔹 Linked folders (from folder_links)
+                // $linkedFolders = Folder::whereIn('id', function ($q) use ($userId) {
+                //     $q->select('target_folder_id')
+                //     ->from('folder_links')
+                //     ->whereIn('source_folder_id', function ($sq) use ($userId) {
+                //         $sq->select('id')
+                //             ->from('folders')
+                //             ->where('user_id', $userId);
+                //     });
+                // })
+                // ->where('company_id', $companyId)
+                // ->get()
+                // ->map(function ($folder) {
+                //     return [
+                //         'type' => 'folder',
+                //         'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
+                //         'name' => $folder->name,
+                //         'created_at' => $folder->created_at->toDateTimeString(),
+                //         'linked' => true,
+                //         'owner_id' => $folder->user_id,
+                //     ];
+                // })
+                // ->toArray();
 
                 $mergedFolders = collect($rawFolders)
-                    ->merge($sharedToUser)
+                    //->merge($linkedFolders)
+                    ->unique('path')
                     ->sortByDesc(fn($i) => $i['created_at'])
                     ->values()
                     ->toArray();
@@ -324,44 +332,109 @@ class ManagerUsersPage extends Page
                     $this->selectedSubfolder = $subfolderName;
                 }
 
+                // 🔹 Resolve real owner of folder (important for linked folders)
+                $realOwnerId = $userId;
+
+                $selectedFolderModel = Folder::where('name', $folderName)
+                    ->where('user_id', $realOwnerId)
+                    ->first();
+
+                $isLinkedFolder = false;
+
+                if ($selectedFolderModel) {
+                    $isLinkedFolder = \DB::table('folder_links')
+                        ->where('target_folder_id', $selectedFolderModel->id)
+                        ->exists();
+                }
+
+                $linkedSubfolderModel = null;
+
+                if ($subfolder) {
+                    $linkedSubfolderModel = Folder::where('name', $subfolderName)
+                        ->where('company_id', $companyId)
+                        ->first();
+                }
+
+                if ($selectedFolderModel) {
+                    $link = \DB::table('folder_links')
+                        ->where('target_folder_id', $selectedFolderModel->id)
+                        ->first();
+
+                    if ($link) {
+                        $sourceFolder = Folder::find($link->source_folder_id);
+                        if ($sourceFolder) {
+                            $realOwnerId = $sourceFolder->user_id;
+                        }
+                    }
+                }
+
                 // Build correct relative storage path
-                $targetPath = $subfolderName
-                    ? "{$companyId}/{$userId}/{$folderName}/{$subfolderName}"
-                    : "{$companyId}/{$userId}/{$folderName}";
+                if ($subfolder && $linkedSubfolderModel) {
+                    // Linked folder root
+                    $currentRootPath = "{$companyId}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
+                    $targetPath = $currentRootPath;
+                } elseif ($subfolder) {
+                    // Normal subfolder
+                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                    $targetPath = "{$currentRootPath}/{$subfolderName}";
+                } else {
+                    // Normal folder
+                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                    $targetPath = $currentRootPath;
+                }
 
                 // ✅ permission fix
                 $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
 
+                $rawSubfolders = [];
+
                 $rawSubfolders = collect(Storage::disk('public')->directories($targetPath))
-                    ->map(fn($dir) => [
+                    ->map(fn ($dir) => [
                         'type' => 'folder',
                         'path' => $dir,
                         'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))->toDateTimeString(),
+                        'created_at' => Carbon::createFromTimestamp(
+                            Storage::disk('public')->lastModified($dir)
+                        )->toDateTimeString(),
                         'linked' => false,
-                    ])->toArray();
+                    ])
+                    ->toArray();
 
-                $linkedFolders = [];
+                // Load folders linked FROM this folder (mounted links)
+                $mountedLinkedFolders = [];
 
-                $folderOwnerId = explode('/', $folder)[0];
+                // Do NOT mount links inside linked folders
+                if (!$isLinkedFolder && !$subfolder) {
 
-                $selectedFolderModel = Folder::where('user_id', $folderOwnerId)
-                    ->where('name', basename($folder))
-                    ->first();
+                    $currentFolder = Folder::where('name', $folderName)
+                        ->where('company_id', $companyId)
+                        ->where('user_id', $realOwnerId)
+                        ->first();
 
-                if ($selectedFolderModel) {
-                    $linkedFolders = $selectedFolderModel->linkedFolders
-                        ->map(fn($f) => [
-                            'type' => 'folder',
-                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
-                            'name' => $f->name,
-                            'created_at' => $f->created_at->toDateTimeString(),
-                            'linked' => true,
-                        ])->toArray();
+                    if ($currentFolder) {
+                        $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
+                                $q->select('target_folder_id')
+                                ->from('folder_links')
+                                ->where('source_folder_id', $currentFolder->id);
+                            })
+                            ->get()
+                            ->map(function ($folder) {
+                                return [
+                                    'type' => 'folder',
+                                    'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
+                                    'name' => $folder->name,
+                                    'created_at' => $folder->created_at->toDateTimeString(),
+                                    'linked' => true,
+                                    'owner_id' => $folder->user_id,
+                                ];
+                            })
+                            ->toArray();
+                    }
                 }
 
                 $this->subfolders = collect($rawSubfolders)
-                    ->merge($linkedFolders)
+                    ->merge($mountedLinkedFolders)
+                    ->unique('path')
                     ->sortByDesc(fn($i) => $i['created_at'])
                     ->values()
                     ->toArray();

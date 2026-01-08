@@ -107,7 +107,7 @@ class UserList extends Page implements HasTable
 
     protected function getTableQuery()
     {
-        $currentUser = auth()->user();
+        $currentUser = auth()->user()->fresh();
 
         if ($currentUser->hasRole('Super Admin')) {
             return User::where('role', 'user');

@@ -200,8 +200,12 @@ class AdminUsersPage extends Page
         $authUser = Auth::user();
         $managerId = trim(request()->get('manager'));
         $userId = trim(request()->get('user'));
-        $folder = trim(ltrim(urldecode(request()->get('folder')), '/'));
-        $subfolder = ltrim(trim(urldecode(request()->get('subfolder'))), '/');
+
+        $folder = request()->get('folder');
+        $subfolder = request()->get('subfolder');
+
+        $folderName = $folder ? basename($folder) : null;
+        $subfolderName = $subfolder ? basename($subfolder) : null;
 
         if ($authUser->role !== 'admin') {
             abort(403, 'Unauthorized');
@@ -295,16 +299,34 @@ class AdminUsersPage extends Page
                     'is_linked' => $isLinkedFolder,
                 ]);
 
-                if ($isLinkedFolder) {
-                    // Linked folder already has absolute path
-                    $targetPath = $subfolder
-                        ? "{$folder}/{$subfolder}"
-                        : $folder;
+                $realOwnerId = $userId;
+
+                $selectedFolderModel = Folder::where('name', $folderName)
+                    ->where('company_id', $companyId)
+                    ->first();
+
+                $isLinkedFolder = false;
+
+                if ($selectedFolderModel) {
+                    $link = \DB::table('folder_links')
+                        ->where('target_folder_id', $selectedFolderModel->id)
+                        ->first();
+
+                    if ($link) {
+                        $sourceFolder = Folder::find($link->source_folder_id);
+                        if ($sourceFolder) {
+                            $realOwnerId = $sourceFolder->user_id;
+                            $isLinkedFolder = true;
+                        }
+                    }
+                }
+
+                if ($subfolderName) {
+                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                    $targetPath = "{$currentRootPath}/{$subfolderName}";
                 } else {
-                    // Normal folder (belongs to selected user)
-                    $targetPath = $subfolder
-                        ? "{$folder}/{$subfolder}"
-                        : $folder;
+                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                    $targetPath = $currentRootPath;
                 }
 
                 if ($subfolder) $this->selectedSubfolder = $subfolder;
