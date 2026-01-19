@@ -2,8 +2,17 @@
 
     {{-- Select User --}}
     <div class="mb-6">
-        <label class="font-semibold">Select User:</label>
-        <select wire:model="selectedUser" wire:change="$refresh" class="border rounded p-2 w-1/3">
+        <label class="font-semibold text-gray-900 dark:text-gray-100">
+            Select User:
+        </label>
+
+        <select
+            wire:model="selectedUser"
+            wire:change="$refresh"
+            class="border rounded p-2 w-1/3
+                   bg-white border-gray-300 text-gray-900
+                   dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+        >
             <option value="">-- Choose User --</option>
 
             @foreach ($this->getUsers() as $user)
@@ -17,14 +26,20 @@
     @if($selectedUser)
 
         {{-- Companies List --}}
-        <h3 class="text-xl font-semibold mb-3">Select Companies to Assign</h3>
+        <h3 class="text-xl font-semibold mb-3 text-gray-900 dark:text-gray-100">
+            Select Companies to Assign
+        </h3>
 
         <div class="space-y-3">
             @foreach ($this->getCompanies() as $company)
-                <label class="flex items-center gap-3">
-                    <input type="checkbox" 
-                        wire:model="selectedCompanies" 
-                        value="{{ $company->id }}">
+                <label class="flex items-center gap-3 text-gray-800 dark:text-gray-200">
+                    <input
+                        type="checkbox"
+                        wire:model="selectedCompanies"
+                        value="{{ $company->id }}"
+                        class="rounded border-gray-300 dark:border-gray-600
+                               text-primary-600 focus:ring-primary-500"
+                    >
                     <span>{{ $company->company_name }}</span>
                 </label>
             @endforeach
@@ -39,22 +54,42 @@
 
         {{-- Already Assigned --}}
         @if($this->getAssignedCompanies()->isNotEmpty())
-            <div class="mt-10">
-                <h3 class="text-lg font-semibold mb-2">Already Assigned Access:</h3>
+            <div class="mt-10 p-4 rounded-xl border
+                        bg-white border-gray-200
+                        dark:bg-gray-800 dark:border-gray-700">
+
+                <h3 class="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
+                    Already Assigned Access:
+                </h3>
 
                 <ul class="list-disc ml-6 space-y-2">
                     @foreach ($this->getAssignedCompanies() as $company)
-                        <li class="flex justify-between items-center w-1/3">
+
+                        @php
+                            $baseCompanyId = $this->getSelectedUserBaseCompanyId();
+                        @endphp
+
+                        <li class="flex justify-between items-center w-1/3
+                                text-gray-800 dark:text-gray-200">
+
                             <span>{{ $company->company_name }}</span>
 
-                            <x-filament::button 
-                                wire:click="removeAccess({{ $company->id }})"
-                                color="danger"
-                                size="xs"
-                            >
-                                Remove
-                            </x-filament::button>
+                            @if($company->id !== $baseCompanyId)
+                                <x-filament::button
+                                    wire:click="removeAccess({{ $company->id }})"
+                                    color="danger"
+                                    size="xs"
+                                >
+                                    Remove
+                                </x-filament::button>
+                            @else
+                                <span class="text-xs text-gray-500 dark:text-gray-400">
+                                    Primary
+                                </span>
+                            @endif
+
                         </li>
+
                     @endforeach
                 </ul>
             </div>

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\CompanyDownloadController;
 
 // Home
 Route::get('/', function () {
@@ -52,3 +53,6 @@ Route::middleware(['auth'])->group(function () {
     })->name('manager.dashboard');
 });
 
+Route::middleware(['auth'])
+    ->get('/company/download-all', [CompanyDownloadController::class, 'downloadAll'])
+    ->name('company.download.all');

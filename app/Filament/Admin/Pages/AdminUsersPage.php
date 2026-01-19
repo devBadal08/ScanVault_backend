@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Folder;
 use Carbon\Carbon;
+use App\Models\Company;
 
 class AdminUsersPage extends Page
 {
@@ -73,6 +74,65 @@ class AdminUsersPage extends Page
         }
 
         return array_filter($groups);
+    }
+
+    protected function getMediaDate(string $filePath): Carbon
+    {
+        $absolutePath = storage_path('app/public/' . $filePath);
+        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+
+        // 1️⃣ EXIF first
+        if (in_array($extension, ['jpg','jpeg','png']) && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($absolutePath);
+            if (!empty($exif['DateTimeOriginal'])) {
+                return Carbon::createFromFormat('Y:m:d H:i:s', $exif['DateTimeOriginal']);
+            }
+        }
+
+        // 2️⃣ Filename timestamp (milliseconds)
+        if (preg_match('/_(\d{13})\./', $filePath, $matches)) {
+            return Carbon::createFromTimestampMs((int) $matches[1]);
+        }
+
+        // 3️⃣ Filesystem fallback
+        return Carbon::createFromTimestamp(
+            Storage::disk('public')->lastModified($filePath)
+        );
+    }
+
+    protected function getFolderDate(string $folderPath): Carbon
+    {
+        $latestDate = null;
+
+        // scan files recursively
+        foreach (Storage::disk('public')->allFiles($folderPath) as $file) {
+            $date = $this->getMediaDate($file);
+
+            if (!$latestDate || $date->gt($latestDate)) {
+                $latestDate = $date;
+            }
+        }
+
+        // if folder has media → use media date
+        if ($latestDate) {
+            return $latestDate;
+        }
+
+        // fallback → filesystem date
+        return Carbon::createFromTimestamp(
+            Storage::disk('public')->lastModified($folderPath)
+        );
+    }
+
+    protected function resolveFolderContext(string $path): array
+    {
+        $parts = explode('/', trim($path, '/'));
+
+        return [
+            'company_id' => $parts[0] ?? null,
+            'user_id'    => $parts[1] ?? null,
+            'folder'     => $parts[2] ?? null,
+        ];
     }
 
     public function updatedGlobalSearch()
@@ -214,14 +274,26 @@ class AdminUsersPage extends Page
         $adminId = $authUser->id;
 
         // Managers and Admin Users
-        $companyId = $authUser->companies()->first()?->id;
+        $companyIds = collect([
+            $authUser->companies()->first()?->id, // main company
+        ])->merge(
+            Company::where('parent_id', $authUser->companies()->first()?->id)->pluck('id')
+        )->filter()->values();
 
         $this->users = User::where('role', 'user')
-            ->where('created_by', $authUser->id)
-            ->whereHas('companies', fn ($q) => $q->where('company_id', $companyId))
+            ->whereHas('companies', function ($q) use ($companyIds) {
+                $q->whereIn('company_id', $companyIds);
+            })
+            ->where(function ($q) {
+                $q->whereNull('created_by') // system users
+                ->orWhereHas('creator', function ($c) {
+                    $c->where('role', '!=', 'manager');
+                });
+            })
             ->get()
-            ->map(function ($user) use ($companyId) {
-                $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
+            ->map(function ($user) use ($companyIds) {
+                $user->photo_count = collect($companyIds)
+                    ->sum(fn ($cid) => $this->getUserPhotoCount($cid, $user->id));
                 return $user;
             });
 
@@ -259,33 +331,34 @@ class AdminUsersPage extends Page
 
             //$companyId = $authUser->company_id;
 
-            $baseUserPath = "{$companyId}/{$userId}";
+            $baseUserPaths = collect($companyIds)
+                ->map(fn ($cid) => "{$cid}/{$userId}")
+                ->filter(fn ($path) => Storage::disk('public')->exists($path))
+                ->values();
 
             // Top-level folders (if no folder selected)
             if (!$folder) {
-                $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
-                    ->map(fn($dir) => [
-                        'type' => 'folder',
-                        'path' => $dir,
-                        'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
-                        'linked' => false,
-                    ])->toArray();
+                $rawFolders = collect();
+                foreach ($baseUserPaths as $path) {
+                    $rawFolders = $rawFolders->merge(
+                        collect(Storage::disk('public')->directories($path))
+                            ->map(fn ($dir) => [
+                                'type' => 'folder',
+                                'path' => $dir,
+                                'name' => basename($dir),
+                                'created_at' => $this->getFolderDate($dir)->toDateTimeString(),
+                                'linked' => false,
+                            ])
+                    );
+                }
 
-                    // MERGE SHARED FOLDERS
-                    $rawFolders = collect($rawFolders)
-                        ->merge($sharedFolders)
-                        ->unique('path')
-                        ->values()
-                        ->toArray();
+                $rawFolders = $rawFolders
+                    ->merge($sharedFolders)
+                    ->unique('path')
+                    ->values()
+                    ->toArray();
 
                 $this->folders = $this->groupByDate($rawFolders);
-
-                logger()->info('Top level folders after merge', [
-                    'folders' => $this->folders,
-                ]);
-
             } else {
                 // Selected folder / subfolder
                 $this->selectedFolder = $folder;
@@ -299,10 +372,17 @@ class AdminUsersPage extends Page
                     'is_linked' => $isLinkedFolder,
                 ]);
 
-                $realOwnerId = $userId;
+                $context = $this->resolveFolderContext($folder);
 
-                $selectedFolderModel = Folder::where('name', $folderName)
-                    ->where('company_id', $companyId)
+                $folderCompanyId = $context['company_id'];
+                $folderUserId    = $context['user_id'];
+                $folderName      = $context['folder'];
+
+                $realOwnerId = $folderUserId;
+
+                $selectedFolderModel = Folder::where('company_id', $folderCompanyId)
+                    ->where('user_id', $folderUserId)
+                    ->whereRaw('TRIM(name) = ?', [$folderName])
                     ->first();
 
                 $isLinkedFolder = false;
@@ -321,11 +401,15 @@ class AdminUsersPage extends Page
                     }
                 }
 
+                $currentRootPath = trim($folder, '/');
+
                 if ($subfolderName) {
-                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
-                    $targetPath = "{$currentRootPath}/{$subfolderName}";
+                    $currentRootPath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+                    $targetPath = $subfolderName
+                        ? "{$currentRootPath}/{$subfolderName}"
+                        : $currentRootPath;
                 } else {
-                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                    $currentRootPath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
                     $targetPath = $currentRootPath;
                 }
 

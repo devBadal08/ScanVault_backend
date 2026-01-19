@@ -83,6 +83,15 @@ class AssignUserToCompany extends Page
         )->get();
     }
 
+    public function getSelectedUserBaseCompanyId()
+    {
+        if (!$this->selectedUser) {
+            return null;
+        }
+
+        return User::where('id', $this->selectedUser)->value('company_id');
+    }
+
     // Save access
     public function save()
     {

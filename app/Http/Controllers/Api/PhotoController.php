@@ -13,6 +13,18 @@ use Illuminate\Support\Facades\DB;
 
 class PhotoController extends Controller
 {
+    private function buildFolderPath(Folder $folder, $companyId)
+    {
+        $names = [];
+
+        while ($folder) {
+            array_unshift($names, $folder->name);
+            $folder = $folder->parent;
+        }
+
+        return "{$companyId}/{$folder->user_id}/" . implode('/', $names);
+    }
+
     public function uploadAll(Request $request)
     {
         $userId = Auth::id();
@@ -84,7 +96,18 @@ class PhotoController extends Controller
                     ->where('company_id', $companyId)
                     ->firstOrFail();
 
-                $storagePath = "{$companyId}/{$userId}/{$folder->name}";
+                $names = [];
+                $current = $folder;
+
+                while ($current) {
+                    array_unshift($names, $current->name);
+                    $current = $current->parent_id
+                        ? Folder::find($current->parent_id)
+                        : null;
+                }
+
+                $storagePath = "{$companyId}/{$userId}/" . implode('/', $names);
+
                 return [$folder, $storagePath];
             }
 

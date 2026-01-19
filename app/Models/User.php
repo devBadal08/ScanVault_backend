@@ -113,6 +113,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(User::class, 'assigned_to');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function canShow($type): bool
     {
         if (!$this->userPermission) {

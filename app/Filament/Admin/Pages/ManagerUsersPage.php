@@ -86,6 +86,54 @@ class ManagerUsersPage extends Page
         return array_filter($groups);
     }
 
+    protected function getMediaDate(string $filePath): Carbon
+    {
+        $absolutePath = storage_path('app/public/' . $filePath);
+        $extension = strtolower(pathinfo($absolutePath, PATHINFO_EXTENSION));
+
+        // 1️⃣ EXIF first
+        if (in_array($extension, ['jpg','jpeg','png']) && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($absolutePath);
+            if (!empty($exif['DateTimeOriginal'])) {
+                return Carbon::createFromFormat('Y:m:d H:i:s', $exif['DateTimeOriginal']);
+            }
+        }
+
+        // 2️⃣ Filename timestamp (milliseconds)
+        if (preg_match('/_(\d{13})\./', $filePath, $matches)) {
+            return Carbon::createFromTimestampMs((int) $matches[1]);
+        }
+
+        // 3️⃣ Filesystem fallback
+        return Carbon::createFromTimestamp(
+            Storage::disk('public')->lastModified($filePath)
+        );
+    }
+
+    protected function getFolderDate(string $folderPath): Carbon
+    {
+        $latestDate = null;
+
+        // scan files recursively
+        foreach (Storage::disk('public')->allFiles($folderPath) as $file) {
+            $date = $this->getMediaDate($file);
+
+            if (!$latestDate || $date->gt($latestDate)) {
+                $latestDate = $date;
+            }
+        }
+
+        // if folder has media → use media date
+        if ($latestDate) {
+            return $latestDate;
+        }
+
+        // fallback → filesystem date
+        return Carbon::createFromTimestamp(
+            Storage::disk('public')->lastModified($folderPath)
+        );
+    }
+
     public function mountedFolderPermissionsCheck($fullPath)
     {
         if (is_dir($fullPath)) {
@@ -282,8 +330,7 @@ class ManagerUsersPage extends Page
                         'type' => 'folder',
                         'path' => $dir,
                         'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($dir))
-                                            ->toDateTimeString(),
+                        'created_at' => $this->getFolderDate($dir)->toDateTimeString(),
                         'linked' => false,
                         'owner_id' => $this->selectedUser->id,
                     ])->toArray();
@@ -369,19 +416,16 @@ class ManagerUsersPage extends Page
                 }
 
                 // Build correct relative storage path
-                if ($subfolder && $linkedSubfolderModel) {
-                    // Linked folder root
-                    $currentRootPath = "{$companyId}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
-                    $targetPath = $currentRootPath;
-                } elseif ($subfolder) {
-                    // Normal subfolder
-                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
-                    $targetPath = "{$currentRootPath}/{$subfolderName}";
-                } else {
-                    // Normal folder
-                    $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
-                    $targetPath = $currentRootPath;
-                }
+                $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+
+                $targetPath = $subfolder
+                    ? "{$currentRootPath}/{$subfolderName}"
+                    : $currentRootPath;
+
+                // ✅ permission fix
+                $this->mountedFolderPermissionsCheck(
+                    storage_path("app/public/{$targetPath}")
+                );
 
                 // ✅ permission fix
                 $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
@@ -393,9 +437,7 @@ class ManagerUsersPage extends Page
                         'type' => 'folder',
                         'path' => $dir,
                         'name' => basename($dir),
-                        'created_at' => Carbon::createFromTimestamp(
-                            Storage::disk('public')->lastModified($dir)
-                        )->toDateTimeString(),
+                        'created_at' => $this->getFolderDate($dir)->toDateTimeString(),
                         'linked' => false,
                     ])
                     ->toArray();
@@ -453,8 +495,7 @@ class ManagerUsersPage extends Page
                         },
                         'path' => $file,
                         'name' => basename($file),
-                        'created_at' => Carbon::createFromTimestamp(Storage::disk('public')->lastModified($file))
-                            ->toDateTimeString(),
+                        'created_at' => $this->getMediaDate($file)->toDateTimeString(),
                     ])->values();
 
                 $this->total = $allMedia->count();

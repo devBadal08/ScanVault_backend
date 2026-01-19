@@ -20,21 +20,28 @@ use App\Filament\Widgets\TotalCompanies;
 use App\Filament\Admin\Widgets\UsagePieChart;
 use App\Filament\Widgets\ManagerUsageList;
 use App\Models\User;
+use App\Filament\Widgets\AdminBackupWidget;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
         return $panel
-            ->brandLogo(asset('images/logo.png'))
-            ->brandLogoHeight('100px')
+            ->brandLogo(function () {
+                // LOGIN / AUTH PAGES
+                if (! auth()->check()) {
+                    return asset('images/logo.png');
+                }
+
+                // After login, still return something safe
+                return asset('images/company_logo.png');
+            })
+            ->brandLogoHeight('4rem')
             ->id('admin')
             ->path('admin')
             ->login()
             ->authGuard('web')
             ->passwordReset()
-            ->brandLogo(asset('images/logo.png'))
-            ->brandLogoHeight('4rem')
             ->favicon(asset('images/favicon.png'))
             ->renderHook('panels::body.start', fn () =>'
                 <style>
@@ -120,6 +127,7 @@ class AdminPanelProvider extends PanelProvider
                 TotalCompanies::class,
                 UsagePieChart::class,
                 ManagerUsageList::class,
+                AdminBackupWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
