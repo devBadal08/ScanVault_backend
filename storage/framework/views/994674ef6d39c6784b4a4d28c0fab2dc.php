@@ -334,7 +334,13 @@
                                         </div>
 
                                         
-                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode(basename($item['path']))); ?>"
+                                        <?php
+                                            $currentSubfolder = request()->get('subfolder');
+                                            $nextSubfolder = $currentSubfolder
+                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
+                                                : basename($item['path']);
+                                        ?>
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($nextSubfolder)); ?>"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
                                             <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">
@@ -420,20 +426,25 @@
 
             <div class="mb-4">
                 <?php
-                    $parentPath = $selectedFolder;
-                    $parentName = basename($selectedFolder);
+                    $segments = explode('/', $selectedSubfolder);
+                    array_pop($segments);
+
+                    $parentSubfolder = implode('/', $segments);
+                    $parentName = $parentSubfolder
+                        ? basename($parentSubfolder)
+                        : basename($selectedFolder);
                 ?>
 
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($selectedFolder)).''.e($parentSubfolder ? '&subfolder=' . urlencode($parentSubfolder) : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($parentPath)).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'&folder='.e(urlencode($selectedFolder)).''.e($parentSubfolder ? '&subfolder=' . urlencode($parentSubfolder) : '').'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to <?php echo e($parentName); ?>
 
                  <?php echo $__env->renderComponent(); ?>
@@ -507,7 +518,13 @@
                                         </div>
 
                                         
-                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode(basename($item['path']))); ?>"
+                                        <?php
+                                            $currentSubfolder = request()->get('subfolder');
+                                            $nextSubfolder = $currentSubfolder
+                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
+                                                : basename($item['path']);
+                                        ?>
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($nextSubfolder)); ?>"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
                                             <div class="text-3xl">📁</div>
                                             <div class="mt-1 truncate w-full text-center" title="<?php echo e($item['name']); ?>">

@@ -13,16 +13,63 @@ use Illuminate\Support\Facades\DB;
 
 class PhotoController extends Controller
 {
-    private function buildFolderPath(Folder $folder, $companyId)
+    private function buildFolderPath(Folder $folder, int $companyId): string
     {
         $names = [];
+        $userId = $folder->user_id;
 
         while ($folder) {
             array_unshift($names, $folder->name);
-            $folder = $folder->parent;
+            $folder = $folder->parent_id
+                ? Folder::find($folder->parent_id)
+                : null;
         }
 
-        return "{$companyId}/{$folder->user_id}/" . implode('/', $names);
+        return "{$companyId}/{$userId}/" . implode('/', $names);
+    }
+
+    public function createFolder(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:50',
+            'company_id' => 'required|integer',
+            'parent_id' => 'nullable|integer|exists:folders,id',
+        ]);
+
+        // ✅ CHECK IF FOLDER ALREADY EXISTS
+        $existing = Folder::where('name', $request->name)
+            ->where('company_id', $request->company_id)
+            ->where('user_id', Auth::id())
+            ->where('parent_id', $request->parent_id)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'folder'  => $existing,
+                'path'    => $this->buildFolderPath($existing, $request->company_id),
+                'exists'  => true,
+            ]);
+        }
+
+        // ✅ CREATE NEW FOLDER
+        $folder = Folder::create([
+            'name' => $request->name,
+            'company_id' => $request->company_id,
+            'user_id' => Auth::id(),
+            'parent_id' => $request->parent_id,
+        ]);
+
+        // ✅ CREATE PHYSICAL DIRECTORY
+        $storagePath = $this->buildFolderPath($folder, $request->company_id);
+        Storage::disk('public')->makeDirectory($storagePath);
+
+        return response()->json([
+            'success' => true,
+            'folder'  => $folder,
+            'path'    => $storagePath,
+            'exists'  => false,
+        ]);
     }
 
     public function uploadAll(Request $request)
@@ -86,60 +133,17 @@ class PhotoController extends Controller
         /**************************************
          *     COMMON FOLDER LOGIC FUNCTION
          **************************************/
-        $getFolder = function ($folderData) use ($userId, $companyId) {
+        $getFolder = function ($folderData) use ($companyId) {
 
-            // NEW: folder_id-based upload
-            if (is_array($folderData) && isset($folderData['folder_id'])) {
-
-                $folder = Folder::where('id', $folderData['folder_id'])
-                    ->where('user_id', $userId)
-                    ->where('company_id', $companyId)
-                    ->firstOrFail();
-
-                $names = [];
-                $current = $folder;
-
-                while ($current) {
-                    array_unshift($names, $current->name);
-                    $current = $current->parent_id
-                        ? Folder::find($current->parent_id)
-                        : null;
-                }
-
-                $storagePath = "{$companyId}/{$userId}/" . implode('/', $names);
-
-                return [$folder, $storagePath];
+            if (!is_array($folderData) || !isset($folderData['folder_id'])) {
+                throw new \Exception('folder_id is required for upload');
             }
 
-            // BACKWARD COMPATIBILITY (old uploads)
-            $originalFolder = is_array($folderData)
-                ? $folderData['path']
-                : $folderData;
+            $folder = Folder::where('id', $folderData['folder_id'])
+                ->where('company_id', $companyId)
+                ->firstOrFail();
 
-            $parts = explode('/', $originalFolder);
-            $parentName = $parts[0];
-            $childName  = $parts[1] ?? null;
-
-            $parent = Folder::firstOrCreate([
-                'name'       => $parentName,
-                'user_id'    => $userId,
-                'parent_id'  => null,
-                'company_id' => $companyId,
-            ]);
-
-            if ($childName) {
-                $folder = Folder::firstOrCreate([
-                    'name'       => $childName,
-                    'parent_id'  => $parent->id,
-                    'user_id'    => $userId,
-                    'company_id' => $companyId,
-                ]);
-
-                $storagePath = "{$companyId}/{$userId}/{$parentName}/{$childName}";
-            } else {
-                $folder = $parent;
-                $storagePath = "{$companyId}/{$userId}/{$parentName}";
-            }
+            $storagePath = $this->buildFolderPath($folder, $companyId);
 
             return [$folder, $storagePath];
         };

@@ -6,7 +6,7 @@
         <div class="mb-6">
             <input
                 type="text"
-                wire:model.live="globalSearch"
+                wire:model.live.debounce.500ms="globalSearch"
                 placeholder="🔍 Global Search (folders ...)"
                 class="w-full px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
@@ -329,7 +329,13 @@
                                         </div>
 
                                         {{-- Folder icon + name --}}
-                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode(basename($item['path'])) }}"
+                                        @php
+                                            $currentSubfolder = request()->get('subfolder');
+                                            $nextSubfolder = $currentSubfolder
+                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
+                                                : basename($item['path']);
+                                        @endphp
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($nextSubfolder) }}"
                                             class="flex flex-col items-center justify-center flex-1 
                                                 text-gray-900 dark:text-gray-100">
 
@@ -465,14 +471,24 @@
             </h2>
 
             <div class="mb-4">
-                @php $parentPath = $selectedFolder; @endphp
+                @php
+                    $segments = explode('/', $selectedSubfolder);
+                    array_pop($segments);
+
+                    $parentSubfolder = implode('/', $segments);
+
+                    // Name to show on the button
+                    $backName = $parentSubfolder
+                        ? basename($parentSubfolder)
+                        : basename($selectedFolder);
+                @endphp
 
                 <x-filament::button 
                     tag="a"
-                    href="?user={{ $selectedUser->id }}&folder={{ urlencode($parentPath) }}" 
+                    href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}{{ $parentSubfolder ? '&subfolder=' . urlencode($parentSubfolder) : '' }}"
                     color="primary" 
                     icon="heroicon-o-arrow-left">
-                    Back to {{ basename($parentPath) }}
+                    Back to {{ $backName }}
                 </x-filament::button>
             </div>
 
@@ -552,7 +568,13 @@
                                         </div>
 
                                         {{-- Folder icon --}}
-                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode(basename($item['path'])) }}"
+                                        @php
+                                            $currentSubfolder = request()->get('subfolder');
+                                            $nextSubfolder = $currentSubfolder
+                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
+                                                : basename($item['path']);
+                                        @endphp
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($nextSubfolder) }}"
                                         class="flex flex-col items-center justify-center flex-1
                                                 text-gray-900 dark:text-gray-100 px-2">
                                             <div class="text-3xl">📁</div>

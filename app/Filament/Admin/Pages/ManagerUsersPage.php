@@ -115,7 +115,7 @@ class ManagerUsersPage extends Page
         $latestDate = null;
 
         // scan files recursively
-        foreach (Storage::disk('public')->allFiles($folderPath) as $file) {
+        foreach (Storage::disk('public')->files($folderPath) as $file) {
             $date = $this->getMediaDate($file);
 
             if (!$latestDate || $date->gt($latestDate)) {
@@ -143,91 +143,89 @@ class ManagerUsersPage extends Page
 
     public function updatedGlobalSearch()
     {
-        if (strlen($this->globalSearch) < 3) {
+        $query = trim(strtolower($this->globalSearch));
+
+        // reset if empty or too short
+        if (strlen($query) < 2) {
             $this->globalResults = [];
-            $this->isSearching = false;
             return;
         }
 
-        $this->isSearching = true;
+        // 1️⃣ Resolve company scope once
+        $companyIds = Auth::user()->companies()->pluck('companies.id');
 
-        $query = strtolower($this->globalSearch);
+        if ($companyIds->isEmpty()) {
+            $this->globalResults = [];
+            return;
+        }
+
+        // 2️⃣ Resolve users once
+        $users = User::whereHas('companies', function ($q) use ($companyIds) {
+                $q->whereIn('company_id', $companyIds);
+            })
+            ->select('id', 'name')
+            ->get();
+
+        if ($users->isEmpty()) {
+            $this->globalResults = [];
+            return;
+        }
+
         $results = [];
 
-        $authUser = Auth::user();
-        $companyId = $authUser->companies()->first()?->id;
-
-        if (!$companyId) {
-            return;
-        }
-
-        if ($authUser->role === 'manager') {
-            $users = User::where('role', 'user')
-                ->where('created_by', $authUser->id)
-                ->whereHas('companies', fn ($q) => $q->where('company_id', $companyId))
-                ->get();
-        } else {
-            $managerIds = User::where('role', 'manager')
-                ->where('created_by', $authUser->id)
-                ->pluck('id');
-
-            $users = User::whereHas('companies', fn ($q) => $q->where('company_id', $companyId))
-                ->where(function ($q) use ($authUser, $managerIds) {
-                    $q->where('created_by', $authUser->id)
-                    ->orWhereIn('created_by', $managerIds);
-                })
-                ->get();
-        }
-
+        // 3️⃣ Build base paths once per user
         foreach ($users as $user) {
-            $basePaths = [];
+            foreach ($companyIds as $companyId) {
 
-            $basePaths[] = "{$companyId}/{$user->id}";
+                $basePath = "{$companyId}/{$user->id}";
 
-            $creator = User::find($user->created_by);
-            if ($creator && $creator->role === 'manager') {
-                $basePaths[] = "{$companyId}/{$creator->id}/{$user->id}";
-            }
-
-            foreach ($basePaths as $basePath) {
                 if (!Storage::disk('public')->exists($basePath)) {
                     continue;
                 }
 
-                $allFolders = collect([$basePath])
-                    ->merge(Storage::disk('public')->allDirectories($basePath))
-                    ->unique();
+                // 4️⃣ Scan folders first (cheap)
+                $directories = Storage::disk('public')->allDirectories($basePath);
 
-                foreach ($allFolders as $folder) {
-                    if (str_contains(strtolower(basename($folder)), $query)) {
+                foreach ($directories as $dir) {
+                    $folderName = strtolower(basename($dir));
+
+                    if (str_contains($folderName, $query)) {
                         $results[] = [
                             'type'    => 'folder',
-                            'name'    => basename($folder),
+                            'name'    => basename($dir),
                             'user'    => $user->name,
                             'user_id' => $user->id,
-                            'path'    => $folder,
+                            'path'    => $dir,
                         ];
                     }
+                }
 
-                    foreach (Storage::disk('public')->allFiles($folder) as $file) {
-                        if (str_contains(strtolower(basename($file)), $query)) {
-                            $results[] = [
-                                'type'    => pathinfo($file, PATHINFO_EXTENSION),
-                                'name'    => basename($file),
-                                'user'    => $user->name,
-                                'user_id' => $user->id,
-                                'path'    => $file,
-                                'parent'  => dirname($file),
-                            ];
-                        }
+                // 5️⃣ Scan files once (expensive, but controlled)
+                $files = Storage::disk('public')->allFiles($basePath);
+
+                foreach ($files as $file) {
+                    $fileName = strtolower(basename($file));
+
+                    if (!str_contains($fileName, $query)) {
+                        continue;
                     }
+
+                    $results[] = [
+                        'type'    => pathinfo($file, PATHINFO_EXTENSION),
+                        'name'    => basename($file),
+                        'user'    => $user->name,
+                        'user_id' => $user->id,
+                        'path'    => $file,
+                        'parent'  => dirname($file),
+                    ];
                 }
             }
         }
 
+        // 6️⃣ Normalize, deduplicate, sort, limit
         $this->globalResults = collect($results)
             ->unique('path')
-            ->sortByDesc('name')
+            ->sortBy(fn ($r) => $r['name'])
             ->take(60)
             ->values()
             ->toArray();
@@ -372,12 +370,10 @@ class ManagerUsersPage extends Page
 
                 // Normalize folder and subfolder to names only
                 $folderName = basename($folder);
-                $subfolderName = $subfolder ? basename($subfolder) : null;
+                $subfolderPath = $subfolder ? trim($subfolder, '/') : null;
 
                 $this->selectedFolder = $folderName;
-                if ($subfolderName) {
-                    $this->selectedSubfolder = $subfolderName;
-                }
+                $this->selectedSubfolder = $subfolderPath;
 
                 // 🔹 Resolve real owner of folder (important for linked folders)
                 $realOwnerId = $userId;
@@ -397,7 +393,7 @@ class ManagerUsersPage extends Page
                 $linkedSubfolderModel = null;
 
                 if ($subfolder) {
-                    $linkedSubfolderModel = Folder::where('name', $subfolderName)
+                    $linkedSubfolderModel = Folder::where('name', $subfolderPath)
                         ->where('company_id', $companyId)
                         ->first();
                 }
@@ -419,7 +415,7 @@ class ManagerUsersPage extends Page
                 $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
 
                 $targetPath = $subfolder
-                    ? "{$currentRootPath}/{$subfolderName}"
+                    ? "{$currentRootPath}/{$subfolderPath}"
                     : $currentRootPath;
 
                 // ✅ permission fix

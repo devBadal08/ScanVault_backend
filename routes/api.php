@@ -20,6 +20,7 @@ Route::get('/check-user', [UserController::class, 'checkUser']);
 Route::middleware('auth:sanctum')->delete('/users/{id}', [UserController::class, 'destroy']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/photos/create-folder', [PhotoController::class, 'createFolder']);
     Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);
     Route::post('/photos/uploadAll', [PhotoController::class, 'uploadAll']);
     //Route::get('/user/photos', [PhotoController::class, 'getUserPhotos']);
