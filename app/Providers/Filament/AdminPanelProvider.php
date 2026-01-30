@@ -21,6 +21,9 @@ use App\Filament\Admin\Widgets\UsagePieChart;
 use App\Filament\Widgets\ManagerUsageList;
 use App\Models\User;
 use App\Filament\Widgets\AdminBackupWidget;
+use App\Filament\Widgets\UserStatsWidget;
+use App\Filament\Widgets\PhotoStatsWidget;
+use App\Filament\Widgets\StorageStatsWidget;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -124,7 +127,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             //->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\\Filament\\Admin\\Widgets')
             ->widgets([
-                TotalCompanies::class,
+                //TotalCompanies::class,
+                UserStatsWidget::class,
+                PhotoStatsWidget::class,
+                StorageStatsWidget::class,
                 UsagePieChart::class,
                 ManagerUsageList::class,
                 AdminBackupWidget::class,

@@ -42,26 +42,32 @@ class UserResource extends Resource
         if ($currentUser && $currentUser->hasRole('admin')) {
             $adminMaxLimit = $currentUser->max_limit ?? 0;
 
-            // Get direct user IDs
-            $directUserIds = User::where('created_by', $currentUser->id)
+            // 1. Users created directly by admin
+            $adminUserCount = User::where('created_by', $currentUser->id)
                 ->where('role', 'user')
-                ->pluck('id')
-                ->toArray();
+                ->count();
 
-            $directCount = count($directUserIds);
+            // 2. Managers created by admin
+            $managerIds = User::where('created_by', $currentUser->id)
+                ->where('role', 'manager')
+                ->pluck('id');
 
-            // Get indirect users (users created by those users)
-            $indirectCount = empty($directUserIds)
+            // 3. Users created by managers
+            $managerUserCount = $managerIds->isEmpty()
                 ? 0
-                : User::whereIn('created_by', $directUserIds)->count();
+                : User::whereIn('created_by', $managerIds)
+                    ->where('role', 'user')
+                    ->count();
 
-            // ✅ manager limits already assigned
-            $assignedLimitToManagers = User::where('role', 'manager')
-                ->where('created_by', $currentUser->id)
+            // 4. Manager max limits already allocated
+            $assignedLimitToManagers = User::where('created_by', $currentUser->id)
+                ->where('role', 'manager')
                 ->sum('max_limit');
 
-            // ✅ used = direct users + indirect users + assigned manager limits
-            $used = $directCount + $indirectCount + $assignedLimitToManagers;
+            // 5. Total used
+            $used = $adminUserCount
+                + $managerUserCount
+                + $assignedLimitToManagers;
 
             $availableLimit = max($adminMaxLimit - $used, 0);
         }

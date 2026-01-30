@@ -9,7 +9,7 @@ class Folder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'user_id', 'parent_id', 'company_id'];
+    protected $fillable = ['name', 'user_id', 'parent_id', 'company_id', 'path'];
 
     public function user() {
         return $this->belongsTo(User::class, 'user_id');
@@ -29,6 +29,18 @@ class Folder extends Model
         return $this->belongsToMany(Folder::class, 'folder_links', 'source_folder_id', 'target_folder_id')
                     ->withPivot('link_type')
                     ->withTimestamps();
+    }
+
+    public function linkedFrom()
+    {
+        return $this->belongsToMany(
+            Folder::class,
+            'folder_links',
+            'target_folder_id',
+            'source_folder_id'
+        )
+        ->withPivot('link_type')
+        ->withTimestamps();
     }
 
     public function allPhotos()

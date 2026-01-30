@@ -15,7 +15,7 @@
         <div class="mb-6">
             <input
                 type="text"
-                wire:model.live.debounce.500ms="globalSearch"
+                wire:model.live="globalSearch"
                 placeholder="🔍 Global Search (folders ...)"
                 class="w-full px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
@@ -274,38 +274,45 @@
 
             
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
-                <div class="mt-4 flex justify-center space-x-2">
+                <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
-                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Previous
-                        </a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    
+                    <a
+                        href="<?php echo e($page > 1 ? request()->fullUrlWithQuery(['page' => $page - 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page > 1
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>←</span>
+                        <span>Previous</span>
+                    </a>
 
+                    
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
-                            class="px-3 py-1 rounded
-                                <?php echo e($i == $page 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'); ?>">
+                        <a
+                            href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
+                            class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
+                                <?php echo e($i === $page
+                                    ? 'bg-orange-500 text-white border-orange-500'
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'); ?>"
+                        >
                             <?php echo e($i); ?>
 
                         </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
 
-                    <!--[if BLOCK]><![endif]--><?php if($page < ceil($total / $perPage)): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Next
-                        </a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    
+                    <a
+                        href="<?php echo e($page < ceil($total / $perPage) ? request()->fullUrlWithQuery(['page' => $page + 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page < ceil($total / $perPage)
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>Next</span>
+                        <span>→</span>
+                    </a>
 
                 </div>
             <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
@@ -543,38 +550,45 @@
 
             
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
-                <div class="mt-4 flex justify-center space-x-2">
+                <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
-                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Previous
-                        </a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    
+                    <a
+                        href="<?php echo e($page > 1 ? request()->fullUrlWithQuery(['page' => $page - 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page > 1
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>←</span>
+                        <span>Previous</span>
+                    </a>
 
+                    
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
-                            class="px-3 py-1 rounded
-                                <?php echo e($i == $page 
-                                        ? 'bg-blue-500 text-white' 
-                                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100'); ?>">
+                        <a
+                            href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
+                            class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
+                                <?php echo e($i === $page
+                                    ? 'bg-orange-500 text-white border-orange-500'
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'); ?>"
+                        >
                             <?php echo e($i); ?>
 
                         </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
 
-                    <!--[if BLOCK]><![endif]--><?php if($page < ceil($total / $perPage)): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>"
-                            class="px-3 py-1 rounded
-                                bg-gray-200 dark:bg-gray-700
-                                hover:bg-gray-300 dark:hover:bg-gray-600
-                                text-gray-900 dark:text-gray-100">
-                            Next
-                        </a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    
+                    <a
+                        href="<?php echo e($page < ceil($total / $perPage) ? request()->fullUrlWithQuery(['page' => $page + 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page < ceil($total / $perPage)
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>Next</span>
+                        <span>→</span>
+                    </a>
 
                 </div>
             <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
@@ -818,18 +832,46 @@
 
             
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
-                <div class="mt-4 flex justify-center space-x-2">
-                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page - 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Previous</a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
+                    
+                    <a
+                        href="<?php echo e($page > 1 ? request()->fullUrlWithQuery(['page' => $page - 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page > 1
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>←</span>
+                        <span>Previous</span>
+                    </a>
+
+                    
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>" class="px-3 py-1 rounded <?php echo e($i == $page ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300'); ?>"><?php echo e($i); ?></a>
+                        <a
+                            href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
+                            class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
+                                <?php echo e($i === $page
+                                    ? 'bg-orange-500 text-white border-orange-500'
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'); ?>"
+                        >
+                            <?php echo e($i); ?>
+
+                        </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
 
-                    <!--[if BLOCK]><![endif]--><?php if($page < ceil($total / $perPage)): ?>
-                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $page + 1])); ?>" class="px-3 py-1 bg-gray-200 rounded">Next</a>
-                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                    
+                    <a
+                        href="<?php echo e($page < ceil($total / $perPage) ? request()->fullUrlWithQuery(['page' => $page + 1]) : '#'); ?>"
+                        class="flex items-center gap-1 px-3 py-2 rounded-lg border
+                            <?php echo e($page < ceil($total / $perPage)
+                                ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'); ?>"
+                    >
+                        <span>Next</span>
+                        <span>→</span>
+                    </a>
+
                 </div>
             <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->

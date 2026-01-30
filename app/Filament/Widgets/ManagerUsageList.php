@@ -13,8 +13,9 @@ class ManagerUsageList extends BaseWidget
 
     public static function canView(): bool
     {
-        // Only allow if current user is NOT a manager
-        return auth()->check() && auth()->user()->role !== 'manager';
+        return auth()->check() && (
+            auth()->user()->hasRole('admin')
+        );
     }
 
     public function table(Table $table): Table

@@ -121,23 +121,35 @@ class CreateUser extends CreateRecord
             return;
         }
 
-        $directUserIds = User::where('created_by', $currentUser->id)
+        $adminMaxLimit = $currentUser->max_limit ?? 0;
+
+        // 1. Users created directly by admin
+        $adminUserCount = User::where('created_by', $currentUser->id)
             ->where('role', 'user')
-            ->pluck('id')
-            ->toArray();
+            ->count();
 
-        $directUsersCount = count($directUserIds);
+        // 2. Managers created by admin
+        $managerIds = User::where('created_by', $currentUser->id)
+            ->where('role', 'manager')
+            ->pluck('id');
 
-        $indirectCount = User::whereIn('created_by', $directUserIds)->count();
+        // 3. Users created by managers
+        $managerUserCount = $managerIds->isEmpty()
+            ? 0
+            : User::whereIn('created_by', $managerIds)
+                ->where('role', 'user')
+                ->count();
 
-        $assignedLimitToManagers = User::where('role', 'manager')
-            ->where('created_by', $currentUser->id)
+        // 4. Manager limits already reserved
+        $assignedLimitToManagers = User::where('created_by', $currentUser->id)
+            ->where('role', 'manager')
             ->sum('max_limit');
 
-        $used = $directUsersCount + $indirectCount + $assignedLimitToManagers;
-        $maxLimit = $currentUser->max_limit ?? 0;
+        $used = $adminUserCount
+            + $managerUserCount
+            + $assignedLimitToManagers;
 
-        $this->remainingLimit = max($maxLimit - $used, 0);
+        $this->remainingLimit = max($adminMaxLimit - $used, 0);
         $this->limitReached = $this->remainingLimit <= 0;
     }
 

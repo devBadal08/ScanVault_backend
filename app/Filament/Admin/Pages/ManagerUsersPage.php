@@ -43,47 +43,50 @@ class ManagerUsersPage extends Page
     public $selectedFolder = null;
     public $selectedSubfolder = null;
 
-    public int $perPage = 550;
+    public int $perPage = 10;
     public int $page = 1;
     public int $total = 0;
 
     protected function groupByDate(array $items): array
     {
-        $lastThreeDays = [];
-        for ($i = 1; $i <= 3; $i++) {
-            $lastThreeDays[] = now()->subDays($i)->format('d-m-Y');
-        }
+        $today = now();
+        $yesterday = now()->subDay()->format('d-m-Y');
+        $dayBeforeYesterday = now()->subDays(2)->format('d-m-Y');
 
-        $groups = array_merge(
-            ['Today' => []],
-            array_combine($lastThreeDays, array_fill(0, 3, [])),
-            [
-                'Last Week' => [],
-                'Earlier this Month' => [],
-                'Older' => [],
-            ]
-        );
+        $groups = [
+            'Today' => [],
+            $yesterday => [],
+            $dayBeforeYesterday => [],
+            'Last Week' => [],
+            'Earlier this Month' => [],
+            'Older' => [],
+        ];
 
         foreach ($items as $item) {
-            if (!isset($item['created_at'])) continue;
+            if (empty($item['created_at'])) {
+                continue;
+            }
 
             $created = Carbon::parse($item['created_at']);
             $createdDate = $created->format('d-m-Y');
 
             if ($created->isToday()) {
                 $groups['Today'][] = $item;
-            } elseif (in_array($createdDate, $lastThreeDays)) {
-                $groups[$createdDate][] = $item;
+            } elseif ($createdDate === $yesterday) {
+                $groups[$yesterday][] = $item;
+            } elseif ($createdDate === $dayBeforeYesterday) {
+                $groups[$dayBeforeYesterday][] = $item;
             } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
                 $groups['Last Week'][] = $item;
-            } elseif ($created->month === now()->month) {
+            } elseif ($created->isSameMonth(now())) {
                 $groups['Earlier this Month'][] = $item;
             } else {
                 $groups['Older'][] = $item;
             }
         }
 
-        return array_filter($groups);
+        // remove empty sections
+        return array_filter($groups, fn ($items) => !empty($items));
     }
 
     protected function getMediaDate(string $filePath): Carbon
@@ -160,11 +163,28 @@ class ManagerUsersPage extends Page
         }
 
         // 2️⃣ Resolve users once
-        $users = User::whereHas('companies', function ($q) use ($companyIds) {
-                $q->whereIn('company_id', $companyIds);
-            })
-            ->select('id', 'name')
-            ->get();
+        $authUser = Auth::user();
+
+        if ($authUser->role === 'manager') {
+            // ✅ Manager: only their own users
+            $users = User::where('role', 'user')
+                ->where('created_by', $authUser->id)
+                ->select('id', 'name')
+                ->get();
+        } else {
+            // ✅ Admin: users created by admin + their managers
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $authUser->id)
+                ->pluck('id');
+
+            $users = User::where('role', 'user')
+                ->where(function ($q) use ($authUser, $managerIds) {
+                    $q->where('created_by', $authUser->id)
+                    ->orWhereIn('created_by', $managerIds);
+                })
+                ->select('id', 'name')
+                ->get();
+        }
 
         if ($users->isEmpty()) {
             $this->globalResults = [];
@@ -258,6 +278,8 @@ class ManagerUsersPage extends Page
 
     public function mount(): void
     {
+        $this->page = (int) request()->get('page', 1);
+
         if ($this->isSearching) {
             return;
         }
@@ -369,14 +391,16 @@ class ManagerUsersPage extends Page
             } else {
 
                 // Normalize folder and subfolder to names only
-                $folderName = basename($folder);
+                $pathParts = explode('/', trim($folder, '/'));
+
+                $folderCompanyId = (int) ($pathParts[0] ?? $companyId);
+                $realOwnerId     = (int) ($pathParts[1] ?? $userId);
+                $folderName      = $pathParts[2] ?? basename($folder);
+
                 $subfolderPath = $subfolder ? trim($subfolder, '/') : null;
 
-                $this->selectedFolder = $folderName;
+                $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolderPath;
-
-                // 🔹 Resolve real owner of folder (important for linked folders)
-                $realOwnerId = $userId;
 
                 $selectedFolderModel = Folder::where('name', $folderName)
                     ->where('user_id', $realOwnerId)
@@ -412,11 +436,11 @@ class ManagerUsersPage extends Page
                 }
 
                 // Build correct relative storage path
-                $currentRootPath = "{$companyId}/{$realOwnerId}/{$folderName}";
+                $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
 
-                $targetPath = $subfolder
-                    ? "{$currentRootPath}/{$subfolderPath}"
-                    : $currentRootPath;
+                $targetPath = $subfolderPath
+                    ? "{$basePath}/{$subfolderPath}"
+                    : $basePath;
 
                 // ✅ permission fix
                 $this->mountedFolderPermissionsCheck(
@@ -479,30 +503,55 @@ class ManagerUsersPage extends Page
 
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
-                $allMedia = collect(Storage::disk('public')->files($targetPath))
-                    ->filter(fn($file) =>
-                        in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions)
-                    )
-                    ->map(fn($file) => [
-                        'type' => match(strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
-                            'mp4' => 'video',
-                            'pdf' => 'pdf',
-                            default => 'image',
-                        },
-                        'path' => $file,
-                        'name' => basename($file),
-                        'created_at' => $this->getMediaDate($file)->toDateTimeString(),
-                    ])->values();
+                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
-                $this->total = $allMedia->count();
+                $allFiles = Storage::disk('public')->files($targetPath);
 
-                $mediaPaged = $allMedia->forPage($this->page, $this->perPage)->values();
+                // ✅ FILTER FIRST
+                $filteredFiles = array_values(array_filter($allFiles, function ($file) use ($allowedExtensions) {
+                    return in_array(
+                        strtolower(pathinfo($file, PATHINFO_EXTENSION)),
+                        $allowedExtensions
+                    );
+                }));
 
-                $merged = collect($this->subfolders)->merge($mediaPaged)->values();
+                // ✅ MAP
+                $mediaAll = collect($filteredFiles)->map(fn ($file) => [
+                    'type' => match (strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
+                        'mp4' => 'video',
+                        'pdf' => 'pdf',
+                        default => 'image',
+                    },
+                    'path' => $file,
+                    'name' => basename($file),
+                    'created_at' => $this->getMediaDate($file)->toDateTimeString(),
+                ]);
 
-                $this->items = $this->groupByDate($merged->toArray());
+                $this->total = $mediaAll->count();
 
-                $this->images = $mediaPaged->toArray();
+                // ✅ MERGE folders + media BEFORE pagination
+                $folderItems = collect($this->subfolders)->map(fn ($folder) => [
+                    'type' => 'folder',
+                    'path' => $folder['path'],
+                    'name' => $folder['name'],
+                    'created_at' => $folder['created_at'],
+                    'linked' => $folder['linked'] ?? false,
+                ]);
+
+                $combined = $folderItems->merge($mediaAll)->toArray();
+
+                // ✅ GROUP → FLATTEN → SLICE → REGROUP
+                $grouped = $this->groupByDate($combined);
+
+                $flat = collect($grouped)->flatten(1)->values();
+
+                $paged = $flat->slice(
+                    ($this->page - 1) * $this->perPage,
+                    $this->perPage
+                )->values();
+
+                $this->items = $this->groupByDate($paged->toArray());
+                $this->images = $paged->toArray();
             }
         }
     }

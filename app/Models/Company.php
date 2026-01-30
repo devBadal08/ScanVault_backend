@@ -14,6 +14,8 @@ class Company extends Model
         'company_name',
         'admin_name',
         'company_logo',
+        'used_storage_mb',
+        'total_photos',
     ];
 
     // public function users()

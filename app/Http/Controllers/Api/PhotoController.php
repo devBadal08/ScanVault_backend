@@ -6,40 +6,30 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Photo;
 use App\Models\Folder;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PhotoController extends Controller
 {
-    private function buildFolderPath(Folder $folder, int $companyId): string
-    {
-        $names = [];
-        $userId = $folder->user_id;
-
-        while ($folder) {
-            array_unshift($names, $folder->name);
-            $folder = $folder->parent_id
-                ? Folder::find($folder->parent_id)
-                : null;
-        }
-
-        return "{$companyId}/{$userId}/" . implode('/', $names);
-    }
-
+    /**
+     * Create folder (DB + physical directory)
+     */
     public function createFolder(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:50',
+            'name'       => 'required|string|max:50',
             'company_id' => 'required|integer',
-            'parent_id' => 'nullable|integer|exists:folders,id',
+            'parent_id'  => 'nullable|integer|exists:folders,id',
         ]);
 
-        // ✅ CHECK IF FOLDER ALREADY EXISTS
+        $userId    = Auth::id();
+        $companyId = $request->company_id;
+
+        // Check existing folder
         $existing = Folder::where('name', $request->name)
-            ->where('company_id', $request->company_id)
-            ->where('user_id', Auth::id())
+            ->where('company_id', $companyId)
+            ->where('user_id', $userId)
             ->where('parent_id', $request->parent_id)
             ->first();
 
@@ -47,31 +37,43 @@ class PhotoController extends Controller
             return response()->json([
                 'success' => true,
                 'folder'  => $existing,
-                'path'    => $this->buildFolderPath($existing, $request->company_id),
+                'path'    => $existing->path,
                 'exists'  => true,
             ]);
         }
 
-        // ✅ CREATE NEW FOLDER
+        // Create folder record
         $folder = Folder::create([
-            'name' => $request->name,
-            'company_id' => $request->company_id,
-            'user_id' => Auth::id(),
-            'parent_id' => $request->parent_id,
+            'name'       => $request->name,
+            'company_id' => $companyId,
+            'user_id'    => $userId,
+            'parent_id'  => $request->parent_id,
         ]);
 
-        // ✅ CREATE PHYSICAL DIRECTORY
-        $storagePath = $this->buildFolderPath($folder, $request->company_id);
-        Storage::disk('public')->makeDirectory($storagePath);
+        // Build path using parent path (NO recursion)
+        if ($request->parent_id) {
+            $parent = Folder::findOrFail($request->parent_id);
+            $folder->path = $parent->path . '/' . $folder->name;
+        } else {
+            $folder->path = $companyId . '/' . $userId . '/' . $folder->name;
+        }
+
+        $folder->save();
+
+        // Create physical directory
+        Storage::disk('public')->makeDirectory($folder->path);
 
         return response()->json([
             'success' => true,
             'folder'  => $folder,
-            'path'    => $storagePath,
+            'path'    => $folder->path,
             'exists'  => false,
         ]);
     }
 
+    /**
+     * Upload images / videos / pdfs
+     */
     public function uploadAll(Request $request)
     {
         $userId = Auth::id();
@@ -80,184 +82,126 @@ class PhotoController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $user = Auth::user();
-
         $companyId = $request->input('company_id');
         if (!$companyId) {
             return response()->json(['error' => 'company_id is required'], 422);
         }
 
-        // OPTIONAL SECURITY CHECK
+        // Company access check
         if (!Auth::user()->companies()->where('companies.id', $companyId)->exists()) {
             return response()->json(['error' => 'You do not have access to this company'], 403);
         }
 
-        // Each company has separate storage tracking
-        $usedStorage = $this->calculateUsedStorageMB($userId, $companyId);
+        // Company storage info (NO filesystem scan)
+        $company = DB::table('companies')
+            ->select('id', 'used_storage_mb')
+            ->where('id', $companyId)
+            ->first();
 
-        $companyAdmin = \DB::table('company_user')
+        $companyAdmin = DB::table('company_user')
             ->join('users', 'users.id', '=', 'company_user.user_id')
             ->where('company_user.company_id', $companyId)
             ->where('users.role', 'admin')
             ->select('users.max_storage')
             ->first();
 
-        $maxStorage = $companyAdmin->max_storage ?? 0; // MB
+        $maxStorage = $companyAdmin->max_storage ?? 0;
 
         if ($maxStorage > 0) {
-            $percentUsed = round(($usedStorage / $maxStorage) * 100, 2);
+            $percentUsed = round(($company->used_storage_mb / $maxStorage) * 100, 2);
 
-            if ($percentUsed >= 99 && $percentUsed <= 100) {
+            if ($percentUsed >= 99) {
                 return response()->json([
                     'error' => "🚫 Storage almost full ($percentUsed% used)",
                 ], 403);
             }
-
-            if ($percentUsed > 100) {
-                return response()->json([
-                    'error' => "❌ Storage limit exceeded ($percentUsed% used)",
-                ], 403);
-            }
         }
 
-        $folders = $request->input('folders'); // array like: ["parent", "parent/child"]
-
-        if (!$folders || !is_array($folders)) {
+        $folders = $request->input('folders');
+        if (!is_array($folders)) {
             return response()->json(['error' => 'Folders array required'], 422);
         }
 
-        $uploaded = [];
-        $failed = [];
+        $uploaded  = [];
+        $failed    = [];
         $folderIds = [];
 
-        /**************************************
-         *     COMMON FOLDER LOGIC FUNCTION
-         **************************************/
+        // Folder resolver (DB path, no recursion)
         $getFolder = function ($folderData) use ($companyId) {
-
-            if (!is_array($folderData) || !isset($folderData['folder_id'])) {
-                throw new \Exception('folder_id is required for upload');
+            if (!isset($folderData['folder_id'])) {
+                throw new \Exception('folder_id is required');
             }
 
             $folder = Folder::where('id', $folderData['folder_id'])
                 ->where('company_id', $companyId)
+                //->where('user_id', $userId)
                 ->firstOrFail();
 
-            $storagePath = $this->buildFolderPath($folder, $companyId);
-
-            return [$folder, $storagePath];
+            return [$folder, $folder->path];
         };
 
-        /**************************************
-         *     UPLOAD IMAGES
-         **************************************/
+        /**
+         * Generic upload handler
+         */
+        $handleUpload = function ($files, $type) use (
+            $folders,
+            $getFolder,
+            $userId,
+            $companyId,
+            &$uploaded,
+            &$failed,
+            &$folderIds
+        ) {
+            foreach ($files as $index => $file) {
+                try {
+                    [$folder, $storagePath] = $getFolder($folders[$index]);
+
+                    $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                    $path = $file->storeAs($storagePath, $filename, 'public');
+
+                    Photo::create([
+                        'path'       => $path,
+                        'user_id'    => $userId,
+                        'folder_id'  => $folder->id,
+                        'type'       => $type,
+                        'company_id' => $companyId,
+                    ]);
+
+                    // Increment company storage
+                    $sizeMB = round($file->getSize() / (1024 ** 2), 2);
+                    DB::table('companies')
+                        ->where('id', $companyId)
+                        ->increment('used_storage_mb', $sizeMB);
+
+                    // Count only jpg, jpeg, png as photos
+                    $extension = strtolower($file->getClientOriginalExtension());
+
+                    if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+                        DB::table('companies')
+                            ->where('id', $companyId)
+                            ->increment('total_photos');
+                    }
+
+                    $uploaded[] = asset('storage/' . $path);
+                    $folderIds[] = $folder->id;
+
+                } catch (\Exception $e) {
+                    \Log::error(strtoupper($type) . ' upload failed: ' . $e->getMessage());
+                    $failed[] = $file->getClientOriginalName();
+                }
+            }
+        };
+
         if ($request->hasFile('images')) {
-            $images = $request->file('images');
-
-            if (count($images) !== count($folders)) {
-                return response()->json(['error' => 'Folders count must match images count'], 422);
-            }
-
-            foreach ($images as $index => $image) {
-                try {
-
-                    [$folder, $storagePath] = $getFolder($folders[$index]);
-
-                    $filename = time().'_'.uniqid().'_'.$image->getClientOriginalName();
-
-                    $path = $image->storeAs($storagePath, $filename, 'public');
-
-                    Photo::create([
-                        'path'      => $path,
-                        'user_id'   => $userId,
-                        'folder_id' => $folder->id,
-                        'type'      => 'image',
-                        'company_id'=> $companyId,
-                    ]);
-
-                    $uploaded[] = asset('storage/'.$path);
-
-                    $folderIds[$index] = $folder->id;
-
-                } catch (\Exception $e) {
-                    \Log::error("Image upload failed: " . $e->getMessage());
-                    $failed[] = $image->getClientOriginalName();
-                }
-            }
+            $handleUpload($request->file('images'), 'image');
         }
 
-        /**************************************
-         *     UPLOAD VIDEOS
-         **************************************/
         if ($request->hasFile('videos')) {
-            $videos = $request->file('videos');
-
-            if (count($videos) !== count($folders)) {
-                return response()->json(['error' => 'Folders count must match videos count'], 422);
-            }
-
-            foreach ($videos as $index => $video) {
-                try {
-
-                    [$folder, $storagePath] = $getFolder($folders[$index]);
-
-                    $filename = time().'_'.uniqid().'_'.$video->getClientOriginalName();
-
-                    $path = $video->storeAs($storagePath, $filename, 'public');
-
-                    Photo::create([
-                        'path'      => $path,
-                        'user_id'   => $userId,
-                        'folder_id' => $folder->id,
-                        'type'      => 'video',
-                        'company_id'=> $companyId,
-                    ]);
-
-                    $uploaded[] = asset('storage/'.$path);
-
-                    $folderIds[$index] = $folder->id;
-                } catch (\Exception $e) {
-                    \Log::error("Video upload failed: " . $e->getMessage());
-                    $failed[] = $video->getClientOriginalName();
-                }
-            }
+            $handleUpload($request->file('videos'), 'video');
         }
 
-        /**************************************
-         *     UPLOAD PDFs
-         **************************************/
         if ($request->hasFile('pdfs')) {
-            $pdfs = $request->file('pdfs');
-
-            if (count($pdfs) !== count($folders)) {
-                return response()->json(['error' => 'Folders count must match PDFs count'], 422);
-            }
-
-            foreach ($pdfs as $index => $pdf) {
-                try {
-
-                    [$folder, $storagePath] = $getFolder($folders[$index]);
-
-                    $filename = time().'_'.uniqid().'_'.$pdf->getClientOriginalName();
-
-                    $path = $pdf->storeAs($storagePath, $filename, 'public');
-
-                    Photo::create([
-                        'path'      => $path,
-                        'user_id'   => $userId,
-                        'folder_id' => $folder->id,
-                        'type'      => 'pdf',
-                        'company_id'=> $companyId,
-                    ]);
-
-                    $uploaded[] = asset('storage/'.$path);
-
-                    $folderIds[$index] = $folder->id;
-                } catch (\Exception $e) {
-                    \Log::error("PDF upload failed: " . $e->getMessage());
-                    $failed[] = $pdf->getClientOriginalName();
-                }
-            }
+            $handleUpload($request->file('pdfs'), 'pdf');
         }
 
         if (empty($uploaded) && empty($failed)) {
@@ -265,13 +209,16 @@ class PhotoController extends Controller
         }
 
         return response()->json([
-            'message'  => 'Upload completed successfully',
-            'uploaded' => $uploaded,
-            'failed'   => $failed,
-            'folder_ids'=> array_values(array_unique($folderIds)),
+            'message'    => 'Upload completed successfully',
+            'uploaded'   => $uploaded,
+            'failed'     => $failed,
+            'folder_ids' => array_values(array_unique($folderIds)),
         ]);
     }
 
+    /**
+     * Rename folder (safe for nested paths)
+     */
     public function renameFolder(Request $request, $id)
     {
         $request->validate([
@@ -279,74 +226,30 @@ class PhotoController extends Controller
             'company_id' => 'required|integer',
         ]);
 
-        $userId    = Auth::id();
-        $companyId = $request->company_id;
-        $newName   = $request->name;
-
-        // 1️⃣ Get folder with full scope
         $folder = Folder::where('id', $id)
-            ->where('company_id', $companyId)
+            ->where('company_id', $request->company_id)
             ->firstOrFail();
 
-        $oldName = $folder->name;
+        $oldPath = $folder->path;
+        $newPath = dirname($oldPath) . '/' . $request->name;
 
-        $basePath = "{$companyId}/{$folder->user_id}";
+        Storage::disk('public')->move($oldPath, $newPath);
 
-        if ($folder->parent_id) {
-            $parent = Folder::find($folder->parent_id);
-            $oldPath = "{$basePath}/{$parent->name}/{$folder->name}";
-            $newPath = "{$basePath}/{$parent->name}/{$newName}";
-        } else {
-            $oldPath = "{$basePath}/{$folder->name}";
-            $newPath = "{$basePath}/{$newName}";
-        }
+        // Update all child paths
+        Folder::where('path', 'like', $oldPath . '%')->update([
+            'path' => DB::raw("REPLACE(path, '$oldPath', '$newPath')")
+        ]);
 
-        if (Storage::disk('public')->exists($oldPath)) {
-            Storage::disk('public')->move($oldPath, $newPath);
-        } else {
-            \Log::warning('RENAME STORAGE PATH NOT FOUND', [
-                'oldPath' => $oldPath,
-            ]);
-        }
-
-        // Update DB
-        $folder->name = $newName;
-        $folder->save();
-
-        \Log::info('RENAME DEBUG', [
-            'folder_id' => $id,
-            'auth_user' => Auth::id(),
-            'company_id' => $companyId,
-            'folder_exists_any' => Folder::where('id', $id)->exists(),
-            'folder_exists_user' => Folder::where('id', $id)
-                ->where('user_id', Auth::id())
-                ->exists(),
-            'folder_exists_company' => Folder::where('id', $id)
-                ->where('company_id', $companyId)
-                ->exists(),
+        $folder->update([
+            'name' => $request->name,
+            'path' => $newPath,
         ]);
 
         return response()->json([
             'success'   => true,
             'folder_id'=> $folder->id,
-            'old_name' => $oldName,
-            'new_name' => $newName,
+            'old_name' => basename($oldPath),
+            'new_name' => $request->name,
         ]);
-    }
-
-    private function calculateUsedStorageMB($userId, $companyId)
-    {
-        $totalSize = 0;
-        $userPath = storage_path("app/public/{$companyId}/{$userId}");
-
-        if (is_dir($userPath)) {
-            foreach (new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($userPath, \FilesystemIterator::SKIP_DOTS)
-            ) as $file) {
-                $totalSize += $file->getSize();
-            }
-        }
-
-        return round($totalSize / (1024 ** 2), 2);
     }
 }
