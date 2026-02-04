@@ -133,7 +133,7 @@ class AdminPanelProvider extends PanelProvider
                 StorageStatsWidget::class,
                 UsagePieChart::class,
                 ManagerUsageList::class,
-                AdminBackupWidget::class,
+                //AdminBackupWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
