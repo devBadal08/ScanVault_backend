@@ -76,7 +76,6 @@ class StorageStatsWidget extends StatsOverviewWidget
         ];
     }
 
-    /** Livewire toggle */
     public function toggleStorage(): void
     {
         $user = auth()->user();
