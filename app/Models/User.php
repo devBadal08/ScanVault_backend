@@ -36,6 +36,8 @@ class User extends Authenticatable implements FilamentUser
         'max_storage',
         'created_by',
         'assigned_to',
+        'show_total_photos',
+        'show_total_storage',
     ];
 
     /**
@@ -116,6 +118,16 @@ class User extends Authenticatable implements FilamentUser
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function canShowTotalPhotos(): bool
+    {
+        return (bool) $this->show_total_photos;
+    }
+
+    public function canShowTotalStorage(): bool
+    {
+        return (bool) $this->show_total_storage;
     }
 
     public function canShow($type): bool

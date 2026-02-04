@@ -3,41 +3,41 @@
 namespace App\Filament\Widgets;
 
 use Filament\Widgets\Widget;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Cache;
+use App\Jobs\GenerateCompanyBackup;
 
 class AdminBackupWidget extends Widget
 {
     protected static string $view = 'filament.widgets.admin-backup-widget';
     protected int|string|array $columnSpan = 'full';
 
+    public int $totalFiles = 0;
+    public int $processedFiles = 0;
+    public bool $isProcessing = false;
+
     public function downloadAll()
     {
-        return redirect()->route('company.download.all');
-    }
-    
-    protected function getHeaderActions(): array
-    {
-        return [
-            Action::make('downloadAllData')
-                ->label('Download All Company Data')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('primary')
-                ->requiresConfirmation()
-                ->modalHeading('Download Company Data')
-                ->modalDescription('This will download all files of your company as a ZIP.')
-                ->modalSubmitActionLabel('Download')
-                ->action(function () {
-                    // Optional UX feedback
-                    Notification::make()
-                        ->title('Preparing download…')
-                        ->success()
-                        ->send();
+        // prevent duplicate jobs
+        if (Cache::get('company_backup_status') === 'processing') {
+            return;
+        }
 
-                    // 🔑 Redirect browser to download route
-                    return redirect()->route('company.download.all');
-                }),
-        ];
+        dispatch(new GenerateCompanyBackup());
+
+        $this->isProcessing = true;
+    }
+
+    public function refreshProgress()
+    {
+        $this->totalFiles = Cache::get('company_backup_total', 0);
+        $this->processedFiles = Cache::get('company_backup_processed', 0);
+
+        if (Cache::get('company_backup_status') === 'ready') {
+            $this->isProcessing = false;
+
+            // start browser download
+            $this->dispatch('start-download');
+        }
     }
 
     public static function canView(): bool

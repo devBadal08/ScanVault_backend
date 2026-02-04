@@ -53,6 +53,14 @@ Route::middleware(['auth'])->group(function () {
     })->name('manager.dashboard');
 });
 
-Route::middleware(['auth'])
-    ->get('/company/download-all', [CompanyDownloadController::class, 'downloadAll'])
-    ->name('company.download.all');
+Route::get('/company/backup/download', function () {
+    $zipPath = storage_path('app/company_backups/company_backup.zip');
+
+    abort_unless(file_exists($zipPath), 404);
+
+    return response()->download(
+        $zipPath,
+        'company_backup.zip',
+        ['Content-Type' => 'application/zip']
+    )->deleteFileAfterSend(true);
+})->name('company.download.all');
