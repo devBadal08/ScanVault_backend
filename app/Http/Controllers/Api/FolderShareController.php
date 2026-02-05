@@ -10,6 +10,8 @@ use App\Models\Folder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Photo;
+use App\Services\FolderPermissionService;
 
 class FolderShareController extends Controller
 {
@@ -192,24 +194,33 @@ class FolderShareController extends Controller
         foreach ($request->file('files') as $file) {
             $ext = strtolower($file->getClientOriginalExtension());
 
-            // allow only these
             if (!in_array($ext, ['jpg', 'jpeg', 'png', 'mp4', 'pdf'])) {
                 continue;
             }
 
             $filename = time() . '_' . uniqid() . '.' . $ext;
+            $storedPath = $folder->path . '/' . $filename;
 
-            // store in SAME folder path
+            // store file
             $file->storeAs($folder->path, $filename, 'public');
+
+            // ✅ INSERT INTO DATABASE
+            Photo::create([
+                'user_id'   => auth()->id(),          // uploader
+                'folder_id' => $folder->id,            // shared folder
+                'path'      => $storedPath,            // REQUIRED
+                'type'      => $this->detectType($file),
+                'uploaded_by' => auth()->id(),
+            ]);
 
             $uploaded[] = [
                 'name' => $filename,
-                'type' => $ext,
+                'path' => $storedPath,
             ];
         }
 
         return response()->json([
-            'success' => true,
+            'success'  => true,
             'uploaded' => $uploaded,
         ]);
     }
