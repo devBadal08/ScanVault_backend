@@ -43,24 +43,14 @@ class ManagerUsersPage extends Page
     public $selectedFolder = null;
     public $selectedSubfolder = null;
 
-    public int $perPage = 10;
+    public int $perPage = 30;
     public int $page = 1;
     public int $total = 0;
+    public int $datesPerPage = 3;
 
     protected function groupByDate(array $items): array
     {
-        $today = now();
-        $yesterday = now()->subDay()->format('d-m-Y');
-        $dayBeforeYesterday = now()->subDays(2)->format('d-m-Y');
-
-        $groups = [
-            'Today' => [],
-            $yesterday => [],
-            $dayBeforeYesterday => [],
-            'Last Week' => [],
-            'Earlier this Month' => [],
-            'Older' => [],
-        ];
+        $groups = [];
 
         foreach ($items as $item) {
             if (empty($item['created_at'])) {
@@ -68,25 +58,53 @@ class ManagerUsersPage extends Page
             }
 
             $created = Carbon::parse($item['created_at']);
-            $createdDate = $created->format('d-m-Y');
 
+            // Label logic
             if ($created->isToday()) {
-                $groups['Today'][] = $item;
-            } elseif ($createdDate === $yesterday) {
-                $groups[$yesterday][] = $item;
-            } elseif ($createdDate === $dayBeforeYesterday) {
-                $groups[$dayBeforeYesterday][] = $item;
-            } elseif ($created->greaterThanOrEqualTo(now()->subWeek())) {
-                $groups['Last Week'][] = $item;
-            } elseif ($created->isSameMonth(now())) {
-                $groups['Earlier this Month'][] = $item;
+                $label = 'Today';
+            } elseif ($created->isYesterday()) {
+                $label = 'Yesterday';
             } else {
-                $groups['Older'][] = $item;
+                // 👇 EXACT DATE GROUPING
+                $label = $created->format('d-m-Y');
             }
+
+            $groups[$label][] = $item;
         }
 
-        // remove empty sections
-        return array_filter($groups, fn ($items) => !empty($items));
+        // Sort sections by latest date first
+        uksort($groups, function ($a, $b) {
+            if (in_array($a, ['Today', 'Yesterday']) || in_array($b, ['Today', 'Yesterday'])) {
+                return 0;
+            }
+
+            return Carbon::createFromFormat('d-m-Y', $b)
+                ->timestamp <=> Carbon::createFromFormat('d-m-Y', $a)->timestamp;
+        });
+
+        return $groups;
+    }
+
+    protected function paginateDateGroups(array $grouped): array
+    {
+        $keys = array_keys($grouped);
+
+        $pagedKeys = array_slice(
+            $keys,
+            ($this->page - 1) * $this->datesPerPage,
+            $this->datesPerPage
+        );
+
+        $result = [];
+
+        foreach ($pagedKeys as $key) {
+            $result[$key] = $grouped[$key];
+        }
+
+        // total DATE groups (important for pagination UI)
+        $this->total = count($keys);
+
+        return $result;
     }
 
     protected function getMediaDate(string $filePath): Carbon
@@ -379,14 +397,16 @@ class ManagerUsersPage extends Page
                 // })
                 // ->toArray();
 
-                $mergedFolders = collect($rawFolders)
-                    //->merge($linkedFolders)
+                $allFolders = collect($rawFolders)
                     ->unique('path')
-                    ->sortByDesc(fn($i) => $i['created_at'])
-                    ->values()
-                    ->toArray();
+                    ->sortByDesc(fn ($i) => $i['created_at'])
+                    ->values();
 
-                $this->folders = $this->groupByDate($mergedFolders);
+                // ✅ group EVERYTHING first
+                $grouped = $this->groupByDate($allFolders->toArray());
+
+                // ✅ paginate DATE GROUPS (3 per page)
+                $this->folders = $this->paginateDateGroups($grouped);
 
             } else {
 

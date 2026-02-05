@@ -9,6 +9,7 @@ use App\Models\Folder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\FolderPermissionService;
 
 class PhotoController extends Controller
 {
@@ -17,6 +18,25 @@ class PhotoController extends Controller
      */
     public function createFolder(Request $request)
     {
+        $parentFolder = null;
+
+        if ($request->parent_id) {
+            $parentFolder = Folder::findOrFail($request->parent_id);
+
+            // 🔐 permission check
+            if (!FolderPermissionService::canWrite($parentFolder)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No permission to create subfolder'
+                ], 403);
+            }
+
+            // ✅ KEEP OWNER SAME AS PARENT
+            $userId = $parentFolder->user_id;
+        } else {
+            $userId = Auth::id();
+        }
+
         $request->validate([
             'name'       => 'required|string|max:50',
             'company_id' => 'required|integer',
@@ -134,8 +154,12 @@ class PhotoController extends Controller
 
             $folder = Folder::where('id', $folderData['folder_id'])
                 ->where('company_id', $companyId)
-                //->where('user_id', $userId)
                 ->firstOrFail();
+
+            // 🔐 WRITE PERMISSION CHECK
+            if (!FolderPermissionService::canWrite($folder)) {
+                throw new \Exception('No write permission for this folder');
+            }
 
             return [$folder, $folder->path];
         };
@@ -165,6 +189,7 @@ class PhotoController extends Controller
                         'folder_id'  => $folder->id,
                         'type'       => $type,
                         'company_id' => $companyId,
+                        'uploaded_by' => $userId,
                     ]);
 
                     // Increment company storage

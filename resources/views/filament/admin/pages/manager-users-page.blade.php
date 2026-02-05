@@ -152,7 +152,11 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
-            @if ($total > $perPage)
+            @if ($total > $datesPerPage)
+                @php
+                    $totalPages = ceil($total / $datesPerPage);
+                @endphp
+
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
                     {{-- Previous --}}
@@ -168,7 +172,7 @@
                     </a>
 
                     {{-- Page Numbers --}}
-                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                    @for ($i = 1; $i <= $totalPages; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
@@ -182,9 +186,9 @@
 
                     {{-- Next --}}
                     <a
-                        href="{{ $page < ceil($total / $perPage) ? request()->fullUrlWithQuery(['page' => $page + 1]) : '#' }}"
+                        href="{{ $page < $totalPages ? request()->fullUrlWithQuery(['page' => $page + 1]) : '#' }}"
                         class="flex items-center gap-1 px-3 py-2 rounded-lg border
-                            {{ $page < ceil($total / $perPage)
+                            {{ $page < $totalPages
                                 ? 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'
                                 : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed' }}"
                     >

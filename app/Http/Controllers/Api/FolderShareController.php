@@ -69,15 +69,31 @@ class FolderShareController extends Controller
     public function mySharedFolders()
     {
         $shares = FolderShare::where('shared_with', auth()->id())
-            ->with('folder')
-            ->get();
+            ->whereHas('folder')
+            ->with([
+                'folder:id,name,path,user_id',
+                'sharedByUser:id,name'
+            ])
+            ->get()
+            ->map(function ($share) {
+                return [
+                    'id'          => $share->folder->id,
+                    'name'        => $share->folder->name,
+                    'path'        => $share->folder->path,
+                    'access_type' => $share->access_type, // ✅ REQUIRED
+                    'shared_by'   => $share->sharedByUser->name,
+                ];
+            });
 
-        return response()->json(['success' => true,'folders' => $shares]);
+        return response()->json([
+            'success' => true,
+            'folders' => $shares
+        ]);
     }
 
     public function getSharedFolderPhotos($folderId)
     {
-        $folder = Folder::with(['photos', 'children'])->find($folderId);
+        $folder = Folder::with(['children'])->find($folderId);
 
         if (!$folder) {
             return response()->json([
@@ -86,16 +102,8 @@ class FolderShareController extends Controller
             ], 404);
         }
 
-        // Detect correct company ID
-        $companyId = $folder->company_id;
-        if (!$companyId) {
-            $companyId = auth()->user()->companies()->first()?->id;
-        }
+        $path = $folder->path; // ✅ USE STORED PATH
 
-        // Build correct storage path
-        $path = "{$companyId}/{$folder->user_id}/{$folder->name}";
-
-        // Get all physical files inside storage/public/{company}/{user}/{folder}
         if (!Storage::disk('public')->exists($path)) {
             return response()->json([
                 'success' => true,
@@ -110,7 +118,7 @@ class FolderShareController extends Controller
 
         $photos = [];
         $videos = [];
-        $pdfs = [];
+        $pdfs   = [];
 
         foreach ($physicalFiles as $file) {
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
@@ -129,12 +137,11 @@ class FolderShareController extends Controller
             }
         }
 
-        // Subfolders
-        $subfolders = $folder->children->map(function ($sub) use ($companyId) {
+        $subfolders = $folder->children->map(function ($sub) {
             return [
                 'id'   => $sub->id,
                 'name' => $sub->name,
-                'path' => "{$companyId}/{$sub->user_id}/{$sub->name}",
+                'path' => $sub->path, // ✅ KEEP FULL PATH
             ];
         });
 
@@ -145,5 +152,76 @@ class FolderShareController extends Controller
             'pdfs'    => $pdfs,
             'folders' => $subfolders,
         ]);
+    }
+
+    private function canWriteToFolder(Folder $folder): bool
+    {
+        // Owner always has access
+        if ($folder->user_id === auth()->id()) {
+            return true;
+        }
+
+        // Shared user with write access
+        return FolderShare::where('folder_id', $folder->id)
+            ->where('shared_with', auth()->id())
+            ->where('access_type', 'write')
+            ->exists();
+    }
+
+    public function uploadToSharedFolder(Request $request, $id)
+    {
+        $folder = Folder::findOrFail($id);
+
+        // permission check
+        if (!$this->canWriteToFolder($folder)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No write access'
+            ], 403);
+        }
+
+        if (!$request->hasFile('files')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No files uploaded'
+            ], 400);
+        }
+
+        $uploaded = [];
+
+        foreach ($request->file('files') as $file) {
+            $ext = strtolower($file->getClientOriginalExtension());
+
+            // allow only these
+            if (!in_array($ext, ['jpg', 'jpeg', 'png', 'mp4', 'pdf'])) {
+                continue;
+            }
+
+            $filename = time() . '_' . uniqid() . '.' . $ext;
+
+            // store in SAME folder path
+            $file->storeAs($folder->path, $filename, 'public');
+
+            $uploaded[] = [
+                'name' => $filename,
+                'type' => $ext,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'uploaded' => $uploaded,
+        ]);
+    }
+
+    private function detectType($file): string
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        if (in_array($ext, ['jpg', 'jpeg', 'png'])) return 'image';
+        if ($ext === 'mp4') return 'video';
+        if ($ext === 'pdf') return 'pdf';
+
+        return 'file';
     }
 }
