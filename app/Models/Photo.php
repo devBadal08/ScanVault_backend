@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 class Photo extends Model
 {
     use HasFactory;
-    protected $fillable = ['path', 'user_id', 'folder_id', 'uploaded_by', 'company_id'];
+    protected $fillable = ['path', 'type', 'user_id', 'folder_id', 'uploaded_by', 'company_id'];
 
     public function getUrlAttribute()
     {

@@ -1,17 +1,35 @@
 @php use Illuminate\Support\Facades\Auth; @endphp
 <x-filament::page>
     <div>
-        <div class="mb-6">
+        <div class="mb-6 flex items-center gap-3">
             <input
                 type="text"
-                wire:model.live="globalSearch"
-                placeholder="🔍 Global Search (folders ...)"
-                class="w-full px-4 py-3 rounded-xl border
+                wire:model.defer="globalSearch"
+                wire:keydown.enter="searchGlobal"
+                placeholder="🔍 Search user folders"
+                class="flex-1 px-4 py-3 rounded-xl border
                     border-gray-300 dark:border-gray-700
                     bg-white dark:bg-gray-900
                     text-gray-900 dark:text-white
                     focus:ring-2 focus:ring-orange-500 shadow"
             >
+
+            <x-filament::button
+                wire:click="searchGlobal"
+                wire:loading.attr="disabled"
+                color="primary"
+                class="h-[48px]"
+            >
+                Search
+            </x-filament::button>
+
+            <span
+                wire:loading
+                wire:target="searchGlobal"
+                class="text-sm text-gray-500"
+            >
+                Searching…
+            </span>
         </div>
 
         @if(!empty($globalResults))
@@ -47,7 +65,10 @@
 
                     @foreach ($managerUsers as $user)
                         <div
-                            onclick="window.location.href='?{{ isset($selectedManager) ? 'manager='.$selectedManager->id.'&' : '' }}user={{ $user->id }}'"
+                            data-url="{{ isset($selectedManager)
+                                ? '?manager='.$selectedManager->id.'&user='.$user->id
+                                : '?user='.$user->id }}"
+                            onclick="window.location.href=this.dataset.url"
                             class="app-card cursor-pointer
                                 flex items-center justify-between
                                 px-4 py-4
@@ -107,14 +128,23 @@
                 </x-filament::button>
 
                 {{-- Download Today’s Folders --}}
-                <x-filament::button
-                    tag="a"
-                    href="{{ route('download-today-folders', ['user' => $selectedUser->id]) }}"
-                    color="success"
-                    icon="heroicon-o-arrow-down-tray"
-                >
-                    Download Today’s Folders
-                </x-filament::button>
+                
+            </div>
+
+            <div class="flex items-center justify-between mb-3">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="select-all-main" class="form-checkbox">
+                    <span class="text-sm">Select All</span>
+                    (<span id="selected-count-main">0</span>)
+                </label>
+
+                @if($this->canDeletePhotos())
+                    <button
+                        onclick="deleteSelected()"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Delete
+                    </button>
+                @endif
             </div>
             
             @foreach ($folders as $group => $items)
@@ -126,24 +156,38 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             @foreach ($items as $folder)
-                                <div class="flex flex-col items-center justify-center text-center">
-                                    {{-- Download --}}
-                                    <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                                        title="Download Folder">
-                                        <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
-/>
-                                    </a>
-                                    {{-- Open Folder --}}
-                                    <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
-                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                                        <div class="w-24 h-24 flex items-center justify-center">
-                                            <x-heroicon-s-folder class="w-16 h-16 text-yellow-500" style="color: #facc15;" />
-                                        </div>
-                                        <span class="mt-1 text-xs text-black truncate w-24" title="{{ $folder['name'] }}">
-                                            {{ \Illuminate\Support\Str::limit($folder['name'], 10) }}
-                                        </span>
-                                    </a>
+                                <div class="flex flex-col items-center text-center">
+
+                                    <!-- FIXED SIZE CONTAINER -->
+                                    <div class="relative w-24 h-24 flex items-center justify-center">
+
+                                        <!-- Folder Icon (clickable) -->
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
+                                        class="w-full h-full flex items-center justify-center z-0">
+                                            <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;"/>
+                                        </a>
+
+                                        <!-- Checkbox (top-left) -->
+                                        <input
+                                            type="checkbox"
+                                            class="folder-checkbox absolute top-1 left-1 z-20"
+                                            data-type="folder"
+                                            value="{{ $folder['path'] }}"
+                                        >
+
+                                        <!-- Download (bottom-right) -->
+                                        <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
+                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
+                                            title="Download Folder">
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" />
+                                        </a>
+
+                                    </div>
+
+                                    <!-- Folder Name -->
+                                    <span class="mt-1 text-xs text-black truncate w-24">
+                                        {{ \Illuminate\Support\Str::limit($folder['name'], 10) }}
+                                    </span>
                                 </div>
                             @endforeach
                         </div>
@@ -220,9 +264,22 @@
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count">0</span>)
                 </label>
-                <button id="download-selected" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
-                    Download
-                </button>
+                <div class="flex gap-2">
+
+                    <button id="download-selected"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Download
+                    </button>
+
+                    @if($this->canDeletePhotos())
+                        <button
+                            onclick="deleteSelected()"
+                            class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                            Delete
+                        </button>
+                    @endif
+
+                </div>
             </div>
 
             {{-- ITEMS grouped by date --}}
@@ -244,13 +301,14 @@
                                             <input type="checkbox"
                                                 class="folder-checkbox"
                                                 style="transform: scale(1.2);"
-                                                value="{{ route('download-folder', ['path' => $item['path']]) }}">
+                                                data-type="folder"
+                                                value="{{ $item['path'] }}">
 
                                             <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
                                             class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                             title="Download Subfolder">
                                                 <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
-/>
+                                        />
                                             </a>
                                         </div>
 
@@ -273,26 +331,47 @@
                                 @else
                                     {{-- media card (image or video) --}}
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        {{-- Top-left checkbox --}}
-                                        <div class="flex justify-between items-start p-1">
-                                            <div class="flex items-center space-x-1">
-                                                <input type="checkbox"
-                                                    class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                    value="{{ asset('storage/' . $item['path']) }}">
-                                                @if(isset($item['linked']) && $item['linked'])
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
-                                                @endif
-                                            </div>
 
-                                            {{-- 3-dot button (top-right) --}}
-                                            <button 
-                                                onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-                                                </svg>
-                                            </button>
+                                        {{-- Top controls --}}
+                                        <div class="flex justify-between items-start p-1 bg-white/90 dark:bg-gray-800/90">
+
+                                            {{-- Checkbox --}}
+                                            <input type="checkbox"
+                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
+                                                value="{{ $item['path'] }}">
+
+                                            <div class="flex items-center gap-1">
+
+                                                {{-- Delete button (only if permission granted) --}}
+                                                @if($this->canDeletePhotos())
+                                                    <button
+                                                        wire:click="deletePhoto('{{ $item['path'] }}')"
+                                                        onclick="if(!confirm('Delete this media file?')) event.stopImmediatePropagation()"
+                                                        class="p-1 rounded hover:bg-red-100 text-red-600"
+                                                        title="Delete Photo"
+                                                    >
+                                                        <x-heroicon-o-trash class="w-4 h-4"/>
+                                                    </button>
+                                                @endif
+
+                                                {{-- Properties button --}}
+                                                <button
+                                                    data-name="{{ $item['name'] }}"
+                                                    data-date="{{ $item['created_at'] ?? 'N/A' }}"
+                                                    data-path="{{ asset('storage/' . $item['path']) }}"
+                                                    onclick="openPropertiesModal(this)"
+                                                    class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                                    title="More options"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="w-4 h-4 text-gray-700 dark:text-white"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor">
+                                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                    </svg>
+                                                </button>
+
+                                            </div>
                                         </div>
 
                                         @if ($item['type'] === 'image')
@@ -324,6 +403,14 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
+            @php
+                $totalPages = ceil($total / $perPage);
+                $window = 2;
+
+                $start = max(1, $page - $window);
+                $end   = min($totalPages, $page + $window);
+            @endphp
+
             @if ($total > $perPage)
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
@@ -340,7 +427,21 @@
                     </a>
 
                     {{-- Page Numbers --}}
-                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                    {{-- First --}}
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => 1]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    @endif
+
+                    {{-- Left dots --}}
+                    @if ($start > 1)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Page numbers --}}
+                    @for ($i = $start; $i <= $end; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
@@ -351,6 +452,19 @@
                             {{ $i }}
                         </a>
                     @endfor
+
+                    {{-- Right dots --}}
+                    @if ($end < $totalPages)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Last --}}
+                    @if ($page < $totalPages)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $totalPages]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    @endif
 
                     {{-- Next --}}
                     <a
@@ -398,9 +512,23 @@
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count-subfolder">0</span>)
                 </label>
-                <button id="download-selected-subfolder" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
-                    Download
-                </button>
+
+                <div class="flex gap-2">
+
+                    <button id="download-selected-subfolder"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Download
+                    </button>
+
+                    @if($this->canDeletePhotos())
+                        <button
+                            onclick="deleteSelected()"
+                            class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                            Delete
+                        </button>
+                    @endif
+
+                </div>
             </div>
 
             {{-- same merged items UI as above, but links refer to deeper levels --}}
@@ -421,13 +549,14 @@
                                             <input type="checkbox"
                                                 class="folder-checkbox"
                                                 style="transform: scale(1.2);"
-                                                value="{{ route('download-folder', ['path' => $item['path']]) }}">
+                                                data-type="folder"
+                                                value="{{ $item['path'] }}">
 
                                             <a href="{{ route('download-folder') }}?path={{ urlencode($item['path']) }}"
                                             class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
                                             title="Download Subfolder">
                                                 <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" 
-/>
+                                        />
                                             </a>
                                         </div>
 
@@ -447,50 +576,93 @@
                                         </a>
                                     </div>
                                 @else
-                                    {{-- media card (image or video) --}}
+                                    {{-- media card (image / video / pdf) --}}
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
-                                        {{-- Top-left checkbox --}}
-                                        <div class="flex justify-between items-start p-1">
+
+                                        {{-- Top controls --}}
+                                        <div class="flex justify-between items-start p-1 bg-white/90 dark:bg-gray-800/90">
+
+                                            {{-- Checkbox --}}
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                    value="{{ asset('storage/' . $item['path']) }}">
+                                                    class="image-checkbox-subfolder"
+                                                    value="{{ $item['path'] }}">
+
                                                 @if(isset($item['linked']) && $item['linked'])
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
+                                                        Linked
+                                                    </span>
                                                 @endif
                                             </div>
 
-                                            {{-- 3-dot button (top-right) --}}
-                                            <button 
-                                                onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-                                                </svg>
-                                            </button>
+                                            {{-- Right side actions --}}
+                                            <div class="flex items-center gap-1">
+
+                                                {{-- Delete button (permission based) --}}
+                                                @if($this->canDeletePhotos())
+                                                    <button
+                                                        wire:click="deletePhoto('{{ $item['path'] }}')"
+                                                        onclick="if(!confirm('Delete this media file?')) event.stopImmediatePropagation()"
+                                                        class="p-1 rounded hover:bg-red-100 text-red-600"
+                                                        title="Delete Photo"
+                                                    >
+                                                        <x-heroicon-o-trash class="w-4 h-4"/>
+                                                    </button>
+                                                @endif
+
+                                                {{-- Properties button --}}
+                                                <button
+                                                    data-name="{{ $item['name'] }}"
+                                                    data-date="{{ $item['created_at'] ?? 'N/A' }}"
+                                                    data-path="{{ asset('storage/' . $item['path']) }}"
+                                                    onclick="openPropertiesModal(this)"
+                                                    class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                                    title="More options"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="w-4 h-4 text-gray-700 dark:text-white"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor">
+                                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                    </svg>
+                                                </button>
+
+                                            </div>
                                         </div>
 
+                                        {{-- Media preview --}}
                                         @if ($item['type'] === 'image')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
-                                                <img src="{{ asset('storage/' . $item['path']) }}" 
-                                                    class="w-full h-full object-cover rounded" 
-                                                    alt="{{ $item['name'] }}">
+                                                <img
+                                                    src="{{ asset('storage/' . $item['path']) }}"
+                                                    class="w-full h-full object-cover rounded"
+                                                    alt="{{ $item['name'] }}"
+                                                >
                                             </a>
+
                                         @elseif ($item['type'] === 'video')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="w-full h-full block">
                                                 <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="{{ asset('storage/' . $item['path']) }}" type="video/mp4">
                                                 </video>
                                             </a>
+
                                         @elseif ($item['type'] === 'pdf')
-                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
-                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="{{ $item['name'] }}">
+                                            <a href="{{ asset('storage/' . $item['path']) }}"
+                                            target="_blank"
+                                            class="w-full h-full flex flex-col items-center justify-center
+                                                    bg-gray-100 dark:bg-gray-800
+                                                    text-gray-900 dark:text-white
+                                                    rounded text-center p-2 text-xs
+                                                    hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                            title="{{ $item['name'] }}">
                                                 <div class="text-3xl">📄</div>
-                                                <div class="mt-1 truncate w-full">{{ \Illuminate\Support\Str::limit($item['name'], 10) }}</div>
+                                                <div class="mt-1 truncate w-full">
+                                                    {{ \Illuminate\Support\Str::limit($item['name'], 10) }}
+                                                </div>
                                             </a>
                                         @endif
+
                                     </div>
                                 @endif
                             @endforeach
@@ -600,10 +772,47 @@
 </x-filament::page>
 
 <script>
-    function openPropertiesModal(name, type, date, path) {
-        document.getElementById('prop-name').innerText = name;
-        document.getElementById('prop-date').innerText = date;
-        document.getElementById('prop-path').innerText = path;
+    const mainCheckboxes = document.querySelectorAll('.folder-checkbox');
+    const selectAllMain = document.getElementById('select-all-main');
+
+    if (selectAllMain) {
+        selectAllMain.addEventListener('change', function () {
+            mainCheckboxes.forEach(cb => cb.checked = this.checked);
+            document.getElementById('selected-count-main').textContent =
+                document.querySelectorAll('.folder-checkbox:checked').length;
+        });
+    }
+
+    mainCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            document.getElementById('selected-count-main').textContent =
+                document.querySelectorAll('.folder-checkbox:checked').length;
+        });
+    });
+
+    function deleteSelected() {
+        if (!confirm('Delete selected items?')) return;
+
+        const selected = [
+            ...document.querySelectorAll('.image-checkbox:checked'),
+            ...document.querySelectorAll('.image-checkbox-subfolder:checked'),
+            ...document.querySelectorAll('.folder-checkbox:checked')
+        ].map(cb => ({
+            path: cb.value,
+            type: cb.dataset.type || 'file'
+        }));
+
+        if (!selected.length) {
+            alert('Please select items to delete');
+            return;
+        }
+
+        Livewire.dispatch('bulkDeleteMedia', { items: selected });
+    }
+    function openPropertiesModal(btn) {
+        document.getElementById('prop-name').innerText = btn.dataset.name;
+        document.getElementById('prop-date').innerText = btn.dataset.date;
+        document.getElementById('prop-path').innerText = btn.dataset.path;
         document.getElementById('propertiesModal').classList.remove('hidden');
     }
 

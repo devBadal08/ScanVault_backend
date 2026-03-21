@@ -4,16 +4,22 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
-use App\Services\Stats\StorageStatsService;
 
 class StorageStatsWidget extends StatsOverviewWidget
 {
+    public bool $showStorage = false;
+
     protected function getStats(): array
     {
         $user = auth()->user();
 
-        // OFF state → no service call
-        if (! $user->canShowTotalStorage()) {
+        // Permission Gate
+        if (! $user->canShow('total_storage')) {
+            return [];
+        }
+
+        // Eye OFF → masked
+        if (! $this->showStorage) {
             return [
                 Card::make('Storage Used', '•••')
                     ->description('Click eye icon to reveal')
@@ -21,23 +27,31 @@ class StorageStatsWidget extends StatsOverviewWidget
                     ->extraAttributes([
                         'class' => 'cursor-pointer',
                         'wire:click' => 'toggleStorage',
+                        'wire:loading.class' => 'opacity-50',
+                        'wire:target' => 'toggleStorage',
                     ]),
             ];
         }
 
-        // ON state → load heavy service
-        $stats = StorageStatsService::get($user);
+        // ✅ Get storage directly from DB
+        $companies = $user->companies();
 
-        $usedMB = $stats['used_mb'];
-        $maxMB  = $stats['max_mb'];
+        $usedMB = $companies->sum('used_storage_mb');
 
+        // 👉 If you have max per user
+        $maxMB = $user->max_storage ?? 0;
+
+        // 👉 OR if you store per company
+        // $maxMB = $companies->sum('max_storage_mb');
+
+        // Convert display
         $usedGB = round($usedMB / 1024, 2);
         $maxGB  = round($maxMB / 1024, 2);
 
-        $usedDisplay = $usedGB >= 1 ? "{$usedGB} GB" : "{$usedMB} MB";
-        $maxDisplay  = $maxGB >= 1 ? "{$maxGB} GB"  : "{$maxMB} MB";
+        $usedDisplay = $usedGB >= 1 ? "{$usedGB} GB" : round($usedMB, 2) . " MB";
+        $maxDisplay  = $maxGB >= 1 ? "{$maxGB} GB"  : round($maxMB, 2) . " MB";
 
-        // NO LIMIT
+        // No limit case
         if ($maxMB <= 0) {
             return [
                 Card::make('Storage Used', $usedDisplay)
@@ -51,8 +65,8 @@ class StorageStatsWidget extends StatsOverviewWidget
             ];
         }
 
-        // LIMIT EXISTS
-        $percent = round(($usedMB / $maxMB) * 100, 1);
+        // Percentage
+        $percent = $maxMB > 0 ? round(($usedMB / $maxMB) * 100, 1) : 0;
 
         $color = match (true) {
             $percent >= 90 => 'danger',
@@ -78,10 +92,11 @@ class StorageStatsWidget extends StatsOverviewWidget
 
     public function toggleStorage(): void
     {
-        $user = auth()->user();
+        $this->showStorage = ! $this->showStorage;
+    }
 
-        $user->update([
-            'show_total_storage' => ! $user->show_total_storage,
-        ]);
+    public static function canView(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('Super Admin');
     }
 }

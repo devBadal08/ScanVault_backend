@@ -51,6 +51,13 @@ Route::middleware(['auth'])->group(function () {
         }
         return view('manager.dashboard');
     })->name('manager.dashboard');
+
+    Route::get('/user/dashboard', function () {
+        if (auth()->user()->role !== 'user') {
+            abort(403, 'Unauthorized');
+        }
+        return view('user.dashboard');
+    })->name('user.dashboard');
 });
 
 Route::get('/company/backup/download', function () {

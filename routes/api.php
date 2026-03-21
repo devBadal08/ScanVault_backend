@@ -43,5 +43,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/upload-selfie', [UserController::class, 'uploadSelfie']);
     Route::post('/remove-profile-photo', [UserController::class, 'removeProfilePhoto']);
     Route::put('/folders/{id}/rename', [PhotoController::class, 'renameFolder']);
+    Route::post('/photos/rename-file', [PhotoController::class, 'renameFile']);
 });
 

@@ -10,17 +10,48 @@
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
     <div>
-        <div class="mb-6">
+        <div class="mb-6 flex items-center gap-3">
             <input
                 type="text"
-                wire:model.live="globalSearch"
-                placeholder="🔍 Global Search (folders ...)"
-                class="w-full px-4 py-3 rounded-xl border
+                wire:model.defer="globalSearch"
+                wire:keydown.enter="searchGlobal"
+                placeholder="🔍 Search user folders"
+                class="flex-1 px-4 py-3 rounded-xl border
                     border-gray-300 dark:border-gray-700
                     bg-white dark:bg-gray-900
                     text-gray-900 dark:text-white
                     focus:ring-2 focus:ring-orange-500 shadow"
             >
+
+            <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['wire:click' => 'searchGlobal','wire:loading.attr' => 'disabled','color' => 'primary','class' => 'h-[48px]']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('filament::button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['wire:click' => 'searchGlobal','wire:loading.attr' => 'disabled','color' => 'primary','class' => 'h-[48px]']); ?>
+                Search
+             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
+
+            <span
+                wire:loading
+                wire:target="searchGlobal"
+                class="text-sm text-gray-500"
+            >
+                Searching…
+            </span>
         </div>
 
         <!--[if BLOCK]><![endif]--><?php if(!empty($globalResults)): ?>
@@ -58,7 +89,10 @@
 
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $managerUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <div
-                            onclick="window.location.href='?<?php echo e(isset($selectedManager) ? 'manager='.$selectedManager->id.'&' : ''); ?>user=<?php echo e($user->id); ?>'"
+                            data-url="<?php echo e(isset($selectedManager)
+                                ? '?manager='.$selectedManager->id.'&user='.$user->id
+                                : '?user='.$user->id); ?>"
+                            onclick="window.location.href=this.dataset.url"
                             class="app-card cursor-pointer
                                 flex items-center justify-between
                                 px-4 py-4
@@ -134,27 +168,23 @@
 <?php endif; ?>
 
                 
-                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(route('download-today-folders', ['user' => $selectedUser->id])).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('filament::button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => ''.e(route('download-today-folders', ['user' => $selectedUser->id])).'','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']); ?>
-                    Download Today’s Folders
-                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
-<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
-<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
-<?php endif; ?>
+                
+            </div>
+
+            <div class="flex items-center justify-between mb-3">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="select-all-main" class="form-checkbox">
+                    <span class="text-sm">Select All</span>
+                    (<span id="selected-count-main">0</span>)
+                </label>
+
+                <!--[if BLOCK]><![endif]--><?php if($this->canDeletePhotos()): ?>
+                    <button
+                        onclick="deleteSelected()"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Delete
+                    </button>
+                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
             </div>
             
             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $folders; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $group => $items): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -166,12 +196,49 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center justify-center text-center">
-                                    
-                                    <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
-                                        class="self-end -mb-6 mr-6 z-10 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                                        title="Download Folder">
-                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                                <div class="flex flex-col items-center text-center">
+
+                                    <!-- FIXED SIZE CONTAINER -->
+                                    <div class="relative w-24 h-24 flex items-center justify-center">
+
+                                        <!-- Folder Icon (clickable) -->
+                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
+                                        class="w-full h-full flex items-center justify-center z-0">
+                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
+<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('heroicon-s-folder'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['class' => 'w-20 h-20 text-yellow-500','style' => 'color: #facc15;']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+                                        </a>
+
+                                        <!-- Checkbox (top-left) -->
+                                        <input
+                                            type="checkbox"
+                                            class="folder-checkbox absolute top-1 left-1 z-20"
+                                            data-type="folder"
+                                            value="<?php echo e($folder['path']); ?>"
+                                        >
+
+                                        <!-- Download (bottom-right) -->
+                                        <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
+                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
+                                            title="Download Folder">
+                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-o-arrow-down-tray'); ?>
@@ -191,37 +258,15 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                    </a>
-                                    
-                                    <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
-                                        class="flex flex-col items-center hover:text-yellow-600 transition duration-150 ease-in-out">
-                                        <div class="w-24 h-24 flex items-center justify-center">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-folder'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-16 h-16 text-yellow-500','style' => 'color: #facc15;']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-                                        </div>
-                                        <span class="mt-1 text-xs text-black truncate w-24" title="<?php echo e($folder['name']); ?>">
-                                            <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
+                                        </a>
 
-                                        </span>
-                                    </a>
+                                    </div>
+
+                                    <!-- Folder Name -->
+                                    <span class="mt-1 text-xs text-black truncate w-24">
+                                        <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
+
+                                    </span>
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                         </div>
@@ -313,9 +358,22 @@
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count">0</span>)
                 </label>
-                <button id="download-selected" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
-                    Download
-                </button>
+                <div class="flex gap-2">
+
+                    <button id="download-selected"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Download
+                    </button>
+
+                    <!--[if BLOCK]><![endif]--><?php if($this->canDeletePhotos()): ?>
+                        <button
+                            onclick="deleteSelected()"
+                            class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                            Delete
+                        </button>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                </div>
             </div>
 
             
@@ -337,7 +395,8 @@
                                             <input type="checkbox"
                                                 class="folder-checkbox"
                                                 style="transform: scale(1.2);"
-                                                value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
+                                                data-type="folder"
+                                                value="<?php echo e($item['path']); ?>">
 
                                             <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
                                             class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -385,26 +444,66 @@
                                 <?php else: ?>
                                     
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+
                                         
-                                        <div class="flex justify-between items-start p-1">
-                                            <div class="flex items-center space-x-1">
-                                                <input type="checkbox"
-                                                    class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
-                                                    value="<?php echo e(asset('storage/' . $item['path'])); ?>">
-                                                <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
-                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-                                            </div>
+                                        <div class="flex justify-between items-start p-1 bg-white/90 dark:bg-gray-800/90">
 
                                             
-                                            <button 
-                                                onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-                                                </svg>
-                                            </button>
+                                            <input type="checkbox"
+                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
+                                                value="<?php echo e($item['path']); ?>">
+
+                                            <div class="flex items-center gap-1">
+
+                                                
+                                                <!--[if BLOCK]><![endif]--><?php if($this->canDeletePhotos()): ?>
+                                                    <button
+                                                        wire:click="deletePhoto('<?php echo e($item['path']); ?>')"
+                                                        onclick="if(!confirm('Delete this media file?')) event.stopImmediatePropagation()"
+                                                        class="p-1 rounded hover:bg-red-100 text-red-600"
+                                                        title="Delete Photo"
+                                                    >
+                                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
+<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('heroicon-o-trash'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['class' => 'w-4 h-4']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+                                                    </button>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                                                
+                                                <button
+                                                    data-name="<?php echo e($item['name']); ?>"
+                                                    data-date="<?php echo e($item['created_at'] ?? 'N/A'); ?>"
+                                                    data-path="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                    onclick="openPropertiesModal(this)"
+                                                    class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                                    title="More options"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="w-4 h-4 text-gray-700 dark:text-white"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor">
+                                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                    </svg>
+                                                </button>
+
+                                            </div>
                                         </div>
 
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
@@ -436,6 +535,14 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
+            <?php
+                $totalPages = ceil($total / $perPage);
+                $window = 2;
+
+                $start = max(1, $page - $window);
+                $end   = min($totalPages, $page + $window);
+            ?>
+
             <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
@@ -452,7 +559,21 @@
                     </a>
 
                     
-                    <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => 1])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($start > 1): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php for($i = $start; $i <= $end; $i++): ?>
                         <a
                             href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
@@ -464,6 +585,19 @@
 
                         </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($end < $totalPages): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page < $totalPages): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $totalPages])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     
                     <a
@@ -526,9 +660,23 @@
                     <span class="text-sm">Select All</span>
                     (<span id="selected-count-subfolder">0</span>)
                 </label>
-                <button id="download-selected-subfolder" class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
-                    Download
-                </button>
+
+                <div class="flex gap-2">
+
+                    <button id="download-selected-subfolder"
+                        class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                        Download
+                    </button>
+
+                    <!--[if BLOCK]><![endif]--><?php if($this->canDeletePhotos()): ?>
+                        <button
+                            onclick="deleteSelected()"
+                            class="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded">
+                            Delete
+                        </button>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                </div>
             </div>
 
             
@@ -549,7 +697,8 @@
                                             <input type="checkbox"
                                                 class="folder-checkbox"
                                                 style="transform: scale(1.2);"
-                                                value="<?php echo e(route('download-folder', ['path' => $item['path']])); ?>">
+                                                data-type="folder"
+                                                value="<?php echo e($item['path']); ?>">
 
                                             <a href="<?php echo e(route('download-folder')); ?>?path=<?php echo e(urlencode($item['path'])); ?>"
                                             class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -596,48 +745,111 @@
                                 <?php else: ?>
                                     
                                     <div class="relative w-32 h-32 rounded shadow overflow-hidden group">
+
                                         
-                                        <div class="flex justify-between items-start p-1">
+                                        <div class="flex justify-between items-start p-1 bg-white/90 dark:bg-gray-800/90">
+
+                                            
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
-                                                    value="<?php echo e(asset('storage/' . $item['path'])); ?>">
+                                                    class="image-checkbox-subfolder"
+                                                    value="<?php echo e($item['path']); ?>">
+
                                                 <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
-                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">Linked</span>
+                                                    <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
+                                                        Linked
+                                                    </span>
                                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                             </div>
 
                                             
-                                            <button 
-                                                onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="More options">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-700 dark:text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
-                                                </svg>
-                                            </button>
+                                            <div class="flex items-center gap-1">
+
+                                                
+                                                <!--[if BLOCK]><![endif]--><?php if($this->canDeletePhotos()): ?>
+                                                    <button
+                                                        wire:click="deletePhoto('<?php echo e($item['path']); ?>')"
+                                                        onclick="if(!confirm('Delete this media file?')) event.stopImmediatePropagation()"
+                                                        class="p-1 rounded hover:bg-red-100 text-red-600"
+                                                        title="Delete Photo"
+                                                    >
+                                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
+<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('heroicon-o-trash'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['class' => 'w-4 h-4']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+                                                    </button>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                                                
+                                                <button
+                                                    data-name="<?php echo e($item['name']); ?>"
+                                                    data-date="<?php echo e($item['created_at'] ?? 'N/A'); ?>"
+                                                    data-path="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                    onclick="openPropertiesModal(this)"
+                                                    class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+                                                    title="More options"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                                        class="w-4 h-4 text-gray-700 dark:text-white"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor">
+                                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                    </svg>
+                                                </button>
+
+                                            </div>
                                         </div>
 
+                                        
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" 
-                                                    class="w-full h-full object-cover rounded" 
-                                                    alt="<?php echo e($item['name']); ?>">
+                                                <img
+                                                    src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                    class="w-full h-full object-cover rounded"
+                                                    alt="<?php echo e($item['name']); ?>"
+                                                >
                                             </a>
+
                                         <?php elseif($item['type'] === 'video'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
                                                 <video class="w-full h-full object-cover rounded" controls>
                                                     <source src="<?php echo e(asset('storage/' . $item['path'])); ?>" type="video/mp4">
                                                 </video>
                                             </a>
+
                                         <?php elseif($item['type'] === 'pdf'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="w-full h-full flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 rounded text-gray-900 dark:text-white rounded text-center p-2 text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition"
-                                                title="<?php echo e($item['name']); ?>">
+                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                            target="_blank"
+                                            class="w-full h-full flex flex-col items-center justify-center
+                                                    bg-gray-100 dark:bg-gray-800
+                                                    text-gray-900 dark:text-white
+                                                    rounded text-center p-2 text-xs
+                                                    hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                            title="<?php echo e($item['name']); ?>">
                                                 <div class="text-3xl">📄</div>
-                                                <div class="mt-1 truncate w-full"><?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?></div>
+                                                <div class="mt-1 truncate w-full">
+                                                    <?php echo e(\Illuminate\Support\Str::limit($item['name'], 10)); ?>
+
+                                                </div>
                                             </a>
                                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
                                     </div>
                                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
@@ -757,10 +969,47 @@
 <?php endif; ?>
 
 <script>
-    function openPropertiesModal(name, type, date, path) {
-        document.getElementById('prop-name').innerText = name;
-        document.getElementById('prop-date').innerText = date;
-        document.getElementById('prop-path').innerText = path;
+    const mainCheckboxes = document.querySelectorAll('.folder-checkbox');
+    const selectAllMain = document.getElementById('select-all-main');
+
+    if (selectAllMain) {
+        selectAllMain.addEventListener('change', function () {
+            mainCheckboxes.forEach(cb => cb.checked = this.checked);
+            document.getElementById('selected-count-main').textContent =
+                document.querySelectorAll('.folder-checkbox:checked').length;
+        });
+    }
+
+    mainCheckboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            document.getElementById('selected-count-main').textContent =
+                document.querySelectorAll('.folder-checkbox:checked').length;
+        });
+    });
+
+    function deleteSelected() {
+        if (!confirm('Delete selected items?')) return;
+
+        const selected = [
+            ...document.querySelectorAll('.image-checkbox:checked'),
+            ...document.querySelectorAll('.image-checkbox-subfolder:checked'),
+            ...document.querySelectorAll('.folder-checkbox:checked')
+        ].map(cb => ({
+            path: cb.value,
+            type: cb.dataset.type || 'file'
+        }));
+
+        if (!selected.length) {
+            alert('Please select items to delete');
+            return;
+        }
+
+        Livewire.dispatch('bulkDeleteMedia', { items: selected });
+    }
+    function openPropertiesModal(btn) {
+        document.getElementById('prop-name').innerText = btn.dataset.name;
+        document.getElementById('prop-date').innerText = btn.dataset.date;
+        document.getElementById('prop-path').innerText = btn.dataset.path;
         document.getElementById('propertiesModal').classList.remove('hidden');
     }
 

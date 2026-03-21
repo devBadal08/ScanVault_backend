@@ -28,7 +28,7 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // Step 3: Validate role
-            $allowedRoles = ['Super Admin', 'admin', 'manager'];
+            $allowedRoles = ['Super Admin', 'admin', 'manager', 'user'];
 
             if (in_array($user->role, $allowedRoles)) {
                 return redirect('/admin');

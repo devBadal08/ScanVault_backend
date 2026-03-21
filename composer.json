@@ -18,9 +18,10 @@
         "phpoffice/phpspreadsheet": "^1.30",
         "pusher/pusher-php-server": "^7.2",
         "spatie/laravel-backup": "^9.3",
-        "spatie/laravel-permission": "^6.20"
+        "spatie/laravel-permission": "^6.24"
     },
     "require-dev": {
+        "barryvdh/laravel-ide-helper": "^3.6",
         "fakerphp/faker": "^1.23",
         "laravel/breeze": "^2.3",
         "laravel/pail": "^1.2.2",

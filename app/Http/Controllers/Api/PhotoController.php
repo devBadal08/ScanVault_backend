@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\FolderPermissionService;
+use App\Models\MediaFile;
 
 class PhotoController extends Controller
 {
@@ -167,7 +168,7 @@ class PhotoController extends Controller
         /**
          * Generic upload handler
          */
-        $handleUpload = function ($files, $type) use (
+        $handleUpload = function ($files) use (
             $folders,
             $getFolder,
             $userId,
@@ -180,16 +181,37 @@ class PhotoController extends Controller
                 try {
                     [$folder, $storagePath] = $getFolder($folders[$index]);
 
-                    $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                    $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                    $extension = $file->getClientOriginalExtension();
+
+                    $count = 0;
+
+                    do {
+                        $filename = $count === 0 
+                            ? $originalName . '.' . $extension 
+                            : $originalName . $count . '.' . $extension;
+
+                        $pathCheck = $storagePath . '/' . $filename;
+
+                        $count++;
+                    } while (Storage::disk('public')->exists($pathCheck));
                     $path = $file->storeAs($storagePath, $filename, 'public');
+
+                    $extension = strtolower($file->getClientOriginalExtension());
+
+                    $type = match ($extension) {
+                        'mp4' => 'video',
+                        'pdf' => 'pdf',
+                        default => 'image'
+                    };
 
                     Photo::create([
                         'path'       => $path,
                         'user_id'    => $userId,
                         'folder_id'  => $folder->id,
                         'type'       => $type,
-                        'company_id' => $companyId,
-                        'uploaded_by' => $userId,
+                        'company_id' => $folder->company_id,
+                        'uploaded_by'=> $userId,
                     ]);
 
                     // Increment company storage
@@ -211,22 +233,21 @@ class PhotoController extends Controller
                     $folderIds[] = $folder->id;
 
                 } catch (\Exception $e) {
-                    \Log::error(strtoupper($type) . ' upload failed: ' . $e->getMessage());
                     $failed[] = $file->getClientOriginalName();
                 }
             }
         };
 
         if ($request->hasFile('images')) {
-            $handleUpload($request->file('images'), 'image');
+            $handleUpload($request->file('images'));
         }
 
         if ($request->hasFile('videos')) {
-            $handleUpload($request->file('videos'), 'video');
+            $handleUpload($request->file('videos'));
         }
 
         if ($request->hasFile('pdfs')) {
-            $handleUpload($request->file('pdfs'), 'pdf');
+            $handleUpload($request->file('pdfs'));
         }
 
         if (empty($uploaded) && empty($failed)) {
@@ -275,6 +296,43 @@ class PhotoController extends Controller
             'folder_id'=> $folder->id,
             'old_name' => basename($oldPath),
             'new_name' => $request->name,
+        ]);
+    }
+
+    public function renameFile(Request $request)
+    {
+        $request->validate([
+            'old_path' => 'required|string',
+            'new_name' => 'required|string',
+        ]);
+
+        $oldPath = $request->old_path;
+
+        // extract folder path
+        $folderPath = dirname($oldPath);
+        $extension = pathinfo($oldPath, PATHINFO_EXTENSION);
+
+        $newFileName = $request->new_name . '.' . $extension;
+        $newPath = $folderPath . '/' . $newFileName;
+
+        // 🔥 handle duplicate
+        $count = 0;
+        while (Storage::disk('public')->exists($newPath)) {
+            $newFileName = $request->new_name . $count . '.' . $extension;
+            $newPath = $folderPath . '/' . $newFileName;
+            $count++;
+        }
+
+        Storage::disk('public')->move($oldPath, $newPath);
+
+        // ✅ update DB also
+        Photo::where('path', $oldPath)->update([
+            'path' => $newPath
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'new_path' => $newPath
         ]);
     }
 }

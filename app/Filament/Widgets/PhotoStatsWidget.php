@@ -4,16 +4,23 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
-use Filament\Actions\Action;
 use App\Services\Stats\PhotoStatsService;
 
 class PhotoStatsWidget extends StatsOverviewWidget
 {
+    public bool $showPhotos = false; // 👈 resets on reload
+
     protected function getStats(): array
     {
         $user = auth()->user();
 
-        if (! $user->canShowTotalPhotos()) {
+        // 1️⃣ HARD PERMISSION GATE
+        if (! $user->canShow('total_photos')) {
+            return [];
+        }
+
+        // Eye OFF → masked (NO heavy calculation)
+        if (! $this->showPhotos) {
             return [
                 Card::make('Total Photos', '•••')
                     ->description('Click eye icon to reveal')
@@ -21,31 +28,37 @@ class PhotoStatsWidget extends StatsOverviewWidget
                     ->extraAttributes([
                         'class' => 'cursor-pointer',
                         'wire:click' => 'togglePhotos',
+                        'wire:loading.class' => 'opacity-50',
+                        'wire:target' => 'togglePhotos',
                     ]),
             ];
         }
 
-        $count = PhotoStatsService::get($user);
+        // Eye ON → heavy calculation
+        $count = $user->companies()->sum('total_photos');
 
         return [
             Card::make('Total Photos', number_format($count))
                 ->description('Photos uploaded by your users')
                 ->descriptionIcon('heroicon-o-eye-slash')
+                ->color('info')
                 ->extraAttributes([
                     'class' => 'cursor-pointer',
                     'wire:click' => 'togglePhotos',
-                ])
-                ->color('info'),
+                    'wire:loading.class' => 'opacity-50',
+                    'wire:target' => 'togglePhotos',
+                ]),
         ];
     }
 
-    /** Livewire action */
+    /** Toggle visibility (local state only) */
     public function togglePhotos(): void
     {
-        $user = auth()->user();
+        $this->showPhotos = ! $this->showPhotos;
+    }
 
-        $user->update([
-            'show_total_photos' => ! $user->show_total_photos,
-        ]);
+    public static function canView(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('Super Admin');
     }
 }

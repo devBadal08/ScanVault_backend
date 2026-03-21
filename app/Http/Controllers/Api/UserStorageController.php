@@ -25,6 +25,14 @@ class UserStorageController extends Controller
             return response()->json(['error' => 'User does not belong to this company'], 403);
         }
 
+        // ✅ Get company directly
+        $company = \App\Models\Company::find($companyId);
+
+        if (!$company) {
+            return response()->json(['error' => 'Company not found'], 404);
+        }
+
+        // ✅ Get max storage from admin
         $companyAdmin = \DB::table('company_user')
             ->join('users', 'users.id', '=', 'company_user.user_id')
             ->where('company_user.company_id', $companyId)
@@ -34,30 +42,19 @@ class UserStorageController extends Controller
 
         $maxStorageMB = $companyAdmin?->max_storage ?? 0;
 
+        // ✅ IMPORTANT: Use DB field (NOT file scan)
+        $usedMB = (float) $company->used_storage_mb;
+
         if ($maxStorageMB <= 0) {
             return response()->json([
                 'company_id' => $companyId,
-                'used_storage_mb' => 0,
+                'used_storage_mb' => $usedMB,
                 'max_storage_mb' => 0,
                 'percent_used' => 0,
                 'message' => 'No storage limit assigned',
             ]);
         }
 
-        $usedStorageBytes = 0;
-        $companyPath = storage_path("app/public/{$companyId}");
-
-        if (is_dir($companyPath)) {
-            foreach (new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($companyPath, \FilesystemIterator::SKIP_DOTS)
-            ) as $file) {
-                if ($file->isFile()) {
-                    $usedStorageBytes += $file->getSize();
-                }
-            }
-        }
-
-        $usedMB = round($usedStorageBytes / (1024 ** 2), 2);
         $percentUsed = min(
             100,
             round(($usedMB / $maxStorageMB) * 100, 1)
@@ -65,7 +62,7 @@ class UserStorageController extends Controller
 
         return response()->json([
             'company_id' => $companyId,
-            'used_storage_mb' => $usedMB,
+            'used_storage_mb' => round($usedMB, 2),
             'max_storage_mb' => $maxStorageMB,
             'percent_used' => $percentUsed,
             'message' => $percentUsed >= 99

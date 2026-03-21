@@ -24,6 +24,8 @@ use App\Filament\Widgets\AdminBackupWidget;
 use App\Filament\Widgets\UserStatsWidget;
 use App\Filament\Widgets\PhotoStatsWidget;
 use App\Filament\Widgets\StorageStatsWidget;
+use App\Filament\Widgets\UserPhotoStats;
+use Illuminate\Support\Facades\Auth;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -32,7 +34,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->brandLogo(function () {
                 // LOGIN / AUTH PAGES
-                if (! auth()->check()) {
+                if (! Auth::check()) {
                     return asset('images/logo.png');
                 }
 
@@ -109,7 +111,21 @@ class AdminPanelProvider extends PanelProvider
                     .dark .app-card-muted {
                         color: #9CA3AF;
                     }
-                </style>')
+                </style>'
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => '
+                    <div style="
+                        text-align:center;
+                        padding:12px;
+                        font-size:14px;
+                        color:#6B7280;
+                    ">
+                        Developed with 🫶 by <b>Techstrota</b>
+                    </div>
+                '
+            )
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -133,6 +149,7 @@ class AdminPanelProvider extends PanelProvider
                 StorageStatsWidget::class,
                 UsagePieChart::class,
                 ManagerUsageList::class,
+                UserPhotoStats::class,
                 //AdminBackupWidget::class,
             ])
             ->middleware([

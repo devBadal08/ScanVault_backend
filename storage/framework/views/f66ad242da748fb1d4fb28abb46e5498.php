@@ -12,17 +12,40 @@
 <?php $component->withAttributes([]); ?>
     <div>
 
-        <div class="mb-6">
+        <div class="mb-6 flex items-center gap-3">
             <input
                 type="text"
-                wire:model.live="globalSearch"
+                wire:model.defer="globalSearch"
+                wire:keydown.enter="searchGlobal"
                 placeholder="🔍 Global Search (folders ...)"
-                class="w-full px-4 py-3 rounded-xl border
+                class="flex-1 px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
                 bg-white dark:bg-gray-900
                 text-gray-900 dark:text-white
                 focus:ring-2 focus:ring-orange-500 shadow"
             >
+
+            <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['wire:click' => 'searchGlobal','wire:loading.attr' => 'disabled','color' => 'primary','class' => 'h-[48px]']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('filament::button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['wire:click' => 'searchGlobal','wire:loading.attr' => 'disabled','color' => 'primary','class' => 'h-[48px]']); ?>
+                Search
+             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
         </div>
 
         <!--[if BLOCK]><![endif]--><?php if(!empty($globalResults)): ?>
@@ -501,9 +524,12 @@
                                             </div>
 
                                             
-                                            <button onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full 
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button
+                                                data-name="<?php echo e($item['name']); ?>"
+                                                data-date="<?php echo e($item['created_at'] ?? 'N/A'); ?>"
+                                                data-path="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                onclick="openPropertiesModal(this)"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
                                                 title="More options">
                                                 <svg xmlns="http://www.w3.org/2000/svg" 
                                                     class="w-4 h-4 text-gray-700 dark:text-white" 
@@ -517,7 +543,7 @@
                                         
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="block w-full h-full">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                <img loading="lazy" src="<?php echo e(asset('storage/' . $item['path'])); ?>"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
@@ -569,18 +595,52 @@
                     </a>
 
                     
-                    <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
+                    <?php
+                        $totalPages = ceil($total / $perPage);
+                        $window = 2; // pages before & after current
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
+                    ?>
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => 1])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($start > 1): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php for($i = $start; $i <= $end; $i++): ?>
                         <a
                             href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
                                 <?php echo e($i === $page
                                     ? 'bg-orange-500 text-white border-orange-500'
-                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'); ?>"
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30'); ?>"
                         >
                             <?php echo e($i); ?>
 
                         </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($end < $totalPages): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page < $totalPages): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $totalPages])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     
                     <a
@@ -780,9 +840,12 @@
                                             </div>
 
                                             
-                                            <button onclick="openPropertiesModal('<?php echo e($item['name']); ?>', '<?php echo e($item['type']); ?>', '<?php echo e($item['created_at'] ?? 'N/A'); ?>', '<?php echo e(asset('storage/' . $item['path'])); ?>')"
-                                                class="p-1 rounded-full
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button
+                                                data-name="<?php echo e($item['name']); ?>"
+                                                data-date="<?php echo e($item['created_at'] ?? 'N/A'); ?>"
+                                                data-path="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                onclick="openPropertiesModal(this)"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
                                                 title="More options">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
                                                     class="w-4 h-4 text-gray-700 dark:text-white"
@@ -796,7 +859,7 @@
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
                                             <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
                                                 class="block w-full h-full">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                <img loading="lazy" src="<?php echo e(asset('storage/' . $item['path'])); ?>"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
@@ -851,18 +914,52 @@
                     </a>
 
                     
-                    <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= ceil($total / $perPage); $i++): ?>
+                    <?php
+                        $totalPages = ceil($total / $perPage);
+                        $window = 2; // pages before & after current
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
+                    ?>
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page > 1): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => 1])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($start > 1): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php for($i = $start; $i <= $end; $i++): ?>
                         <a
                             href="<?php echo e(request()->fullUrlWithQuery(['page' => $i])); ?>"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
                                 <?php echo e($i === $page
                                     ? 'bg-orange-500 text-white border-orange-500'
-                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200'); ?>"
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30'); ?>"
                         >
                             <?php echo e($i); ?>
 
                         </a>
                     <?php endfor; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($end < $totalPages): ?>
+                        <span class="px-2">…</span>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
+                    
+                    <!--[if BLOCK]><![endif]--><?php if($page < $totalPages): ?>
+                        <a href="<?php echo e(request()->fullUrlWithQuery(['page' => $totalPages])); ?>"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     
                     <a
@@ -945,12 +1042,13 @@
 <?php endif; ?>
 
 <script>
-    function openPropertiesModal(name, type, date, path) {
-        document.getElementById('prop-name').innerText = name;
-        document.getElementById('prop-date').innerText = date;
-        document.getElementById('prop-path').innerText = path;
+    function openPropertiesModal(btn) {
+        document.getElementById('prop-name').innerText = btn.dataset.name;
+        document.getElementById('prop-date').innerText = btn.dataset.date;
+        document.getElementById('prop-path').innerText = btn.dataset.path;
         document.getElementById('propertiesModal').classList.remove('hidden');
     }
+
 
     function closePropertiesModal() {
         document.getElementById('propertiesModal').classList.add('hidden');

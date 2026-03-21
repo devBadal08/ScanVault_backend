@@ -38,6 +38,7 @@ class User extends Authenticatable implements FilamentUser
         'assigned_to',
         'show_total_photos',
         'show_total_storage',
+        'can_delete_photos',
     ];
 
     /**
@@ -158,6 +159,7 @@ class User extends Authenticatable implements FilamentUser
             'Super Admin',
             'admin',
             'manager',
+            'user',
         ]);
     }
 }

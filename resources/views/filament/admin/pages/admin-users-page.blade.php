@@ -3,17 +3,27 @@
 <x-filament::page>
     <div>
 
-        <div class="mb-6">
+        <div class="mb-6 flex items-center gap-3">
             <input
                 type="text"
-                wire:model.live="globalSearch"
+                wire:model.defer="globalSearch"
+                wire:keydown.enter="searchGlobal"
                 placeholder="🔍 Global Search (folders ...)"
-                class="w-full px-4 py-3 rounded-xl border
+                class="flex-1 px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
                 bg-white dark:bg-gray-900
                 text-gray-900 dark:text-white
                 focus:ring-2 focus:ring-orange-500 shadow"
             >
+
+            <x-filament::button
+                wire:click="searchGlobal"
+                wire:loading.attr="disabled"
+                color="primary"
+                class="h-[48px]"
+            >
+                Search
+            </x-filament::button>
         </div>
 
         @if(!empty($globalResults))
@@ -386,9 +396,12 @@
                                             </div>
 
                                             {{-- 3-dot menu button --}}
-                                            <button onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full 
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button
+                                                data-name="{{ $item['name'] }}"
+                                                data-date="{{ $item['created_at'] ?? 'N/A' }}"
+                                                data-path="{{ asset('storage/' . $item['path']) }}"
+                                                onclick="openPropertiesModal(this)"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
                                                 title="More options">
                                                 <svg xmlns="http://www.w3.org/2000/svg" 
                                                     class="w-4 h-4 text-gray-700 dark:text-white" 
@@ -402,7 +415,7 @@
                                         {{-- IMAGE --}}
                                         @if ($item['type'] === 'image')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="block w-full h-full">
-                                                <img src="{{ asset('storage/' . $item['path']) }}"
+                                                <img loading="lazy" src="{{ asset('storage/' . $item['path']) }}"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="{{ $item['name'] }}">
                                             </a>
@@ -454,17 +467,51 @@
                     </a>
 
                     {{-- Page Numbers --}}
-                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                    @php
+                        $totalPages = ceil($total / $perPage);
+                        $window = 2; // pages before & after current
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
+                    @endphp
+
+                    {{-- First --}}
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => 1]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    @endif
+
+                    {{-- Left Ellipsis --}}
+                    @if ($start > 1)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Page Numbers --}}
+                    @for ($i = $start; $i <= $end; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
                                 {{ $i === $page
                                     ? 'bg-orange-500 text-white border-orange-500'
-                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200' }}"
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30' }}"
                         >
                             {{ $i }}
                         </a>
                     @endfor
+
+                    {{-- Right Ellipsis --}}
+                    @if ($end < $totalPages)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Last --}}
+                    @if ($page < $totalPages)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $totalPages]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    @endif
 
                     {{-- Next --}}
                     <a
@@ -629,9 +676,12 @@
                                             </div>
 
                                             {{-- More options --}}
-                                            <button onclick="openPropertiesModal('{{ $item['name'] }}', '{{ $item['type'] }}', '{{ $item['created_at'] ?? 'N/A' }}', '{{ asset('storage/' . $item['path']) }}')"
-                                                class="p-1 rounded-full
-                                                    hover:bg-gray-200 dark:hover:bg-gray-600"
+                                            <button
+                                                data-name="{{ $item['name'] }}"
+                                                data-date="{{ $item['created_at'] ?? 'N/A' }}"
+                                                data-path="{{ asset('storage/' . $item['path']) }}"
+                                                onclick="openPropertiesModal(this)"
+                                                class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
                                                 title="More options">
                                                 <svg xmlns="http://www.w3.org/2000/svg"
                                                     class="w-4 h-4 text-gray-700 dark:text-white"
@@ -645,7 +695,7 @@
                                         @if ($item['type'] === 'image')
                                             <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
                                                 class="block w-full h-full">
-                                                <img src="{{ asset('storage/' . $item['path']) }}"
+                                                <img loading="lazy" src="{{ asset('storage/' . $item['path']) }}"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="{{ $item['name'] }}">
                                             </a>
@@ -699,17 +749,51 @@
                     </a>
 
                     {{-- Page Numbers --}}
-                    @for ($i = 1; $i <= ceil($total / $perPage); $i++)
+                    @php
+                        $totalPages = ceil($total / $perPage);
+                        $window = 2; // pages before & after current
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
+                    @endphp
+
+                    {{-- First --}}
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => 1]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    @endif
+
+                    {{-- Left Ellipsis --}}
+                    @if ($start > 1)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Page Numbers --}}
+                    @for ($i = $start; $i <= $end; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
                                 {{ $i === $page
                                     ? 'bg-orange-500 text-white border-orange-500'
-                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30 text-gray-800 dark:text-gray-200' }}"
+                                    : 'bg-white dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/30' }}"
                         >
                             {{ $i }}
                         </a>
                     @endfor
+
+                    {{-- Right Ellipsis --}}
+                    @if ($end < $totalPages)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Last --}}
+                    @if ($page < $totalPages)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $totalPages]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    @endif
 
                     {{-- Next --}}
                     <a
@@ -783,12 +867,13 @@
 </x-filament::page>
 
 <script>
-    function openPropertiesModal(name, type, date, path) {
-        document.getElementById('prop-name').innerText = name;
-        document.getElementById('prop-date').innerText = date;
-        document.getElementById('prop-path').innerText = path;
+    function openPropertiesModal(btn) {
+        document.getElementById('prop-name').innerText = btn.dataset.name;
+        document.getElementById('prop-date').innerText = btn.dataset.date;
+        document.getElementById('prop-path').innerText = btn.dataset.path;
         document.getElementById('propertiesModal').classList.remove('hidden');
     }
+
 
     function closePropertiesModal() {
         document.getElementById('propertiesModal').classList.add('hidden');

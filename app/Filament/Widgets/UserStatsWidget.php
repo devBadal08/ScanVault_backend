@@ -5,13 +5,21 @@ namespace App\Filament\Widgets;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
 use App\Services\Stats\UserStatsService;
+use Illuminate\Support\Facades\Cache;
 
 class UserStatsWidget extends StatsOverviewWidget
 {
     protected function getStats(): array
     {
-        $user  = auth()->user();
-        $stats = UserStatsService::get($user);
+        $user = auth()->user();
+
+        // cache key per user
+        $cacheKey = 'user_stats_widget_' . $user->id;
+
+        // cache stats for 5 minutes
+        $stats = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($user) {
+            return UserStatsService::get($user);
+        });
 
         $cards = [];
 
@@ -84,14 +92,14 @@ class UserStatsWidget extends StatsOverviewWidget
                 $cards[] = Card::make('Total Managers', $stats['total_managers'] ?? 0)
                     ->description('Managers created by you')
                     ->descriptionIcon('heroicon-m-user')
-                        ->color('warning');
+                    ->color('warning');
             }
 
             if ($user->canShow('total_users')) {
                 $cards[] = Card::make('Total Users', $stats['total_users'] ?? 0)
                     ->description('Users created by you and your managers')
-                        ->descriptionIcon('heroicon-m-users')
-                        ->color('info');
+                    ->descriptionIcon('heroicon-m-users')
+                    ->color('info');
             }
 
             if ($user->canShow('total_limit') && isset($stats['limit'])) {
