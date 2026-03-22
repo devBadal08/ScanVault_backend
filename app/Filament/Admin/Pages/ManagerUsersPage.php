@@ -47,7 +47,7 @@ class ManagerUsersPage extends Page
     public int $perPage = 30;
     public int $page = 1;
     public int $total = 0;
-    public int $datesPerPage = 3;
+    public int $datesPerPage = 6;
     protected $listeners = [
         'bulkDeleteMedia' => 'bulkDeleteMedia'
     ];
