@@ -434,8 +434,6 @@ class ManagerUsersPage extends Page
                     ->where('user_id', $userId)
                     ->whereNull('parent_id')
                     ->orderByDesc('created_at')
-                    ->skip(($this->page - 1) * $this->perPage)
-                    ->take($this->perPage)
                     ->get()
                     ->map(function ($folder) {
                         return [
