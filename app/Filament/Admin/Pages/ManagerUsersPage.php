@@ -215,7 +215,7 @@ class ManagerUsersPage extends Page
 
         foreach ($items as $item) {
             if (empty($item['created_at'])) {
-                continue;
+                $item['created_at'] = now(); // fallback so it doesn't skip
             }
 
             // ✅ FORCE correct timezone
@@ -474,11 +474,13 @@ class ManagerUsersPage extends Page
                 //     ->sortByDesc(fn ($i) => $i['created_at'])
                 //     ->values();
 
-                // ✅ group EVERYTHING first
-                $grouped = $this->groupByDate($rawFolders->toArray());
+                $paginatedFolders = $rawFolders
+                    ->slice(($this->page - 1) * $this->perPage, $this->perPage)
+                    ->values();
 
-                // ✅ paginate DATE GROUPS (3 per page)
-                $this->folders = $this->paginateDateGroups($grouped);
+                $this->total = $rawFolders->count();
+
+                $this->folders = $this->groupByDate($paginatedFolders->toArray());
 
             } else {
 

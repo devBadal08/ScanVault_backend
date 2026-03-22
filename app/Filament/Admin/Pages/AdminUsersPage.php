@@ -293,10 +293,19 @@ class AdminUsersPage extends Page
             // Top-level folders (if no folder selected)
             if (!$folder) {
 
-                $allFolders = Folder::where('company_id', $activeCompanyId)
+                // 🔥 Fetch ONLY current page from DB
+                $foldersQuery = Folder::where('company_id', $activeCompanyId)
                     ->where('user_id', $userId)
                     ->whereNull('parent_id')
-                    ->orderByDesc('created_at')
+                    ->orderByDesc('created_at');
+
+                // total count (for pagination UI)
+                $this->total = $foldersQuery->count();
+
+                // paginated folders
+                $paginatedFolders = $foldersQuery
+                    ->skip(($this->page - 1) * $this->perPage)
+                    ->take($this->perPage)
                     ->get()
                     ->map(function ($folder) {
                         return [
@@ -308,32 +317,12 @@ class AdminUsersPage extends Page
                         ];
                     });
 
-                // merge shared folders
-                $allFolders = $allFolders->merge($sharedFolders);
+                // merge shared folders (optional: limit to avoid overflow)
+                $paginatedFolders = $paginatedFolders
+                    ->merge(collect($sharedFolders)->take(10));
 
-                // ✅ IMPORTANT: sort by latest first
-                // $allFolders = $allFolders
-                //     ->sortByDesc(fn ($f) => $f['created_at'])
-                //     ->values();
-
-                // // pagination AFTER sorting
-                // $this->total = $allFolders->count();
-
-                // $pagedFolders = $allFolders->slice(
-                //     ($this->page - 1) * $this->perPage,
-                //     $this->perPage
-                // )->values();
-
-                $this->total = Folder::where('company_id', $activeCompanyId)
-                    ->where('user_id', $userId)
-                    ->whereNull('parent_id')
-                    ->count();
-
-                // group only the paged items
-                $grouped = $this->groupByDate($allFolders->toArray());
-
-                // only 3 date sections on first page
-                $this->folders = $this->paginateDateGroups($grouped);
+                // ✅ group AFTER pagination (correct way)
+                $this->folders = $this->groupByDate($paginatedFolders->toArray());
             } else {
                 // Selected folder / subfolder
                 $this->selectedFolder = $folder;
