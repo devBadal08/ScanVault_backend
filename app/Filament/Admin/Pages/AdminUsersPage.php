@@ -293,19 +293,10 @@ class AdminUsersPage extends Page
             // Top-level folders (if no folder selected)
             if (!$folder) {
 
-                // 🔥 Fetch ONLY current page from DB
-                $foldersQuery = Folder::where('company_id', $activeCompanyId)
+                $allFolders = Folder::where('company_id', $activeCompanyId)
                     ->where('user_id', $userId)
                     ->whereNull('parent_id')
-                    ->orderByDesc('created_at');
-
-                // total count (for pagination UI)
-                $this->total = $foldersQuery->count();
-
-                // paginated folders
-                $paginatedFolders = $foldersQuery
-                    ->skip(($this->page - 1) * $this->perPage)
-                    ->take($this->perPage)
+                    ->orderByDesc('created_at')
                     ->get()
                     ->map(function ($folder) {
                         return [
@@ -317,11 +308,21 @@ class AdminUsersPage extends Page
                         ];
                     });
 
-                // merge shared folders (optional: limit to avoid overflow)
-                $paginatedFolders = $paginatedFolders
-                    ->merge(collect($sharedFolders)->take(10));
+                // ✅ merge shared folders FIRST
+                $allFolders = $allFolders
+                    ->merge($sharedFolders)
+                    ->sortByDesc(fn ($f) => $f['created_at'])
+                    ->values();
 
-                // ✅ group AFTER pagination (correct way)
+                // ✅ correct total
+                $this->total = $allFolders->count();
+
+                // ✅ paginate AFTER merge
+                $paginatedFolders = $allFolders
+                    ->slice(($this->page - 1) * $this->perPage, $this->perPage)
+                    ->values();
+
+                // ✅ group
                 $this->folders = $this->groupByDate($paginatedFolders->toArray());
             } else {
                 // Selected folder / subfolder

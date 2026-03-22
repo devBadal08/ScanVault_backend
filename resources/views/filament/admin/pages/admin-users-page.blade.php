@@ -203,7 +203,7 @@
             @endforeach
 
             {{-- Pagination --}}
-            @if ($total > $datesPerPage)
+            @if ($total > $perPage)
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
                     {{-- Previous --}}
@@ -220,7 +220,7 @@
 
                     {{-- Page Numbers --}}
                     @php
-                        $totalPages = ceil($total / $datesPerPage);
+                        $totalPages = ceil($total / $perPage);
                     @endphp
 
                     @for ($i = 1; $i <= $totalPages; $i++)

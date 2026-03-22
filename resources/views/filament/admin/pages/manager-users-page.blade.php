@@ -196,9 +196,9 @@
             @endforeach
 
             {{-- pagination (images use $total & $perPage) --}}
-            @if ($total > $datesPerPage)
+            @if ($total > $perPage)
                 @php
-                    $totalPages = ceil($total / $datesPerPage);
+                    $totalPages = ceil($total / $perPage);
                 @endphp
 
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
