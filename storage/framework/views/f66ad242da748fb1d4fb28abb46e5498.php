@@ -296,7 +296,7 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
-            <!--[if BLOCK]><![endif]--><?php if($total > $datesPerPage): ?>
+            <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
                     
@@ -313,7 +313,7 @@
 
                     
                     <?php
-                        $totalPages = ceil($total / $datesPerPage);
+                        $totalPages = ceil($total / $perPage);
                     ?>
 
                     <!--[if BLOCK]><![endif]--><?php for($i = 1; $i <= $totalPages; $i++): ?>

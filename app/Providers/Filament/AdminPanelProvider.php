@@ -122,7 +122,10 @@ class AdminPanelProvider extends PanelProvider
                         font-size:14px;
                         color:#6B7280;
                     ">
-                        Developed with 🫶 by <b>Techstrota</b>
+                        Developed with 🫶 by 
+                        <a href="https://techstrota.com" target="_blank" style="font-weight:bold; text-decoration:none;">
+                            Techstrota
+                        </a>
                     </div>
                 '
             )

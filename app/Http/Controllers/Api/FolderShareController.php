@@ -210,6 +210,7 @@ class FolderShareController extends Controller
                 'folder_id' => $folder->id,            // shared folder
                 'path'      => $storedPath,            // REQUIRED
                 'type'      => $this->detectType($file),
+                'company_id' => $folder->company_id,
                 'uploaded_by' => auth()->id(),
             ]);
 

@@ -46,7 +46,9 @@ class AdminUsersPage extends Page
         $groups = [];
 
         foreach ($items as $item) {
+            // 👇 1. CHANGE THIS IF STATEMENT
             if (empty($item['created_at'])) {
+                $groups['Older / Unknown Date'][] = $item; // Give it a fallback group!
                 continue;
             }
 
@@ -58,7 +60,6 @@ class AdminUsersPage extends Page
             } elseif ($created->isYesterday()) {
                 $label = 'Yesterday';
             } else {
-                // 👇 EXACT DATE GROUPING
                 $label = $created->format('d-m-Y');
             }
 
@@ -68,9 +69,11 @@ class AdminUsersPage extends Page
         // Sort sections by latest date first
         uksort($groups, function ($a, $b) {
 
+            // 👇 2. ADD 'Older / Unknown Date' TO YOUR PRIORITY LIST
             $priority = [
                 'Today' => 3,
                 'Yesterday' => 2,
+                'Older / Unknown Date' => -1, // Pushes it to the very bottom
             ];
 
             $aPriority = $priority[$a] ?? 1;
@@ -128,7 +131,8 @@ class AdminUsersPage extends Page
     {
         $query = trim(strtolower($this->globalSearch));
 
-        if ($query === '') {
+        // Minimum 8 characters condition
+        if (strlen($query) < 8) {
             $this->globalResults = [];
             return;
         }
@@ -152,7 +156,7 @@ class AdminUsersPage extends Page
                 $results = array_merge(
                     $results,
                     Folder::where('company_id', $companyId)
-                        ->where('name', $query)
+                        ->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
                         ->get()
                         ->map(function ($folder) use ($user) {
                             return [
@@ -295,7 +299,6 @@ class AdminUsersPage extends Page
 
                 $allFolders = Folder::where('company_id', $activeCompanyId)
                     ->where('user_id', $userId)
-                    ->whereNull('parent_id')
                     ->orderByDesc('created_at')
                     ->get()
                     ->map(function ($folder) {
@@ -394,7 +397,6 @@ class AdminUsersPage extends Page
 
                 $allSubfolders = Folder::where('parent_id', $parentFolder->id)
                     ->orderByDesc('created_at')
-                    ->limit(100)
                     ->get()
                     ->map(function ($folder) {
                         return [
@@ -500,7 +502,7 @@ class AdminUsersPage extends Page
 
                 // $this->items = $this->groupByDate($paged->toArray());
                 // $this->images = $paged->toArray();
-                $combined = $folderItems->merge($mediaAll)->take(200)->toArray();
+                $combined = $folderItems->merge($mediaAll)->toArray();
                 $this->items = $this->groupByDate($combined);
             }
         }
