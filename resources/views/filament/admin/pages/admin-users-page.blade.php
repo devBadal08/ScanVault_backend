@@ -218,12 +218,29 @@
                         <span>Previous</span>
                     </a>
 
-                    {{-- Page Numbers --}}
+                    {{-- Page Logic --}}
                     @php
-                        $totalPages = ceil($total / $perPage);
+                        $totalPages = ceil($total / $datesPerPage);
+                        $window = 2;
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
                     @endphp
 
-                    @for ($i = 1; $i <= $totalPages; $i++)
+                    {{-- First --}}
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => 1]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    @endif
+
+                    {{-- Left Ellipsis --}}
+                    @if ($start > 1)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Page Numbers --}}
+                    @for ($i = $start; $i <= $end; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
@@ -234,6 +251,19 @@
                             {{ $i }}
                         </a>
                     @endfor
+
+                    {{-- Right Ellipsis --}}
+                    @if ($end < $totalPages)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Last --}}
+                    @if ($page < $totalPages)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $totalPages]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    @endif
 
                     {{-- Next --}}
                     <a

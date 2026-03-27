@@ -215,8 +215,30 @@
                         <span>Previous</span>
                     </a>
 
+                    {{-- Page Numbers (Scrollable) --}}
+                    @php
+                        $totalPages = ceil($total / $datesPerPage);
+                        $window = 2;
+
+                        $start = max(1, $page - $window);
+                        $end   = min($totalPages, $page + $window);
+                    @endphp
+
+                    {{-- First --}}
+                    @if ($page > 1)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => 1]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            First
+                        </a>
+                    @endif
+
+                    {{-- Left dots --}}
+                    @if ($start > 1)
+                        <span class="px-2">…</span>
+                    @endif
+
                     {{-- Page Numbers --}}
-                    @for ($i = 1; $i <= $totalPages; $i++)
+                    @for ($i = $start; $i <= $end; $i++)
                         <a
                             href="{{ request()->fullUrlWithQuery(['page' => $i]) }}"
                             class="min-w-[40px] text-center px-3 py-2 rounded-lg border transition
@@ -227,6 +249,19 @@
                             {{ $i }}
                         </a>
                     @endfor
+
+                    {{-- Right dots --}}
+                    @if ($end < $totalPages)
+                        <span class="px-2">…</span>
+                    @endif
+
+                    {{-- Last --}}
+                    @if ($page < $totalPages)
+                        <a href="{{ request()->fullUrlWithQuery(['page' => $totalPages]) }}"
+                            class="px-3 py-2 rounded-lg border bg-white dark:bg-gray-800">
+                            Last
+                        </a>
+                    @endif
 
                     {{-- Next --}}
                     <a
