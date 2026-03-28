@@ -45,7 +45,7 @@ class ManagerUsersPage extends Page
     public $selectedFolder = null;
     public $selectedSubfolder = null;
 
-    public int $perPage = 1;
+    public int $perPage = 30;
     public int $page = 1;
     public int $total = 0;
     public int $datesPerPage = 3;

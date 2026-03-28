@@ -36,6 +36,8 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('/download-folder', [DownloadController::class, 'download'])->name('download-folder');
 Route::get('/download-today-folders', [DownloadController::class, 'downloadToday'])
     ->name('download-today-folders');
+Route::get('/download-file', [DownloadController::class, 'downloadFile'])
+    ->name('download-file');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', function () {

@@ -373,7 +373,7 @@
                                             {{-- Checkbox --}}
                                             <input type="checkbox"
                                                 class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                value="{{ $item['path'] }}">
+                                                value="{{ route('download-file', ['path' => $item['path']]) }}">
 
                                             <div class="flex items-center gap-1">
 
@@ -621,7 +621,7 @@
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
                                                     class="image-checkbox-subfolder"
-                                                    value="{{ $item['path'] }}">
+                                                    value="{{ route('download-file', ['path' => $item['path']]) }}">
 
                                                 @if(isset($item['linked']) && $item['linked'])
                                                     <span class="bg-blue-500 text-white text-[10px] px-1 rounded">

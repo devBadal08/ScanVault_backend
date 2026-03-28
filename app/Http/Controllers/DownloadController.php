@@ -62,6 +62,17 @@ class DownloadController extends Controller
         return response()->json(['error' => 'Could not create zip.'], 500);
     }
 
+    public function downloadFile(Request $request)
+    {
+        $path = urldecode($request->query('path'));
+
+        if (!Storage::disk('public')->exists($path)) {
+            abort(404, 'File not found');
+        }
+
+        return Storage::disk('public')->download($path);
+    }
+
     public function downloadToday(Request $request)
     {
         $today = now()->toDateString();
