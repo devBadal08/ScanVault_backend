@@ -129,8 +129,8 @@ class AdminUsersPage extends Page
     {
         $query = trim($this->globalSearch);
 
-        // Minimum 8 characters condition
-        if (strlen($query) < 8) {
+        // Minimum 6 characters condition
+        if (strlen($query) < 6) {
             $this->globalResults = [];
             return;
         }
