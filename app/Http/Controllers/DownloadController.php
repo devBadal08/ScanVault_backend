@@ -40,7 +40,7 @@ class DownloadController extends Controller
         }
 
         $zip = new \ZipArchive;
-        if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($folderPath),
                 \RecursiveIteratorIterator::LEAVES_ONLY
@@ -64,13 +64,16 @@ class DownloadController extends Controller
 
     public function downloadFile(Request $request)
     {
-        $path = urldecode($request->query('path'));
+        $path = $request->query('path');
 
-        if (!Storage::disk('public')->exists($path)) {
+        if (!$path || !Storage::disk('public')->exists($path)) {
             abort(404, 'File not found');
         }
 
-        return Storage::disk('public')->download($path);
+        return response()->download(
+            storage_path('app/public/' . $path),
+            basename($path)
+        );
     }
 
     public function downloadToday(Request $request)
