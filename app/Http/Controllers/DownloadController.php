@@ -23,16 +23,11 @@ class DownloadController extends Controller
 
         $folderName = basename($folder);
 
-        // ✅ Get company info of the logged-in user
         $user = Auth::user();
         $company = \DB::table('companies')->where('id', $user->company_id)->first();
-
-        // If company exists, use its name, else fallback
         $companyPrefix = $company ? $company->company_name : 'company';
 
-        // ✅ Zip filename with company prefix
         $zipFileName = $companyPrefix . '_' . $folderName . '.zip';
-
         $zipPath = storage_path('app/temp/' . $zipFileName);
 
         if (!is_dir(storage_path('app/temp'))) {
@@ -40,27 +35,42 @@ class DownloadController extends Controller
         }
 
         $zip = new \ZipArchive;
+
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
 
+            $addedFiles = 0;
+
             foreach ($files as $file) {
                 if (!$file->isDir()) {
+
                     $filePath = $file->getRealPath();
 
                     if (!$filePath || !file_exists($filePath)) {
-                        continue; // skip invalid files
+                        continue;
                     }
 
                     $relativePath = substr($filePath, strlen($folderPath) + 1);
 
                     $zip->addFile($filePath, $relativePath);
+                    $addedFiles++;
                 }
             }
 
+            if ($addedFiles === 0) {
+                $zip->close();
+                return response()->json(['error' => 'Folder is empty'], 400);
+            }
+
             $zip->close();
+
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
 
             return response()->download($zipPath)->deleteFileAfterSend(true);
         }
