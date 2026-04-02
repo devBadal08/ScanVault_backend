@@ -59,7 +59,15 @@
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $globalResults; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 
                         <a
-                            href="?user=<?php echo e($item['user_id']); ?>&folder=<?php echo e(urlencode($item['path'])); ?>"
+                            href="?user=<?php echo e($item['user_id']); ?>
+
+&folder=<?php echo e(urlencode($item['folder'])); ?>
+
+<?php if(!empty($item['subfolder'])): ?>
+&subfolder=<?php echo e(urlencode($item['subfolder'])); ?>
+
+<?php endif; ?>
+&from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -296,7 +304,7 @@
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
 
             
-            <!--[if BLOCK]><![endif]--><?php if($total > $perPage): ?>
+            <!--[if BLOCK]><![endif]--><?php if($total > $datesPerPage): ?>
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
                     

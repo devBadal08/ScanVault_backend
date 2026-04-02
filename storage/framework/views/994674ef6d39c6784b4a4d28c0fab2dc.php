@@ -61,7 +61,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $globalResults; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <a
-                            href="?user=<?php echo e($item['user_id']); ?>&folder=<?php echo e(urlencode($item['path'])); ?>"
+                            href="?user=<?php echo e($item['user_id']); ?>
+
+&folder=<?php echo e(urlencode($item['folder'])); ?>
+
+<?php if(!empty($item['subfolder'])): ?>
+&subfolder=<?php echo e(urlencode($item['subfolder'])); ?>
+
+<?php endif; ?>
+&from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -365,14 +373,14 @@
             <div class="mb-4">
                 <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(request()->url() . '?user=' . $selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['tag' => 'a','href' => '?user='.e($selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
+<?php $component->withAttributes(['tag' => 'a','href' => ''.e(request()->url() . '?user=' . $selectedUser->id).'','color' => 'primary','icon' => 'heroicon-o-arrow-left']); ?>
                     Back to Main Folders
                  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -462,9 +470,19 @@
                                         
                                         <?php
                                             $currentSubfolder = request()->get('subfolder');
-                                            $nextSubfolder = $currentSubfolder
-                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
-                                                : basename($item['path']);
+                                            $folderName = basename($item['path']);
+
+                                            if ($currentSubfolder) {
+                                                $parts = explode('/', $currentSubfolder);
+
+                                                if (end($parts) === $folderName) {
+                                                    $nextSubfolder = $currentSubfolder;
+                                                } else {
+                                                    $nextSubfolder = trim($currentSubfolder . '/' . $folderName, '/');
+                                                }
+                                            } else {
+                                                $nextSubfolder = $folderName;
+                                            }
                                         ?>
                                         <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($nextSubfolder)); ?>"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
@@ -485,8 +503,11 @@
 
                                             
                                             <input type="checkbox"
-                                                class="<?php echo e(isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox'); ?>"
-                                                value="<?php echo e(route('download-file', ['path' => $item['path']])); ?>">
+                                                    class="image-checkbox 
+                                                        text-blue-600 dark:text-blue-400 
+                                                        bg-white dark:bg-gray-800 
+                                                        border-gray-300 dark:border-gray-600"
+                                                    value="<?php echo e(asset('storage/' . $item['path'])); ?>">
 
                                             <div class="flex items-center gap-1">
 
@@ -764,9 +785,19 @@
                                         
                                         <?php
                                             $currentSubfolder = request()->get('subfolder');
-                                            $nextSubfolder = $currentSubfolder
-                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
-                                                : basename($item['path']);
+                                            $folderName = basename($item['path']);
+
+                                            if ($currentSubfolder) {
+                                                $parts = explode('/', $currentSubfolder);
+
+                                                if (end($parts) === $folderName) {
+                                                    $nextSubfolder = $currentSubfolder;
+                                                } else {
+                                                    $nextSubfolder = trim($currentSubfolder . '/' . $folderName, '/');
+                                                }
+                                            } else {
+                                                $nextSubfolder = $folderName;
+                                            }
                                         ?>
                                         <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($selectedFolder)); ?>&subfolder=<?php echo e(urlencode($nextSubfolder)); ?>"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
@@ -787,8 +818,11 @@
                                             
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="image-checkbox-subfolder"
-                                                    value="<?php echo e(route('download-file', ['path' => $item['path']])); ?>">
+                                                    class="image-checkbox-subfolder
+                                                        text-blue-600 dark:text-blue-400
+                                                        bg-white dark:bg-gray-800
+                                                        border-gray-300 dark:border-gray-600"
+                                                    value="<?php echo e(asset('storage/' . $item['path'])); ?>">
 
                                                 <!--[if BLOCK]><![endif]--><?php if(isset($item['linked']) && $item['linked']): ?>
                                                     <span class="bg-blue-500 text-white text-[10px] px-1 rounded">

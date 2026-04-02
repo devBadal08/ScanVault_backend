@@ -154,7 +154,10 @@ class AdminUsersPage extends Page
         // 🔥 SINGLE QUERY (IMPORTANT)
         $photos = \App\Models\Photo::whereIn('company_id', $companyIds)
             ->whereIn('user_id', $users->pluck('id'))
-            ->where('path', 'LIKE', "%{$query}%")
+            ->where(function ($q) use ($query) {
+                $q->where('path', 'LIKE', "%/{$query}%")   // match folder/subfolder
+                ->orWhere('path', 'LIKE', "{$query}%");  // match start (safety)
+            })
             ->select('path', 'user_id') // reduce load
             ->get();
 
@@ -162,20 +165,48 @@ class AdminUsersPage extends Page
         $userMap = $users->keyBy('id');
 
         // Convert to folders
-        $results = $photos->map(function ($photo) use ($userMap) {
+        $results = $photos->map(function ($photo) use ($userMap, $query) {
 
             $parts = explode('/', $photo->path);
 
-            return [
-                'type' => 'folder',
-                'name' => $parts[count($parts) - 2] ?? null,
-                'user' => $userMap[$photo->user_id]->name ?? null,
-                'user_id' => $photo->user_id,
-                'path' => implode('/', array_slice($parts, 0, -1)),
-            ];
+            $folderName = strtolower($parts[2] ?? '');
+            $subfolderName = strtolower($parts[count($parts) - 2] ?? '');
+            $queryClean = strtolower($query);
+
+            // ✅ ONLY STARTS WITH MATCH
+            $isMainMatch = str_starts_with($folderName, $queryClean);
+            $isSubMatch  = str_starts_with($subfolderName, $queryClean);
+
+            $folder = implode('/', array_slice($parts, 0, 3));
+            $subPath = array_slice($parts, 3, -1);
+
+            if ($isMainMatch) {
+                return [
+                    'type' => 'folder',
+                    'name' => $parts[2] ?? null,
+                    'user' => $userMap[$photo->user_id]->name ?? null,
+                    'user_id' => $photo->user_id,
+                    'folder' => $folder,
+                    'subfolder' => null,
+                ];
+            }
+
+            if ($isSubMatch && !empty($subPath)) {
+                return [
+                    'type' => 'folder',
+                    'name' => $parts[count($parts) - 2] ?? null,
+                    'user' => $userMap[$photo->user_id]->name ?? null,
+                    'user_id' => $photo->user_id,
+                    'folder' => $folder,
+                    'subfolder' => implode('/', $subPath),
+                ];
+            }
+
+            return null;
+
         })
-        ->filter(fn($f) => $f['name'])
-        ->unique('path')
+        ->filter()
+        ->unique(fn($item) => $item['folder'].'|'.$item['subfolder'])
         ->values()
         ->toArray();
 

@@ -304,7 +304,6 @@ class ManagerUsersPage extends Page
     {
         $query = trim(strtolower($this->globalSearch));
 
-        // ✅ Minimum 6 characters condition
         if (strlen($query) < 6) {
             $this->globalResults = [];
             return;
@@ -315,11 +314,27 @@ class ManagerUsersPage extends Page
 
         $authUser = Auth::user();
 
-        // ✅ Manager can ONLY search their own users
-        $users = User::where('role', 'user')
-            ->where('created_by', $authUser->id)
-            ->select('id', 'name')
-            ->get();
+        // ✅ Get users under manager
+        if ($authUser->role === 'manager') {
+
+            $users = User::where('role', 'user')
+                ->where('created_by', $authUser->id)
+                ->select('id', 'name')
+                ->get();
+
+        } else {
+
+            // ✅ Admin → get managers first
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $authUser->id)
+                ->pluck('id');
+
+            // ✅ Then get users under those managers
+            $users = User::where('role', 'user')
+                ->whereIn('created_by', $managerIds)
+                ->select('id', 'name')
+                ->get();
+        }
 
         if ($users->isEmpty()) {
             $this->globalResults = [];
@@ -329,25 +344,34 @@ class ManagerUsersPage extends Page
 
         $companyIds = $authUser->companies()->pluck('companies.id');
 
+        // =========================================================
+        // ✅ STEP 1: SEARCH MAIN FOLDERS (STRONG MATCH)
+        // =========================================================
+
+        $mainFolders = [];
+
         foreach ($users as $user) {
             foreach ($companyIds as $companyId) {
 
-                $basePath = "{$companyId}/{$user->id}";
-
-                $results = array_merge(
-                    $results,
+                $mainFolders = array_merge(
+                    $mainFolders,
                     Folder::where('company_id', $companyId)
                         ->where('user_id', $user->id)
-                        ->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
-                        ->limit(50)
+                        ->where(function ($q) use ($query) {
+                            $cleanQuery = str_replace(' ', '', $query);
+
+                            $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
+                            ->orWhereRaw('REPLACE(LOWER(name), " ", "") LIKE ?', ["%{$cleanQuery}%"]);
+                        })
                         ->get()
                         ->map(function ($folder) use ($user) {
                             return [
                                 'type' => 'folder',
-                                'name' => $folder->name,
+                                'name' => trim($folder->name),
                                 'user' => $user->name,
                                 'user_id' => $user->id,
-                                'path' => $folder->path,
+                                'folder' => trim($folder->path),
+                                'subfolder' => null,
                             ];
                         })
                         ->toArray()
@@ -355,11 +379,69 @@ class ManagerUsersPage extends Page
             }
         }
 
-        $this->globalResults = collect($results)
-            ->unique('path')
+        // ✅ If main folder found → RETURN ONLY THAT (better UX)
+        if (!empty($mainFolders)) {
+            $this->globalResults = collect($mainFolders)
+                ->unique(fn($item) => strtolower($item['folder']))
+                ->values()
+                ->toArray();
+
+            $this->isSearching = false;
+            return;
+        }
+
+        // =========================================================
+        // ✅ STEP 2: SEARCH SUBFOLDERS (FROM PHOTOS PATH)
+        // =========================================================
+
+        $photoResults = Photo::whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $users->pluck('id'))
+            ->whereRaw('LOWER(path) LIKE ?', ["%{$query}%"])
+            ->select('path', 'user_id')
+            ->limit(200)
+            ->get()
+
+            // ✅ GROUP BY SUBFOLDER (IMPORTANT)
+            ->groupBy(function ($photo) {
+                $parts = explode('/', $photo->path);
+                return implode('/', array_slice($parts, 0, -1));
+            })
+
+            ->map(function ($group) use ($users) {
+
+                $photo = $group->first();
+                $parts = explode('/', $photo->path);
+
+                $subPath = array_slice($parts, 3, -1);
+
+                return [
+                    'type' => 'folder',
+                    'name' => trim($parts[count($parts) - 2] ?? null),
+                    'user' => $users->firstWhere('id', $photo->user_id)?->name,
+                    'user_id' => $photo->user_id,
+
+                    'folder' => trim(implode('/', array_slice($parts, 0, 3))),
+                    'subfolder' => !empty($subPath)
+                        ? trim(implode('/', $subPath))
+                        : null,
+                ];
+            })
+
+            ->filter(fn($f) => $f['name'])
+
+            ->unique(function ($item) {
+                return strtolower(trim($item['folder'])) . '|' .
+                    strtolower(trim($item['subfolder'] ?? ''));
+            })
+
             ->values()
             ->toArray();
 
+        // =========================================================
+        // ✅ FINAL RESULT
+        // =========================================================
+
+        $this->globalResults = $photoResults;
         $this->isSearching = false;
     }
 
@@ -402,6 +484,10 @@ class ManagerUsersPage extends Page
 
         $folder = request()->get('folder');
         $subfolder = request()->get('subfolder');
+
+        // ✅ RESET STATE FIRST
+        $this->selectedFolder = null;
+        $this->selectedSubfolder = null;
 
         if (!in_array($authUser->role, ['manager', 'admin'])) {
             abort(403, 'Unauthorized');
@@ -494,11 +580,32 @@ class ManagerUsersPage extends Page
                 // Normalize folder and subfolder to names only
                 $pathParts = explode('/', trim($folder, '/'));
 
+                // Always fixed structure
                 $folderCompanyId = (int) ($pathParts[0] ?? $companyId);
                 $realOwnerId     = (int) ($pathParts[1] ?? $userId);
-                $folderName      = $pathParts[2] ?? basename($folder);
+                $folderName      = $pathParts[2] ?? null;
 
-                $subfolderPath = $subfolder ? trim($subfolder, '/') : null;
+                // 👇 EXTRA PARTS = SUBFOLDER
+                $extraPath = array_slice($pathParts, 3);
+
+                $fromSearch = request()->get('from_search');
+
+                if ($fromSearch && !$subfolder && !empty($extraPath)) {
+                    $subfolder = implode('/', $extraPath);
+                }
+
+                $subfolderPath = null;
+
+                if ($subfolder) {
+                    // normalize
+                    $subfolderPath = trim($subfolder, '/');
+
+                    // ensure full correct path
+                    if (!str_starts_with($subfolderPath, $folderName)) {
+                        // if only subfolder name passed → attach properly
+                        $subfolderPath = $subfolderPath;
+                    }
+                }
 
                 $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolderPath;
@@ -600,8 +707,6 @@ class ManagerUsersPage extends Page
                     ->sortByDesc(fn($i) => $i['created_at'])
                     ->values()
                     ->toArray();
-
-                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 

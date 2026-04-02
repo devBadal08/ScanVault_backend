@@ -37,7 +37,12 @@
                     @foreach($globalResults as $item)
 
                         <a
-                            href="?user={{ $item['user_id'] }}&folder={{ urlencode($item['path']) }}"
+                            href="?user={{ $item['user_id'] }}
+&folder={{ urlencode($item['folder']) }}
+@if(!empty($item['subfolder']))
+&subfolder={{ urlencode($item['subfolder']) }}
+@endif
+&from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -203,7 +208,7 @@
             @endforeach
 
             {{-- Pagination --}}
-            @if ($total > $perPage)
+            @if ($total > $datesPerPage)
                 <div class="mt-6 flex items-center justify-center gap-2 text-sm">
 
                     {{-- Previous --}}

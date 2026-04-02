@@ -39,7 +39,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     @foreach($globalResults as $item)
                         <a
-                            href="?user={{ $item['user_id'] }}&folder={{ urlencode($item['path']) }}"
+                            href="?user={{ $item['user_id'] }}
+&folder={{ urlencode($item['folder']) }}
+@if(!empty($item['subfolder']))
+&subfolder={{ urlencode($item['subfolder']) }}
+@endif
+&from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -285,7 +290,7 @@
             <div class="mb-4">
                 <x-filament::button
                     tag="a"
-                    href="?user={{ $selectedUser->id }}"
+                    href="{{ request()->url() . '?user=' . $selectedUser->id }}"
                     color="primary"
                     icon="heroicon-o-arrow-left">
                     Back to Main Folders
@@ -350,9 +355,19 @@
                                         {{-- Folder icon + name --}}
                                         @php
                                             $currentSubfolder = request()->get('subfolder');
-                                            $nextSubfolder = $currentSubfolder
-                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
-                                                : basename($item['path']);
+                                            $folderName = basename($item['path']);
+
+                                            if ($currentSubfolder) {
+                                                $parts = explode('/', $currentSubfolder);
+
+                                                if (end($parts) === $folderName) {
+                                                    $nextSubfolder = $currentSubfolder;
+                                                } else {
+                                                    $nextSubfolder = trim($currentSubfolder . '/' . $folderName, '/');
+                                                }
+                                            } else {
+                                                $nextSubfolder = $folderName;
+                                            }
                                         @endphp
                                         <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($nextSubfolder) }}"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
@@ -372,8 +387,11 @@
 
                                             {{-- Checkbox --}}
                                             <input type="checkbox"
-                                                class="{{ isset($selectedSubfolder) ? 'image-checkbox-subfolder' : 'image-checkbox' }}"
-                                                value="{{ route('download-file', ['path' => $item['path']]) }}">
+                                                    class="image-checkbox 
+                                                        text-blue-600 dark:text-blue-400 
+                                                        bg-white dark:bg-gray-800 
+                                                        border-gray-300 dark:border-gray-600"
+                                                    value="{{ asset('storage/' . $item['path']) }}">
 
                                             <div class="flex items-center gap-1">
 
@@ -598,9 +616,19 @@
                                         {{-- Folder icon + name --}}
                                         @php
                                             $currentSubfolder = request()->get('subfolder');
-                                            $nextSubfolder = $currentSubfolder
-                                                ? trim($currentSubfolder . '/' . basename($item['path']), '/')
-                                                : basename($item['path']);
+                                            $folderName = basename($item['path']);
+
+                                            if ($currentSubfolder) {
+                                                $parts = explode('/', $currentSubfolder);
+
+                                                if (end($parts) === $folderName) {
+                                                    $nextSubfolder = $currentSubfolder;
+                                                } else {
+                                                    $nextSubfolder = trim($currentSubfolder . '/' . $folderName, '/');
+                                                }
+                                            } else {
+                                                $nextSubfolder = $folderName;
+                                            }
                                         @endphp
                                         <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($selectedFolder) }}&subfolder={{ urlencode($nextSubfolder) }}"
                                         class="flex flex-col items-center justify-center flex-1 px-2">
@@ -620,8 +648,11 @@
                                             {{-- Checkbox --}}
                                             <div class="flex items-center space-x-1">
                                                 <input type="checkbox"
-                                                    class="image-checkbox-subfolder"
-                                                    value="{{ route('download-file', ['path' => $item['path']]) }}">
+                                                    class="image-checkbox-subfolder
+                                                        text-blue-600 dark:text-blue-400
+                                                        bg-white dark:bg-gray-800
+                                                        border-gray-300 dark:border-gray-600"
+                                                    value="{{ asset('storage/' . $item['path']) }}">
 
                                                 @if(isset($item['linked']) && $item['linked'])
                                                     <span class="bg-blue-500 text-white text-[10px] px-1 rounded">
