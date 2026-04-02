@@ -42,14 +42,20 @@ class DownloadController extends Controller
         $zip = new \ZipArchive;
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
             $files = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($folderPath),
+                new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
 
             foreach ($files as $file) {
                 if (!$file->isDir()) {
                     $filePath = $file->getRealPath();
+
+                    if (!$filePath || !file_exists($filePath)) {
+                        continue; // skip invalid files
+                    }
+
                     $relativePath = substr($filePath, strlen($folderPath) + 1);
+
                     $zip->addFile($filePath, $relativePath);
                 }
             }
