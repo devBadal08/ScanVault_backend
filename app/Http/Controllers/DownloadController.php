@@ -39,7 +39,7 @@ class DownloadController extends Controller
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
 
             $files = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS),
+                new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
 
@@ -57,6 +57,7 @@ class DownloadController extends Controller
                     $relativePath = substr($filePath, strlen($folderPath) + 1);
 
                     $zip->addFile($filePath, $relativePath);
+                    $zip->setCompressionName($relativePath, ZipArchive::CM_STORE);
                     $addedFiles++;
                 }
             }
