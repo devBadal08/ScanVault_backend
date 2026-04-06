@@ -563,9 +563,26 @@
                                         </div>
 
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
-                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>" 
-                                                    class="w-full h-full object-cover rounded" 
+                                            <?php
+                                                $onlyImages = collect($items)
+                                                    ->flatMap(function ($group) {
+                                                        return $group;
+                                                    })
+                                                    ->where('type', 'image')
+                                                    ->values();
+
+                                                $currentIndex = $onlyImages->search(function ($img) use ($item) {
+                                                    return $img['path'] === $item['path'];
+                                                });
+                                            ?>
+
+                                            <a href="<?php echo e(route('image.viewer', [
+                                                'images' => base64_encode(json_encode($onlyImages)),
+                                                'index' => $currentIndex
+                                            ])); ?>" target="_blank">
+
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                                    class="w-full h-full object-cover rounded"
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
                                         <?php elseif($item['type'] === 'video'): ?>
@@ -887,12 +904,27 @@
 
                                         
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="w-full h-full block">
-                                                <img
-                                                    src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                            <?php
+                                                $onlyImages = collect($items)
+                                                    ->flatMap(function ($group) {
+                                                        return $group;
+                                                    })
+                                                    ->where('type', 'image')
+                                                    ->values();
+
+                                                $currentIndex = $onlyImages->search(function ($img) use ($item) {
+                                                    return $img['path'] === $item['path'];
+                                                });
+                                            ?>
+
+                                            <a href="<?php echo e(route('image.viewer', [
+                                                'images' => base64_encode(json_encode($onlyImages)),
+                                                'index' => $currentIndex
+                                            ])); ?>" target="_blank">
+
+                                                <img src="<?php echo e(asset('storage/' . $item['path'])); ?>"
                                                     class="w-full h-full object-cover rounded"
-                                                    alt="<?php echo e($item['name']); ?>"
-                                                >
+                                                    alt="<?php echo e($item['name']); ?>">
                                             </a>
 
                                         <?php elseif($item['type'] === 'video'): ?>
@@ -1174,18 +1206,36 @@
 
         // -------- Download Selected --------
         const download = (selector) => {
-            const selected = [...document.querySelectorAll(selector.replace(/([^,]+)/g, '$1:checked'))].map(cb => cb.value);
-            if (!selected.length) return alert('Please select at least one item to download.');
+            const selected = [...document.querySelectorAll(selector.replace(/([^,]+)/g, '$1:checked'))]
+                .map(cb => ({
+                    path: cb.value,
+                    type: cb.dataset.type || 'file'
+                }));
 
-            selected.forEach((url, i) => {
+            if (!selected.length) {
+                return alert('Please select at least one item to download.');
+            }
+
+            selected.forEach((item, i) => {
                 setTimeout(() => {
+                    let url;
+
+                    if (item.type === 'folder') {
+                        // ✅ call Laravel ZIP route
+                        url = `/download-folder?path=${encodeURIComponent(item.path)}`;
+                    } else {
+                        // ✅ direct file
+                        url = item.path;
+                    }
+
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = '';
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
-                }, i * 300);
+
+                }, i * 400);
             });
         };
 

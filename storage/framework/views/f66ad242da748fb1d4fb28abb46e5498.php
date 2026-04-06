@@ -580,7 +580,12 @@
 
                                         
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank" class="block w-full h-full">
+                                        <a href="<?php echo e(route('image.viewer', [
+                                            'images' => base64_encode(json_encode(
+                                                collect($images)->where('type', 'image')->values()
+                                            )),
+                                            'index' => $loop->index
+                                        ])); ?>" target="_blank">
                                                 <img loading="lazy" src="<?php echo e(asset('storage/' . $item['path'])); ?>"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="<?php echo e($item['name']); ?>">
@@ -895,9 +900,26 @@
 
                                         
                                         <!--[if BLOCK]><![endif]--><?php if($item['type'] === 'image'): ?>
-                                            <a href="<?php echo e(asset('storage/' . $item['path'])); ?>" target="_blank"
-                                                class="block w-full h-full">
-                                                <img loading="lazy" src="<?php echo e(asset('storage/' . $item['path'])); ?>"
+                                            <?php
+                                                $onlyImages = collect($items)
+                                                    ->flatMap(function ($group) {
+                                                        return $group;
+                                                    })
+                                                    ->where('type', 'image')
+                                                    ->values();
+
+                                                $currentIndex = $onlyImages->search(function ($img) use ($item) {
+                                                    return $img['path'] === $item['path'];
+                                                });
+                                            ?>
+
+                                            <a href="<?php echo e(route('image.viewer', [
+                                                'images' => base64_encode(json_encode($onlyImages)),
+                                                'index' => $currentIndex
+                                            ])); ?>" target="_blank">
+                                                
+                                                <img loading="lazy"
+                                                    src="<?php echo e(asset('storage/' . $item['path'])); ?>"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="<?php echo e($item['name']); ?>">
                                             </a>
@@ -1146,18 +1168,25 @@
 
         // -------- Download Selected --------
         const download = (selector) => {
-            const selected = [...document.querySelectorAll(selector.replace(/([^,]+)/g, '$1:checked'))].map(cb => cb.value);
-            if (!selected.length) return alert('Please select at least one item to download.');
+            const selected = [...document.querySelectorAll(selector.replace(/([^,]+)/g, '$1:checked'))]
+                .map(cb => ({
+                    url: cb.value,
+                    isFolder: cb.classList.contains('folder-checkbox') || cb.classList.contains('folder-checkbox-subfolder')
+                }));
 
-            selected.forEach((url, i) => {
+            if (!selected.length) {
+                return alert('Please select at least one item to download.');
+            }
+
+            selected.forEach((item, i) => {
                 setTimeout(() => {
                     const a = document.createElement('a');
-                    a.href = url;
+                    a.href = item.url;
                     a.download = '';
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
-                }, i * 300);
+                }, i * 500); // increase delay
             });
         };
 

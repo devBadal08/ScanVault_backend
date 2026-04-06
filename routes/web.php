@@ -37,6 +37,10 @@ Route::get('/download-folder', [DownloadController::class, 'download'])->name('d
 Route::get('/download-today-folders', [DownloadController::class, 'downloadToday'])
     ->name('download-today-folders');
 
+Route::get('/image-viewer', function () {
+    return view('image-viewer');
+})->name('image.viewer');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/admin/dashboard', function () {
         if (auth()->user()->role !== 'admin') {
