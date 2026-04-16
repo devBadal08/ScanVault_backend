@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Pages;
 use Filament\Forms;
 use Filament\Pages\Page;
 use App\Models\Folder;
+use App\Models\User;
 use App\Models\Photo;
 use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
@@ -31,71 +32,93 @@ class FolderLinkPage extends Page implements Forms\Contracts\HasForms
         ]);
     }
 
+    // ✅ NEW HELPER METHOD: Get valid User IDs based on role
+    protected function getAccessibleUserIds(): array
+    {
+        $authUser = auth()->user();
+
+        // If Manager: Get users created by this manager + the manager themselves
+        if ($authUser->role === 'manager') {
+            $userIds = User::where('created_by', $authUser->id)->pluck('id')->toArray();
+            $userIds[] = $authUser->id;
+            return $userIds;
+        }
+
+        // If Admin: Get admin's users + manager's users + managers themselves + admin themselves
+        if ($authUser->role === 'admin') {
+            $managerIds = User::where('role', 'manager')
+                ->where('created_by', $authUser->id)
+                ->pluck('id')
+                ->toArray();
+
+            $userIds = User::whereIn('created_by', array_merge([$authUser->id], $managerIds))
+                ->pluck('id')
+                ->toArray();
+
+            return array_unique(array_merge([$authUser->id], $managerIds, $userIds));
+        }
+
+        return [];
+    }
+
     protected function getFormSchema(): array
     {
         return [
             // Source Folder
             Forms\Components\Select::make('sourceFolder')
-                ->label('Select Source Folder')
-                ->options(function () {
-                    $companyId = auth()->user()->companies()->first()->id;
+                ->label('Search Source Folder')
+                ->placeholder('Type at least 6 characters to search source folder')
+                ->searchable()
+                ->searchDebounce(500)
+                ->searchPrompt('Type 6 or more characters...')
+                ->loadingMessage('Searching folders...')
+                ->getSearchResultsUsing(function (string $search) {
 
-                    return Folder::where(function ($q) {
-                            $q->whereNull('parent_id')
-                            ->orWhere('parent_id', 0);
-                        })
-                        ->whereIn('user_id', function ($q) use ($companyId) {
-                            $q->select('user_id')
-                            ->from('company_user')
-                            ->where('company_id', $companyId);
-                        })
+                    if (strlen($search) < 6) return [];
+
+                    $companyId = auth()->user()->companies()->first()?->id;
+                    $userIds = $this->getAccessibleUserIds(); // ✅ Get allowed users
+
+                    return Folder::where('company_id', $companyId)
+                        ->whereIn('user_id', $userIds) // ✅ Filter by allowed users
+                        ->where('name', 'like', "%{$search}%")
                         ->pluck('name', 'id')
                         ->toArray();
                 })
-                ->searchable()
+                ->getOptionLabelUsing(fn ($value) => Folder::find($value)?->name)
                 ->reactive()
                 ->afterStateUpdated(fn () => $this->reset('targetFolders'))
                 ->required(),
 
             // Target Folders (multi-select)
             Forms\Components\Select::make('targetFolders')
-                ->label('Select Target Folders')
+                ->label('Search Target Folders')
+                ->placeholder('Type at least 6 characters to search target folder')
                 ->multiple()
                 ->searchable()
-                ->reactive()
-                ->options(function () {
-                    $companyId = auth()->user()->companies()->first()->id;
+                ->searchDebounce(500)
+                ->searchPrompt('Type 6 or more characters...')
+                ->loadingMessage('Searching folders...')
+                ->getSearchResultsUsing(function (string $search) {
 
-                    $query = Folder::where(function ($q) {
-                            $q->whereNull('parent_id')
-                            ->orWhere('parent_id', 0);
-                        })
-                        ->whereIn('user_id', function ($q) use ($companyId) {
-                            $q->select('user_id')
-                            ->from('company_user')
-                            ->where('company_id', $companyId);
-                        });
+                    if (strlen($search) < 6) return [];
 
+                    $companyId = auth()->user()->companies()->first()?->id;
+                    $userIds = $this->getAccessibleUserIds(); // ✅ Get allowed users
+
+                    $query = Folder::where('company_id', $companyId)
+                        ->whereIn('user_id', $userIds) // ✅ Filter by allowed users
+                        ->where('name', 'like', "%{$search}%");
+
+                    // ❗ prevent selecting same as source
                     if ($this->sourceFolder) {
-                        $isLocked = DB::table('folder_links')
-                            ->where('source_folder_id', $this->sourceFolder)
-                            ->where('link_type', 'full')
-                            ->exists();
-
-                        if ($isLocked) {
-                            return [];
-                        }
                         $query->where('id', '!=', $this->sourceFolder);
                     }
 
-                    if ($this->linkType === 'full') {
-                        $query->whereNotIn(
-                            'id',
-                            DB::table('folder_links')->pluck('target_folder_id')
-                        );
-                    }
-
                     return $query->pluck('name', 'id')->toArray();
+                })
+                ->getOptionLabelsUsing(function ($values) {
+                    return Folder::whereIn('id', $values)->pluck('name', 'id')->toArray();
                 })
                 ->required(),
 

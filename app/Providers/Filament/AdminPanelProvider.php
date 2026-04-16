@@ -42,6 +42,7 @@ class AdminPanelProvider extends PanelProvider
                 return asset('images/company_logo.png');
             })
             ->brandLogoHeight('4rem')
+            ->brandName("ScanVault Admin")
             ->id('admin')
             ->path('admin')
             ->login()
@@ -123,7 +124,7 @@ class AdminPanelProvider extends PanelProvider
                         color:#6B7280;
                     ">
                         Developed with 🫶 by 
-                        <a href="https://techstrota.com" target="_blank" style="font-weight:bold; text-decoration:none;">
+                        <a href="https://techstrota.com" target="_blank" style="font-weight:bold; text-decoration:none; color:#3B82F6;">
                             Techstrota
                         </a>
                     </div>

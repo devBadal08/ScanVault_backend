@@ -47,8 +47,7 @@ class PhotoDeleteHistoryResource extends Resource
                     ->label('User'),
 
                 Tables\Columns\TextColumn::make('photo_path')
-                    ->label('Photo Path')
-                    ->limit(50),
+                    ->label('Photo Path'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Deleted At')

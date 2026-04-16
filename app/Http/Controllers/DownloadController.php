@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Company;
+use App\Models\Folder;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\DB;
 
 class DownloadController extends Controller
 {
@@ -24,7 +26,7 @@ class DownloadController extends Controller
         $folderName = basename($folder);
 
         $user = Auth::user();
-        $company = \DB::table('companies')->where('id', $user->company_id)->first();
+        $company = DB::table('companies')->where('id', $user->company_id)->first();
         $companyPrefix = $company ? $company->company_name : 'company';
 
         $zipFileName = $companyPrefix . '_' . $folderName . '.zip';
@@ -38,16 +40,18 @@ class DownloadController extends Controller
 
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
 
+            $addedFiles = 0;
+
+            // =====================================================
+            // 1. ADD PHYSICAL FILES (Current Folder)
+            // =====================================================
             $files = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($folderPath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO),
                 \RecursiveIteratorIterator::LEAVES_ONLY
             );
 
-            $addedFiles = 0;
-
             foreach ($files as $file) {
                 if (!$file->isDir()) {
-
                     $filePath = $file->getRealPath();
 
                     if (!$filePath || !file_exists($filePath)) {
@@ -62,6 +66,66 @@ class DownloadController extends Controller
                 }
             }
 
+            // =====================================================
+            // 2. ADD VIRTUAL / LINKED FOLDERS
+            // =====================================================
+            // Parse path to find the source folder in the database
+            $pathParts = explode('/', trim($folder, '/'));
+            if (count($pathParts) >= 3) {
+                $folderCompanyId = (int) $pathParts[0];
+                $folderUserId    = (int) $pathParts[1];
+                $dbFolderName    = $pathParts[2];
+
+                $sourceFolderModel = Folder::where('company_id', $folderCompanyId)
+                    ->where('user_id', $folderUserId)
+                    ->where('name', $dbFolderName)
+                    ->first();
+
+                if ($sourceFolderModel) {
+                    // Get all linked folders
+                    $linkedFolders = DB::table('folder_links')
+                        ->join('folders', 'folders.id', '=', 'folder_links.target_folder_id')
+                        ->where('folder_links.source_folder_id', $sourceFolderModel->id)
+                        ->select('folders.company_id', 'folders.user_id', 'folders.name')
+                        ->get();
+
+                    foreach ($linkedFolders as $linked) {
+                        // Find the true physical path of the linked folder
+                        $linkedPhysicalPath = storage_path("app/public/{$linked->company_id}/{$linked->user_id}/{$linked->name}");
+
+                        if (is_dir($linkedPhysicalPath)) {
+                            $linkedFiles = new \RecursiveIteratorIterator(
+                                new \RecursiveDirectoryIterator($linkedPhysicalPath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::CURRENT_AS_FILEINFO),
+                                \RecursiveIteratorIterator::LEAVES_ONLY
+                            );
+
+                            foreach ($linkedFiles as $file) {
+                                if (!$file->isDir()) {
+                                    $filePath = $file->getRealPath();
+
+                                    if (!$filePath || !file_exists($filePath)) {
+                                        continue;
+                                    }
+
+                                    // Calculate relative path for inside the zip
+                                    $relativeToLinked = substr($filePath, strlen($linkedPhysicalPath) + 1);
+                                    
+                                    // Prefix with the linked folder's name so it looks like a subfolder in the ZIP
+                                    $zipInternalPath = $linked->name . '/' . $relativeToLinked;
+
+                                    $zip->addFile($filePath, $zipInternalPath);
+                                    $zip->setCompressionName($zipInternalPath, ZipArchive::CM_STORE);
+                                    $addedFiles++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =====================================================
+            // FINALIZE ZIP
+            // =====================================================
             if ($addedFiles === 0) {
                 $zip->close();
                 return response()->json(['error' => 'Folder is empty'], 400);
@@ -84,7 +148,7 @@ class DownloadController extends Controller
         $today = now()->toDateString();
 
         // 1. Get all images uploaded today
-        $images = \DB::table('photos')
+        $images = DB::table('photos')
             ->whereDate('created_at', $today)
             ->get();
 

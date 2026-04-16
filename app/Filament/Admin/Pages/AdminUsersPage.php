@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Carbon\Carbon;
 use App\Models\Company;
+use App\Models\Folder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class AdminUsersPage extends Page
 {
@@ -44,15 +46,13 @@ class AdminUsersPage extends Page
         $groups = [];
 
         foreach ($items as $item) {
-            // 👇 1. CHANGE THIS IF STATEMENT
             if (empty($item['created_at'])) {
-                $groups['Older / Unknown Date'][] = $item; // Give it a fallback group!
+                $groups['Older / Unknown Date'][] = $item;
                 continue;
             }
 
             $created = Carbon::parse($item['created_at']);
 
-            // Label logic
             if ($created->isToday()) {
                 $label = 'Today';
             } elseif ($created->isYesterday()) {
@@ -64,14 +64,11 @@ class AdminUsersPage extends Page
             $groups[$label][] = $item;
         }
 
-        // Sort sections by latest date first
         uksort($groups, function ($a, $b) {
-
-            // 👇 2. ADD 'Older / Unknown Date' TO YOUR PRIORITY LIST
             $priority = [
                 'Today' => 3,
                 'Yesterday' => 2,
-                'Older / Unknown Date' => -1, // Pushes it to the very bottom
+                'Older / Unknown Date' => -1,
             ];
 
             $aPriority = $priority[$a] ?? 1;
@@ -81,7 +78,6 @@ class AdminUsersPage extends Page
                 return $bPriority <=> $aPriority;
             }
 
-            // If both are real dates
             if (!isset($priority[$a]) && !isset($priority[$b])) {
                 return Carbon::createFromFormat('d-m-Y', $b)
                     ->timestamp <=> Carbon::createFromFormat('d-m-Y', $a)->timestamp;
@@ -104,12 +100,11 @@ class AdminUsersPage extends Page
         );
 
         $result = [];
-
         foreach ($pagedKeys as $key) {
             $result[$key] = $grouped[$key];
         }
 
-        $this->total = count($grouped); // number of groups (correct)
+        $this->total = count($grouped);
 
         return $result;
     }
@@ -129,18 +124,14 @@ class AdminUsersPage extends Page
     {
         $query = trim($this->globalSearch);
 
-        // Minimum 6 characters condition
         if (strlen($query) < 6) {
             $this->globalResults = [];
             return;
         }
 
         $authUser = Auth::user();
-
-        // Get company IDs
         $companyIds = $authUser->companies()->pluck('companies.id');
 
-        // Get users (only once)
         $users = User::where('role', 'user')
             ->where('created_by', $authUser->id)
             ->select('id', 'name')
@@ -151,29 +142,24 @@ class AdminUsersPage extends Page
             return;
         }
 
-        // 🔥 SINGLE QUERY (IMPORTANT)
         $photos = \App\Models\Photo::whereIn('company_id', $companyIds)
             ->whereIn('user_id', $users->pluck('id'))
             ->where(function ($q) use ($query) {
-                $q->where('path', 'LIKE', "%/{$query}%")   // match folder/subfolder
-                ->orWhere('path', 'LIKE', "{$query}%");  // match start (safety)
+                $q->where('path', 'LIKE', "%/{$query}%")
+                ->orWhere('path', 'LIKE', "{$query}%");
             })
-            ->select('path', 'user_id') // reduce load
+            ->select('path', 'user_id')
             ->get();
 
-        // Map user names once
         $userMap = $users->keyBy('id');
 
-        // Convert to folders
         $results = $photos->map(function ($photo) use ($userMap, $query) {
-
             $parts = explode('/', $photo->path);
 
             $folderName = strtolower($parts[2] ?? '');
             $subfolderName = strtolower($parts[count($parts) - 2] ?? '');
             $queryClean = strtolower($query);
 
-            // ✅ ONLY STARTS WITH MATCH
             $isMainMatch = str_starts_with($folderName, $queryClean);
             $isSubMatch  = str_starts_with($subfolderName, $queryClean);
 
@@ -203,7 +189,6 @@ class AdminUsersPage extends Page
             }
 
             return null;
-
         })
         ->filter()
         ->unique(fn($item) => $item['folder'].'|'.$item['subfolder'])
@@ -225,39 +210,19 @@ class AdminUsersPage extends Page
     {
         $this->page = (int) request()->get('page', 1);
 
-        // logger()->info('AdminUsersPage mount started', [
-        //     'user_param' => request()->get('user'),
-        //     'folder_param' => request()->get('folder'),
-        //     'subfolder_param' => request()->get('subfolder'),
-        // ]);
-
         $authUser = Auth::user();
         $activeCompanyId = $authUser->companies()->first()?->id;
 
-        $managerId = trim(request()->get('manager'));
         $userId = trim(request()->get('user'));
-
         $folder = request()->get('folder');
-        $pathParts = $folder ? explode('/', trim($folder, '/')) : [];
-
-        $folderCompanyId = isset($pathParts[0]) ? (int) $pathParts[0] : null;
-        $realOwnerId     = isset($pathParts[1]) ? (int) $pathParts[1] : null;
-        $folderName      = $pathParts[2] ?? null;
-
         $subfolder = request()->get('subfolder');
-
-        $folderName = $folder ? basename($folder) : null;
-        $subfolderPath = $subfolder ? trim($subfolder, '/') : null;
 
         if ($authUser->role !== 'admin') {
             abort(403, 'Unauthorized');
         }
 
-        $adminId = $authUser->id;
-
-        // Managers and Admin Users
         $companyIds = collect([
-            $authUser->companies()->first()?->id, // main company
+            $authUser->companies()->first()?->id,
         ])->merge(
             Company::where('parent_id', $authUser->companies()->first()?->id)->pluck('id')
         )->filter()->values();
@@ -280,7 +245,7 @@ class AdminUsersPage extends Page
                 $q->where('company_id', $activeCompanyId);
             })
             ->where(function ($q) use ($activeCompanyId) {
-                $q->whereNull('created_by') // admin/system users
+                $q->whereNull('created_by') 
                 ->orWhereDoesntHave('creator', function ($c) use ($activeCompanyId) {
                     $c->where('role', 'manager')
                         ->whereHas('companies', function ($qc) use ($activeCompanyId) {
@@ -294,10 +259,11 @@ class AdminUsersPage extends Page
                 return $user;
             });
 
-        // 🔹 If a user is selected → folders, subfolders, images
         if ($userId) {
             $this->selectedUser = User::select('id','name')->find($userId);
-            // ✅ SHARED FOLDERS FROM DATABASE
+            if (!$this->selectedUser) return;
+            
+            // ✅ GET SHARED FOLDERS
             $sharedFolders = \App\Models\FolderShare::with('folder')
                 ->where('shared_with', $userId)
                 ->whereHas('folder', function ($q) use ($activeCompanyId) {
@@ -322,14 +288,6 @@ class AdminUsersPage extends Page
                 ->filter()
                 ->toArray();
 
-            if (!$this->selectedUser) return;
-
-            // logger()->info('Shared folders from DB', [
-            //     'count' => count($sharedFolders),
-            //     'folders' => $sharedFolders,
-            // ]);
-
-            // Top-level folders (if no folder selected)
             if (!$folder) {
 
                 $photos = \App\Models\Photo::where('company_id', $activeCompanyId)
@@ -338,7 +296,7 @@ class AdminUsersPage extends Page
                     ->select('path', 'created_at')
                     ->get();
 
-                $folders = $photos->map(function ($photo) {
+                $dbFolders = $photos->map(function ($photo) {
                     $parts = explode('/', $photo->path);
 
                     return [
@@ -346,59 +304,94 @@ class AdminUsersPage extends Page
                         'name' => $parts[2] ?? null,
                         'path' => implode('/', array_slice($parts, 0, 3)),
                         'created_at' => $photo->created_at,
+                        'linked' => false,
                     ];
                 })
                 ->filter(fn($f) => $f['name'])
                 ->unique('path')
-                ->sortByDesc('created_at')
-                ->values()
                 ->toArray();
 
+                // ✅ FIX: Merge shared folders into root view!
+                $allFolders = collect($dbFolders)
+                    ->merge($sharedFolders)
+                    ->unique('path')
+                    ->sortByDesc('created_at')
+                    ->values()
+                    ->toArray();
+
                 $this->folders = $this->paginateDateGroups(
-                    $this->groupByDate($folders)
+                    $this->groupByDate($allFolders)
                 );
+
             } else {
-                // Selected folder / subfolder
-                $this->selectedFolder = $folder;
-
-                // 🔥 ALWAYS resolve folder from DB (never trust URL)
-                $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
-
-                // ✅ FINAL TARGET PATH
-                $targetPath = $subfolderPath
-                    ? "{$basePath}/{$subfolderPath}"
-                    : $basePath;
-
-                $isLinkedFolder = collect($sharedFolders)
-                    ->contains(fn ($f) => trim($f['path'], '/') === trim($folder, '/'));
-
-                // Always resolve owner from DB
+                
                 $pathParts = explode('/', trim($folder, '/'));
-
                 $folderCompanyId = (int) ($pathParts[0] ?? $activeCompanyId);
                 $realOwnerId     = (int) ($pathParts[1] ?? $userId);
                 $folderName      = $pathParts[2] ?? basename($folder);
 
                 $subfolderPath = $subfolder ? trim($subfolder, '/') : null;
-
                 $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolderPath;
 
                 $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+                $targetPath = $basePath;
 
-                $targetPath = $subfolderPath
-                    ? "{$basePath}/{$subfolderPath}"
-                    : $basePath;
+                // Query targets (Default to current folder)
+                $queryCompanyId = $folderCompanyId;
+                $queryUserId = $realOwnerId;
+                $isLinkedSubfolder = false;
 
-                // ✅ GET ALL FILES FROM DB
-                $photos = \App\Models\Photo::where('company_id', $activeCompanyId)
-                    ->where('user_id', $realOwnerId)
+                // ========================================================
+                // ✅ RESOLVE TRUE TARGET PATH FOR LINKED SUBFOLDERS
+                // ========================================================
+                if ($subfolderPath) {
+                    $subfolderParts = explode('/', $subfolderPath);
+                    $firstSubfolderPart = $subfolderParts[0];
+
+                    $selectedFolderModel = Folder::where('name', $folderName)
+                        ->where('user_id', $realOwnerId)
+                        ->first();
+
+                    if ($selectedFolderModel) {
+                        $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+                            ->whereIn('id', function($q) use ($selectedFolderModel) {
+                                $q->select('target_folder_id')
+                                  ->from('folder_links')
+                                  ->where('source_folder_id', $selectedFolderModel->id);
+                            })->first();
+
+                        if ($linkedSubfolderModel) {
+                            $isLinkedSubfolder = true;
+                            // Switch query IDs to the true owner of the linked folder
+                            $queryCompanyId = $linkedSubfolderModel->company_id;
+                            $queryUserId = $linkedSubfolderModel->user_id;
+                            
+                            $linkedBasePath = "{$queryCompanyId}/{$queryUserId}/{$linkedSubfolderModel->name}";
+
+                            if (count($subfolderParts) > 1) {
+                                $remainingPath = implode('/', array_slice($subfolderParts, 1));
+                                $targetPath = "{$linkedBasePath}/{$remainingPath}";
+                            } else {
+                                $targetPath = $linkedBasePath;
+                            }
+                        }
+                    }
+
+                    if (!$isLinkedSubfolder) {
+                        $targetPath = "{$basePath}/{$subfolderPath}";
+                    }
+                }
+
+                // ✅ GET ALL FILES FROM DB (Using the resolved Company/User)
+                $photos = \App\Models\Photo::where('company_id', $queryCompanyId)
+                    ->where('user_id', $queryUserId)
                     ->where('path', 'LIKE', "{$targetPath}/%")
                     ->orderBy('created_at', 'desc')
                     ->get();
 
                 // ✅ SUBFOLDERS FROM DB
-                $this->subfolders = $photos->map(function ($photo) use ($targetPath) {
+                $dbSubfolders = $photos->map(function ($photo) use ($targetPath) {
                     $relative = str_replace($targetPath . '/', '', $photo->path);
                     $parts = explode('/', $relative);
 
@@ -408,15 +401,51 @@ class AdminUsersPage extends Page
                             'name' => $parts[0],
                             'path' => $targetPath . '/' . $parts[0],
                             'created_at' => $photo->created_at,
+                            'linked' => false,
                         ];
                     }
 
                     return null;
                 })
                 ->filter()
-                ->unique('path')
+                ->unique('name')
                 ->values()
                 ->toArray();
+
+                // ✅ ADD MOUNTED LINKED FOLDERS AT ROOT LEVEL
+                $mountedLinkedFolders = [];
+                if (!$subfolderPath) {
+                    $currentFolder = Folder::where('name', $folderName)
+                        ->where('user_id', $realOwnerId)
+                        ->first();
+
+                    if ($currentFolder) {
+                        $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
+                                $q->select('target_folder_id')
+                                ->from('folder_links')
+                                ->where('source_folder_id', $currentFolder->id);
+                            })
+                            ->get()
+                            ->map(function ($f) {
+                                return [
+                                    'type' => 'folder',
+                                    'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
+                                    'name' => $f->name,
+                                    'created_at' => $f->created_at->toDateTimeString(),
+                                    'linked' => true,
+                                    'owner_id' => $f->user_id,
+                                ];
+                            })
+                            ->toArray();
+                    }
+                }
+
+                $this->subfolders = collect($dbSubfolders)
+                    ->merge($mountedLinkedFolders)
+                    ->unique('name')
+                    ->sortByDesc('created_at')
+                    ->values()
+                    ->toArray();
 
                 // ✅ FILES FROM DB
                 $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
@@ -431,19 +460,18 @@ class AdminUsersPage extends Page
                     ];
                 });
 
-                // ✅ MERGE
+                // ✅ MERGE & PAGINATE
                 $folderItems = collect($this->subfolders)->map(fn ($folder) => [
                     'type' => 'folder',
                     'path' => $folder['path'],
                     'name' => $folder['name'],
                     'created_at' => $folder['created_at'],
+                    'linked' => $folder['linked'] ?? false,
                 ]);
 
                 $combined = $folderItems->merge($mediaAll)->toArray();
 
-                // ✅ PAGINATION SAME
                 $grouped = $this->groupByDate($combined);
-
                 $flat = collect($grouped)->flatten(1)->values();
 
                 $paged = $flat->slice(
@@ -456,6 +484,144 @@ class AdminUsersPage extends Page
                 $this->total = count($combined);
             }
         }
+    }
+
+    public function updatedPage()
+    {
+        $this->loadMediaOnly();
+    }
+
+    protected function loadMediaOnly()
+    {
+        if (!$this->selectedUser || !$this->selectedFolder) {
+            return;
+        }
+
+        // ========================================================
+        // ✅ EXACT SAME RESOLUTION LOGIC FOR PAGINATION
+        // ========================================================
+        $pathParts = explode('/', trim($this->selectedFolder, '/'));
+        $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
+        $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
+        $folderName      = $pathParts[2] ?? null;
+
+        $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+        $targetPath = $basePath;
+
+        $queryCompanyId = $folderCompanyId;
+        $queryUserId = $realOwnerId;
+        $isLinkedSubfolder = false;
+
+        if ($this->selectedSubfolder) {
+            $subfolderParts = explode('/', $this->selectedSubfolder);
+            $firstSubfolderPart = $subfolderParts[0];
+
+            $selectedFolderModel = Folder::where('name', $folderName)
+                ->where('user_id', $realOwnerId)
+                ->first();
+            
+            if ($selectedFolderModel) {
+                $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+                    ->whereIn('id', function($q) use ($selectedFolderModel) {
+                        $q->select('target_folder_id')
+                          ->from('folder_links')
+                          ->where('source_folder_id', $selectedFolderModel->id);
+                    })->first();
+
+                if ($linkedSubfolderModel) {
+                    $isLinkedSubfolder = true;
+                    $queryCompanyId = $linkedSubfolderModel->company_id;
+                    $queryUserId = $linkedSubfolderModel->user_id;
+
+                    $linkedBasePath = "{$queryCompanyId}/{$queryUserId}/{$linkedSubfolderModel->name}";
+
+                    if (count($subfolderParts) > 1) {
+                        $remainingPath = implode('/', array_slice($subfolderParts, 1));
+                        $targetPath = "{$linkedBasePath}/{$remainingPath}";
+                    } else {
+                        $targetPath = $linkedBasePath;
+                    }
+                }
+            }
+
+            if (!$isLinkedSubfolder) {
+                $targetPath = "{$basePath}/{$this->selectedSubfolder}";
+            }
+        }
+
+        // ✅ REPLICATE DB FETCHING FOR PAGINATION
+        $photos = \App\Models\Photo::where('company_id', $queryCompanyId)
+            ->where('user_id', $queryUserId)
+            ->where('path', 'LIKE', "{$targetPath}/%")
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $dbSubfolders = $photos->map(function ($photo) use ($targetPath) {
+            $relative = str_replace($targetPath . '/', '', $photo->path);
+            $parts = explode('/', $relative);
+            if (count($parts) > 1) {
+                return [
+                    'type' => 'folder',
+                    'name' => $parts[0],
+                    'path' => $targetPath . '/' . $parts[0],
+                    'created_at' => $photo->created_at,
+                    'linked' => false,
+                ];
+            }
+            return null;
+        })->filter()->unique('name')->values()->toArray();
+
+        $mountedLinkedFolders = [];
+        if (!$this->selectedSubfolder) {
+            $currentFolder = Folder::where('name', $folderName)->where('user_id', $realOwnerId)->first();
+            if ($currentFolder) {
+                $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
+                        $q->select('target_folder_id')->from('folder_links')->where('source_folder_id', $currentFolder->id);
+                    })->get()->map(function ($f) {
+                        return [
+                            'type' => 'folder',
+                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
+                            'name' => $f->name,
+                            'created_at' => $f->created_at->toDateTimeString(),
+                            'linked' => true,
+                            'owner_id' => $f->user_id,
+                        ];
+                    })->toArray();
+            }
+        }
+
+        $allFolders = collect($dbSubfolders)->merge($mountedLinkedFolders)->unique('name')->sortByDesc('created_at')->values()->toArray();
+
+        $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
+            $relative = str_replace($targetPath . '/', '', $photo->path);
+            return count(explode('/', $relative)) === 1;
+        })->map(function ($photo) {
+            return [
+                'type' => $photo->type,
+                'path' => $photo->path,
+                'name' => basename($photo->path),
+                'created_at' => $photo->created_at,
+            ];
+        });
+
+        $folderItems = collect($allFolders)->map(fn ($folder) => [
+            'type' => 'folder',
+            'path' => $folder['path'],
+            'name' => $folder['name'],
+            'created_at' => $folder['created_at'],
+            'linked' => $folder['linked'] ?? false,
+        ]);
+
+        $combined = $folderItems->merge($mediaAll)->toArray();
+        $grouped = $this->groupByDate($combined);
+        $flat = collect($grouped)->flatten(1)->values();
+
+        $paged = $flat->slice(
+            ($this->page - 1) * $this->perPage,
+            $this->perPage
+        )->values();
+
+        $this->items = $this->groupByDate($paged->toArray());
     }
 
     public static function shouldRegisterNavigation(): bool

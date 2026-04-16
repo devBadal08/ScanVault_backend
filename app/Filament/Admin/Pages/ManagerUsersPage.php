@@ -12,6 +12,7 @@ use App\Models\Folder;
 use App\Models\Photo;
 use App\Models\PhotoDeleteHistory;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ManagerUsersPage extends Page
 {
@@ -53,10 +54,6 @@ class ManagerUsersPage extends Page
     public function canDeletePhotos(): bool
     {
         $user = Auth::user();
-
-        // if ($user->role === 'admin') {
-        //     return true;
-        // }
 
         return (bool) $user->can_delete_photos;
     }
@@ -398,7 +395,6 @@ class ManagerUsersPage extends Page
             ->whereIn('user_id', $users->pluck('id'))
             ->whereRaw('LOWER(path) LIKE ?', ["%{$query}%"])
             ->select('path', 'user_id')
-            ->limit(200)
             ->get()
 
             // ✅ GROUP BY SUBFOLDER (IMPORTANT)
@@ -466,7 +462,6 @@ class ManagerUsersPage extends Page
         }
 
         $authUser = Auth::user();
-
         $userId = request()->get('user');
 
         $companyId = request()->get('company_id')
@@ -476,7 +471,6 @@ class ManagerUsersPage extends Page
             $this->selectedUser = User::find($userId);
             if (!$this->selectedUser) return;
 
-            // Default: if not passed, load the admin's own company
             if (!$companyId) {
                 abort(403, 'Company not found');
             }
@@ -508,7 +502,6 @@ class ManagerUsersPage extends Page
                     return $user;
                 });
         } else {
-
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
@@ -529,7 +522,6 @@ class ManagerUsersPage extends Page
             $baseUserPath = "{$companyId}/{$userId}";
 
             if (!$folder) {
-
                 $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
                     ->map(fn($dir) => [
                         'type' => 'folder',
@@ -540,54 +532,22 @@ class ManagerUsersPage extends Page
                         'owner_id' => $this->selectedUser->id,
                     ])->toArray();
 
-                // 🔹 Linked folders (from folder_links)
-                // $linkedFolders = Folder::whereIn('id', function ($q) use ($userId) {
-                //     $q->select('target_folder_id')
-                //     ->from('folder_links')
-                //     ->whereIn('source_folder_id', function ($sq) use ($userId) {
-                //         $sq->select('id')
-                //             ->from('folders')
-                //             ->where('user_id', $userId);
-                //     });
-                // })
-                // ->where('company_id', $companyId)
-                // ->get()
-                // ->map(function ($folder) {
-                //     return [
-                //         'type' => 'folder',
-                //         'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
-                //         'name' => $folder->name,
-                //         'created_at' => $folder->created_at->toDateTimeString(),
-                //         'linked' => true,
-                //         'owner_id' => $folder->user_id,
-                //     ];
-                // })
-                // ->toArray();
-
                 $allFolders = collect($rawFolders)
                     ->unique('path')
                     ->sortByDesc(fn ($i) => $i['created_at'])
                     ->values();
 
-                // ✅ group EVERYTHING first
                 $grouped = $this->groupByDate($allFolders->toArray());
-
-                // ✅ paginate DATE GROUPS (3 per page)
                 $this->folders = $this->paginateDateGroups($grouped);
 
             } else {
-
-                // Normalize folder and subfolder to names only
                 $pathParts = explode('/', trim($folder, '/'));
 
-                // Always fixed structure
                 $folderCompanyId = (int) ($pathParts[0] ?? $companyId);
                 $realOwnerId     = (int) ($pathParts[1] ?? $userId);
                 $folderName      = $pathParts[2] ?? null;
 
-                // 👇 EXTRA PARTS = SUBFOLDER
                 $extraPath = array_slice($pathParts, 3);
-
                 $fromSearch = request()->get('from_search');
 
                 if ($fromSearch && !$subfolder && !empty($extraPath)) {
@@ -595,14 +555,9 @@ class ManagerUsersPage extends Page
                 }
 
                 $subfolderPath = null;
-
                 if ($subfolder) {
-                    // normalize
                     $subfolderPath = trim($subfolder, '/');
-
-                    // ensure full correct path
                     if (!str_starts_with($subfolderPath, $folderName)) {
-                        // if only subfolder name passed → attach properly
                         $subfolderPath = $subfolderPath;
                     }
                 }
@@ -615,45 +570,53 @@ class ManagerUsersPage extends Page
                     ->first();
 
                 $isLinkedFolder = false;
-
                 if ($selectedFolderModel) {
                     $isLinkedFolder = \DB::table('folder_links')
                         ->where('target_folder_id', $selectedFolderModel->id)
                         ->exists();
                 }
 
-                $linkedSubfolderModel = null;
+                // ========================================================
+                // ✅ RESOLVE TRUE TARGET PATH FOR LINKED SUBFOLDERS
+                // ========================================================
+                $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+                $targetPath = $basePath;
 
-                if ($subfolder) {
-                    $linkedSubfolderModel = Folder::where('name', $subfolderPath)
-                        ->where('company_id', $companyId)
-                        ->first();
-                }
+                if ($subfolderPath) {
+                    $subfolderParts = explode('/', $subfolderPath);
+                    $firstSubfolderPart = $subfolderParts[0];
 
-                if ($selectedFolderModel) {
-                    $link = \DB::table('folder_links')
-                        ->where('target_folder_id', $selectedFolderModel->id)
-                        ->first();
+                    $isLinked = false;
+                    
+                    if ($selectedFolderModel) {
+                        $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+                            ->whereIn('id', function($q) use ($selectedFolderModel) {
+                                $q->select('target_folder_id')
+                                  ->from('folder_links')
+                                  ->where('source_folder_id', $selectedFolderModel->id);
+                            })->first();
 
-                    if ($link) {
-                        $sourceFolder = Folder::find($link->source_folder_id);
-                        if ($sourceFolder) {
-                            $realOwnerId = $sourceFolder->user_id;
+                        if ($linkedSubfolderModel) {
+                            $isLinked = true;
+                            // Map to true physical location of the linked folder
+                            $linkedBasePath = "{$linkedSubfolderModel->company_id}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
+
+                            if (count($subfolderParts) > 1) {
+                                $remainingPath = implode('/', array_slice($subfolderParts, 1));
+                                $targetPath = "{$linkedBasePath}/{$remainingPath}";
+                            } else {
+                                $targetPath = $linkedBasePath;
+                            }
                         }
+                    }
+
+                    if (!$isLinked) {
+                        $targetPath = "{$basePath}/{$subfolderPath}";
                     }
                 }
 
-                // Build correct relative storage path
-                $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
-
-                $targetPath = $subfolderPath
-                    ? "{$basePath}/{$subfolderPath}"
-                    : $basePath;
-
                 // ✅ permission fix
                 $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
-
-                $rawSubfolders = [];
 
                 $rawSubfolders = collect(
                     Cache::remember("dirs_{$targetPath}", 60, function () use ($targetPath) {
@@ -669,17 +632,17 @@ class ManagerUsersPage extends Page
                 ])
                 ->toArray();
 
-                // Load folders linked FROM this folder (mounted links)
                 $mountedLinkedFolders = [];
+                $linkedFiles = [];
+                $linkedSubfolders = [];
+
+                $currentFolder = Folder::where('name', $folderName)
+                    ->where('company_id', $companyId)
+                    ->where('user_id', $realOwnerId)
+                    ->first();
 
                 // Do NOT mount links inside linked folders
                 if (!$isLinkedFolder && !$subfolder) {
-
-                    $currentFolder = Folder::where('name', $folderName)
-                        ->where('company_id', $companyId)
-                        ->where('user_id', $realOwnerId)
-                        ->first();
-
                     if ($currentFolder) {
                         $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
                                 $q->select('target_folder_id')
@@ -701,20 +664,20 @@ class ManagerUsersPage extends Page
                     }
                 }
 
-                $this->subfolders = collect($rawSubfolders)
-                    ->merge($mountedLinkedFolders)
-                    ->unique('path')
-                    ->sortByDesc(fn($i) => $i['created_at'])
-                    ->values()
-                    ->toArray();
-
                 $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
                 $allFiles = Cache::remember("files_{$targetPath}", 60, function () use ($targetPath) {
                     return Storage::disk('public')->files($targetPath);
                 });
 
-                // ✅ FILTER FIRST
+                $this->subfolders = collect($rawSubfolders)
+                    ->merge($mountedLinkedFolders)
+                    ->merge($linkedSubfolders)
+                    ->unique('path')
+                    ->sortByDesc(fn($i) => $i['created_at'])
+                    ->values()
+                    ->toArray();
+
                 $filteredFiles = array_values(array_filter($allFiles, function ($file) use ($allowedExtensions) {
                     return in_array(
                         strtolower(pathinfo($file, PATHINFO_EXTENSION)),
@@ -722,8 +685,7 @@ class ManagerUsersPage extends Page
                     );
                 }));
 
-                // ✅ MAP
-                $mediaAll = collect($filteredFiles)->map(fn ($file) => [
+                $mainFiles = collect($filteredFiles)->map(fn ($file) => [
                     'type' => match (strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
                         'mp4' => 'video',
                         'pdf' => 'pdf',
@@ -732,11 +694,12 @@ class ManagerUsersPage extends Page
                     'path' => $file,
                     'name' => basename($file),
                     'created_at' => $this->getMediaDate($file)->toDateTimeString(),
+                    'linked' => false,
                 ]);
 
+                $mediaAll = $mainFiles->merge($linkedFiles);
                 $this->total = $mediaAll->count();
 
-                // ✅ MERGE folders + media BEFORE pagination
                 $folderItems = collect($this->subfolders)->map(fn ($folder) => [
                     'type' => 'folder',
                     'path' => $folder['path'],
@@ -747,9 +710,7 @@ class ManagerUsersPage extends Page
 
                 $combined = $folderItems->merge($mediaAll)->toArray();
 
-                // ✅ GROUP → FLATTEN → SLICE → REGROUP
                 $grouped = $this->groupByDate($combined);
-
                 $flat = collect($grouped)->flatten(1)->values();
 
                 $paged = $flat->slice(
@@ -774,9 +735,52 @@ class ManagerUsersPage extends Page
             return;
         }
 
-        $targetPath = $this->selectedSubfolder
-            ? "{$this->selectedFolder}/{$this->selectedSubfolder}"
-            : $this->selectedFolder;
+        // ========================================================
+        // ✅ REPLICATE TARGET PATH LOGIC FOR PAGINATION
+        // ========================================================
+        $pathParts = explode('/', trim($this->selectedFolder, '/'));
+        $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
+        $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
+        $folderName      = $pathParts[2] ?? null;
+
+        $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+        $targetPath = $basePath;
+
+        if ($this->selectedSubfolder) {
+            $subfolderParts = explode('/', $this->selectedSubfolder);
+            $firstSubfolderPart = $subfolderParts[0];
+
+            $selectedFolderModel = Folder::where('name', $folderName)
+                ->where('user_id', $realOwnerId)
+                ->first();
+
+            $isLinked = false;
+            
+            if ($selectedFolderModel) {
+                $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+                    ->whereIn('id', function($q) use ($selectedFolderModel) {
+                        $q->select('target_folder_id')
+                          ->from('folder_links')
+                          ->where('source_folder_id', $selectedFolderModel->id);
+                    })->first();
+
+                if ($linkedSubfolderModel) {
+                    $isLinked = true;
+                    $linkedBasePath = "{$linkedSubfolderModel->company_id}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
+
+                    if (count($subfolderParts) > 1) {
+                        $remainingPath = implode('/', array_slice($subfolderParts, 1));
+                        $targetPath = "{$linkedBasePath}/{$remainingPath}";
+                    } else {
+                        $targetPath = $linkedBasePath;
+                    }
+                }
+            }
+
+            if (!$isLinked) {
+                $targetPath = "{$basePath}/{$this->selectedSubfolder}";
+            }
+        }
 
         $allFiles = Cache::remember("files_{$targetPath}", 60, function () use ($targetPath) {
             return Storage::disk('public')->files($targetPath);
