@@ -8,7 +8,7 @@
                 type="text"
                 wire:model.defer="globalSearch"
                 wire:keydown.enter="searchGlobal"
-                placeholder="🔍 Global Search (folders ...)"
+                placeholder="🔍 Search User Folders ..."
                 class="flex-1 px-4 py-3 rounded-xl border
                 border-gray-300 dark:border-gray-700
                 bg-white dark:bg-gray-900
