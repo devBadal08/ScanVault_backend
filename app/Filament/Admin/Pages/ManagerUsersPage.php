@@ -522,15 +522,26 @@ class ManagerUsersPage extends Page
             $baseUserPath = "{$companyId}/{$userId}";
 
             if (!$folder) {
-                $rawFolders = collect(Storage::disk('public')->directories($baseUserPath))
-                    ->map(fn($dir) => [
+                $photos = Photo::where('company_id', $companyId)
+                    ->where('user_id', $userId)
+                    ->select('path', 'created_at')
+                    ->get();
+
+                $rawFolders = $photos->map(function ($photo) {
+                    $parts = explode('/', $photo->path);
+
+                    return [
                         'type' => 'folder',
-                        'path' => $dir,
-                        'name' => basename($dir),
-                        'created_at' => $this->getFolderDate($dir)->toDateTimeString(),
+                        'name' => $parts[2] ?? null,
+                        'path' => implode('/', array_slice($parts, 0, 3)),
+                        'created_at' => $photo->created_at,
                         'linked' => false,
-                        'owner_id' => $this->selectedUser->id,
-                    ])->toArray();
+                    ];
+                })
+                ->filter(fn($f) => $f['name'])
+                ->unique('path')
+                ->values()
+                ->toArray();
 
                 $allFolders = collect($rawFolders)
                     ->unique('path')
@@ -618,18 +629,32 @@ class ManagerUsersPage extends Page
                 // ✅ permission fix
                 $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
 
-                $rawSubfolders = collect(
-                    Cache::remember("dirs_{$targetPath}", 60, function () use ($targetPath) {
-                        return Storage::disk('public')->directories($targetPath);
-                    })
-                )
-                ->map(fn ($dir) => [
-                    'type' => 'folder',
-                    'path' => $dir,
-                    'name' => basename($dir),
-                    'created_at' => $this->getFolderDate($dir)->toDateTimeString(),
-                    'linked' => false,
-                ])
+                $photos = Photo::where('company_id', $folderCompanyId)
+                    ->where('user_id', $realOwnerId)
+                    ->where('path', 'LIKE', "{$targetPath}/%")
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $rawSubfolders = $photos->map(function ($photo) use ($targetPath) {
+
+                    $relative = str_replace($targetPath . '/', '', $photo->path);
+                    $parts = explode('/', $relative);
+
+                    if (count($parts) > 1) {
+                        return [
+                            'type' => 'folder',
+                            'name' => $parts[0],
+                            'path' => $targetPath.'/'.$parts[0],
+                            'created_at' => $photo->created_at,
+                            'linked' => false,
+                        ];
+                    }
+
+                    return null;
+                })
+                ->filter()
+                ->unique('name')
+                ->values()
                 ->toArray();
 
                 $mountedLinkedFolders = [];
@@ -664,40 +689,25 @@ class ManagerUsersPage extends Page
                     }
                 }
 
-                $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
+                $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
 
-                $allFiles = Cache::remember("files_{$targetPath}", 60, function () use ($targetPath) {
-                    return Storage::disk('public')->files($targetPath);
+                    $relative = str_replace($targetPath . '/', '', $photo->path);
+
+                    return count(explode('/', $relative)) === 1;
+
+                })->map(function ($photo) {
+
+                    return [
+                        'type' => $photo->type,
+                        'path' => $photo->path,
+                        'name' => basename($photo->path),
+                        'created_at' => $photo->created_at,
+                        'linked' => false,
+                    ];
+
                 });
 
-                $this->subfolders = collect($rawSubfolders)
-                    ->merge($mountedLinkedFolders)
-                    ->merge($linkedSubfolders)
-                    ->unique('path')
-                    ->sortByDesc(fn($i) => $i['created_at'])
-                    ->values()
-                    ->toArray();
-
-                $filteredFiles = array_values(array_filter($allFiles, function ($file) use ($allowedExtensions) {
-                    return in_array(
-                        strtolower(pathinfo($file, PATHINFO_EXTENSION)),
-                        $allowedExtensions
-                    );
-                }));
-
-                $mainFiles = collect($filteredFiles)->map(fn ($file) => [
-                    'type' => match (strtolower(pathinfo($file, PATHINFO_EXTENSION))) {
-                        'mp4' => 'video',
-                        'pdf' => 'pdf',
-                        default => 'image',
-                    },
-                    'path' => $file,
-                    'name' => basename($file),
-                    'created_at' => $this->getMediaDate($file)->toDateTimeString(),
-                    'linked' => false,
-                ]);
-
-                $mediaAll = $mainFiles->merge($linkedFiles);
+                $mediaAll = $mediaAll->merge($linkedFiles);
                 $this->total = $mediaAll->count();
 
                 $folderItems = collect($this->subfolders)->map(fn ($folder) => [
@@ -724,92 +734,92 @@ class ManagerUsersPage extends Page
         }
     }
 
-    public function updatedPage()
-    {
-        $this->loadMediaOnly();
-    }
+    // public function updatedPage()
+    // {
+    //     $this->loadMediaOnly();
+    // }
 
-    protected function loadMediaOnly()
-    {
-        if (!$this->selectedUser || !$this->selectedFolder) {
-            return;
-        }
+    // protected function loadMediaOnly()
+    // {
+    //     if (!$this->selectedUser || !$this->selectedFolder) {
+    //         return;
+    //     }
 
-        // ========================================================
-        // ✅ REPLICATE TARGET PATH LOGIC FOR PAGINATION
-        // ========================================================
-        $pathParts = explode('/', trim($this->selectedFolder, '/'));
-        $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
-        $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
-        $folderName      = $pathParts[2] ?? null;
+    //     // ========================================================
+    //     // ✅ REPLICATE TARGET PATH LOGIC FOR PAGINATION
+    //     // ========================================================
+    //     $pathParts = explode('/', trim($this->selectedFolder, '/'));
+    //     $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
+    //     $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
+    //     $folderName      = $pathParts[2] ?? null;
 
-        $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
-        $targetPath = $basePath;
+    //     $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+    //     $targetPath = $basePath;
 
-        if ($this->selectedSubfolder) {
-            $subfolderParts = explode('/', $this->selectedSubfolder);
-            $firstSubfolderPart = $subfolderParts[0];
+    //     if ($this->selectedSubfolder) {
+    //         $subfolderParts = explode('/', $this->selectedSubfolder);
+    //         $firstSubfolderPart = $subfolderParts[0];
 
-            $selectedFolderModel = Folder::where('name', $folderName)
-                ->where('user_id', $realOwnerId)
-                ->first();
+    //         $selectedFolderModel = Folder::where('name', $folderName)
+    //             ->where('user_id', $realOwnerId)
+    //             ->first();
 
-            $isLinked = false;
+    //         $isLinked = false;
             
-            if ($selectedFolderModel) {
-                $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
-                    ->whereIn('id', function($q) use ($selectedFolderModel) {
-                        $q->select('target_folder_id')
-                          ->from('folder_links')
-                          ->where('source_folder_id', $selectedFolderModel->id);
-                    })->first();
+    //         if ($selectedFolderModel) {
+    //             $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+    //                 ->whereIn('id', function($q) use ($selectedFolderModel) {
+    //                     $q->select('target_folder_id')
+    //                       ->from('folder_links')
+    //                       ->where('source_folder_id', $selectedFolderModel->id);
+    //                 })->first();
 
-                if ($linkedSubfolderModel) {
-                    $isLinked = true;
-                    $linkedBasePath = "{$linkedSubfolderModel->company_id}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
+    //             if ($linkedSubfolderModel) {
+    //                 $isLinked = true;
+    //                 $linkedBasePath = "{$linkedSubfolderModel->company_id}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
 
-                    if (count($subfolderParts) > 1) {
-                        $remainingPath = implode('/', array_slice($subfolderParts, 1));
-                        $targetPath = "{$linkedBasePath}/{$remainingPath}";
-                    } else {
-                        $targetPath = $linkedBasePath;
-                    }
-                }
-            }
+    //                 if (count($subfolderParts) > 1) {
+    //                     $remainingPath = implode('/', array_slice($subfolderParts, 1));
+    //                     $targetPath = "{$linkedBasePath}/{$remainingPath}";
+    //                 } else {
+    //                     $targetPath = $linkedBasePath;
+    //                 }
+    //             }
+    //         }
 
-            if (!$isLinked) {
-                $targetPath = "{$basePath}/{$this->selectedSubfolder}";
-            }
-        }
+    //         if (!$isLinked) {
+    //             $targetPath = "{$basePath}/{$this->selectedSubfolder}";
+    //         }
+    //     }
 
-        $allFiles = Cache::remember("files_{$targetPath}", 60, function () use ($targetPath) {
-            return Storage::disk('public')->files($targetPath);
-        });
+    //     $allFiles = Cache::remember("files_{$targetPath}", 60, function () use ($targetPath) {
+    //         return Storage::disk('public')->files($targetPath);
+    //     });
 
-        $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
+    //     $allowedExtensions = ['jpg','jpeg','png','mp4','pdf'];
 
-        $filteredFiles = array_values(array_filter($allFiles, function ($file) use ($allowedExtensions) {
-            return in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions);
-        }));
+    //     $filteredFiles = array_values(array_filter($allFiles, function ($file) use ($allowedExtensions) {
+    //         return in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), $allowedExtensions);
+    //     }));
 
-        $mediaAll = collect($filteredFiles)->map(fn ($file) => [
-            'type' => 'image',
-            'path' => $file,
-            'name' => basename($file),
-            'created_at' => Carbon::createFromTimestamp(
-                Storage::disk('public')->lastModified($file)
-            )->toDateTimeString(),
-        ]);
+    //     $mediaAll = collect($filteredFiles)->map(fn ($file) => [
+    //         'type' => 'image',
+    //         'path' => $file,
+    //         'name' => basename($file),
+    //         'created_at' => Carbon::createFromTimestamp(
+    //             Storage::disk('public')->lastModified($file)
+    //         )->toDateTimeString(),
+    //     ]);
 
-        $flat = $mediaAll->values();
+    //     $flat = $mediaAll->values();
 
-        $paged = $flat->slice(
-            ($this->page - 1) * $this->perPage,
-            $this->perPage
-        )->values();
+    //     $paged = $flat->slice(
+    //         ($this->page - 1) * $this->perPage,
+    //         $this->perPage
+    //     )->values();
 
-        $this->items = $this->groupByDate($paged->toArray());
-    }
+    //     $this->items = $this->groupByDate($paged->toArray());
+    // }
 
     public static function shouldRegisterNavigation(): bool
     {

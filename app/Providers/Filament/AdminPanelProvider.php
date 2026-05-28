@@ -41,7 +41,7 @@ class AdminPanelProvider extends PanelProvider
                 // After login, still return something safe
                 return asset('images/company_logo.png');
             })
-            ->brandLogoHeight('6rem')
+            ->brandLogoHeight('4rem')
             ->brandName("ScanVault Admin")
             ->id('admin')
             ->path('admin')

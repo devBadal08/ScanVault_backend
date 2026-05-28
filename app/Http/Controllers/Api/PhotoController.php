@@ -143,6 +143,12 @@ class PhotoController extends Controller
             return response()->json(['error' => 'Folders array required'], 422);
         }
 
+        $request->validate([
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
+            'videos.*' => 'nullable|mimes:mp4,mov,avi|max:51200',
+            'pdfs.*'   => 'nullable|mimes:pdf|max:20480',
+        ]);
+
         $uploaded  = [];
         $failed    = [];
         $folderIds = [];
