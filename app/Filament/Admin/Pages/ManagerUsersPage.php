@@ -657,6 +657,8 @@ class ManagerUsersPage extends Page
                 ->values()
                 ->toArray();
 
+                $this->subfolders = $rawSubfolders;
+
                 $mountedLinkedFolders = [];
                 $linkedFiles = [];
                 $linkedSubfolders = [];

@@ -290,7 +290,7 @@
             <div class="mb-4">
                 <x-filament::button
                     tag="a"
-                    href="{{ request()->url() . '?user=' . $selectedUser->id }}"
+                    href="{{ \App\Filament\Admin\Pages\ManagerUsersPage::getUrl(['user' => $selectedUser->id]) }}"
                     color="primary"
                     icon="heroicon-o-arrow-left">
                     Back to Main Folders
