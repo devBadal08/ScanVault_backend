@@ -391,7 +391,7 @@
                                                         text-blue-600 dark:text-blue-400 
                                                         bg-white dark:bg-gray-800 
                                                         border-gray-300 dark:border-gray-600"
-                                                    value="{{ asset('storage/' . $item['path']) }}">
+                                                    value="{{ $item['path'] }}">
 
                                             <div class="flex items-center gap-1">
 
@@ -669,7 +669,7 @@
                                                         text-blue-600 dark:text-blue-400
                                                         bg-white dark:bg-gray-800
                                                         border-gray-300 dark:border-gray-600"
-                                                    value="{{ asset('storage/' . $item['path']) }}">
+                                                    value="{{ $item['path'] }}">
 
                                                 @if(isset($item['linked']) && $item['linked'])
                                                     <span class="bg-blue-500 text-white text-[10px] px-1 rounded">

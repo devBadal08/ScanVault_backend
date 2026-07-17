@@ -388,10 +388,14 @@ class AdminUsersPage extends Page
                     ->where('user_id', $queryUserId)
                     ->where('path', 'LIKE', "{$targetPath}/%")
                     ->orderBy('created_at', 'desc')
-                    ->get();
+                    ->paginate($this->perPage);
+
+                $this->total = $photos->total();
+
+                $photoCollection = $photos->getCollection();
 
                 // ✅ SUBFOLDERS FROM DB
-                $dbSubfolders = $photos->map(function ($photo) use ($targetPath) {
+                $dbSubfolders = $photoCollection->map(function ($photo) use ($targetPath) {
                     $relative = str_replace($targetPath . '/', '', $photo->path);
                     $parts = explode('/', $relative);
 
@@ -416,6 +420,7 @@ class AdminUsersPage extends Page
                 $mountedLinkedFolders = [];
                 if (!$subfolderPath) {
                     $currentFolder = Folder::where('name', $folderName)
+                        ->where('company_id', $folderCompanyId)
                         ->where('user_id', $realOwnerId)
                         ->first();
 
@@ -448,7 +453,7 @@ class AdminUsersPage extends Page
                     ->toArray();
 
                 // ✅ FILES FROM DB
-                $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
+                $mediaAll = $photoCollection->filter(function ($photo) use ($targetPath) {
                     $relative = str_replace($targetPath . '/', '', $photo->path);
                     return count(explode('/', $relative)) === 1;
                 })->map(function ($photo) {
@@ -471,158 +476,150 @@ class AdminUsersPage extends Page
 
                 $combined = $folderItems->merge($mediaAll)->toArray();
 
-                $grouped = $this->groupByDate($combined);
-                $flat = collect($grouped)->flatten(1)->values();
+                $this->items = $this->groupByDate($combined);
 
-                $paged = $flat->slice(
-                    ($this->page - 1) * $this->perPage,
-                    $this->perPage
-                )->values();
-
-                $this->items = $this->groupByDate($paged->toArray());
-                $this->images = $paged->toArray();
-                $this->total = count($combined);
+                $this->images = $mediaAll->values()->toArray();
             }
         }
     }
 
-    public function updatedPage()
-    {
-        $this->loadMediaOnly();
-    }
+    // public function updatedPage()
+    // {
+    //     $this->loadMediaOnly();
+    // }
 
-    protected function loadMediaOnly()
-    {
-        if (!$this->selectedUser || !$this->selectedFolder) {
-            return;
-        }
+    // protected function loadMediaOnly()
+    // {
+    //     if (!$this->selectedUser || !$this->selectedFolder) {
+    //         return;
+    //     }
 
-        // ========================================================
-        // ✅ EXACT SAME RESOLUTION LOGIC FOR PAGINATION
-        // ========================================================
-        $pathParts = explode('/', trim($this->selectedFolder, '/'));
-        $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
-        $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
-        $folderName      = $pathParts[2] ?? null;
+    //     // ========================================================
+    //     // ✅ EXACT SAME RESOLUTION LOGIC FOR PAGINATION
+    //     // ========================================================
+    //     $pathParts = explode('/', trim($this->selectedFolder, '/'));
+    //     $folderCompanyId = (int) ($pathParts[0] ?? auth()->user()->companies()->first()?->id);
+    //     $realOwnerId     = (int) ($pathParts[1] ?? $this->selectedUser->id);
+    //     $folderName      = $pathParts[2] ?? null;
 
-        $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
-        $targetPath = $basePath;
+    //     $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+    //     $targetPath = $basePath;
 
-        $queryCompanyId = $folderCompanyId;
-        $queryUserId = $realOwnerId;
-        $isLinkedSubfolder = false;
+    //     $queryCompanyId = $folderCompanyId;
+    //     $queryUserId = $realOwnerId;
+    //     $isLinkedSubfolder = false;
 
-        if ($this->selectedSubfolder) {
-            $subfolderParts = explode('/', $this->selectedSubfolder);
-            $firstSubfolderPart = $subfolderParts[0];
+    //     if ($this->selectedSubfolder) {
+    //         $subfolderParts = explode('/', $this->selectedSubfolder);
+    //         $firstSubfolderPart = $subfolderParts[0];
 
-            $selectedFolderModel = Folder::where('name', $folderName)
-                ->where('user_id', $realOwnerId)
-                ->first();
+    //         $selectedFolderModel = Folder::where('name', $folderName)
+    //             ->where('user_id', $realOwnerId)
+    //             ->first();
             
-            if ($selectedFolderModel) {
-                $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
-                    ->whereIn('id', function($q) use ($selectedFolderModel) {
-                        $q->select('target_folder_id')
-                          ->from('folder_links')
-                          ->where('source_folder_id', $selectedFolderModel->id);
-                    })->first();
+    //         if ($selectedFolderModel) {
+    //             $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
+    //                 ->whereIn('id', function($q) use ($selectedFolderModel) {
+    //                     $q->select('target_folder_id')
+    //                       ->from('folder_links')
+    //                       ->where('source_folder_id', $selectedFolderModel->id);
+    //                 })->first();
 
-                if ($linkedSubfolderModel) {
-                    $isLinkedSubfolder = true;
-                    $queryCompanyId = $linkedSubfolderModel->company_id;
-                    $queryUserId = $linkedSubfolderModel->user_id;
+    //             if ($linkedSubfolderModel) {
+    //                 $isLinkedSubfolder = true;
+    //                 $queryCompanyId = $linkedSubfolderModel->company_id;
+    //                 $queryUserId = $linkedSubfolderModel->user_id;
 
-                    $linkedBasePath = "{$queryCompanyId}/{$queryUserId}/{$linkedSubfolderModel->name}";
+    //                 $linkedBasePath = "{$queryCompanyId}/{$queryUserId}/{$linkedSubfolderModel->name}";
 
-                    if (count($subfolderParts) > 1) {
-                        $remainingPath = implode('/', array_slice($subfolderParts, 1));
-                        $targetPath = "{$linkedBasePath}/{$remainingPath}";
-                    } else {
-                        $targetPath = $linkedBasePath;
-                    }
-                }
-            }
+    //                 if (count($subfolderParts) > 1) {
+    //                     $remainingPath = implode('/', array_slice($subfolderParts, 1));
+    //                     $targetPath = "{$linkedBasePath}/{$remainingPath}";
+    //                 } else {
+    //                     $targetPath = $linkedBasePath;
+    //                 }
+    //             }
+    //         }
 
-            if (!$isLinkedSubfolder) {
-                $targetPath = "{$basePath}/{$this->selectedSubfolder}";
-            }
-        }
+    //         if (!$isLinkedSubfolder) {
+    //             $targetPath = "{$basePath}/{$this->selectedSubfolder}";
+    //         }
+    //     }
 
-        // ✅ REPLICATE DB FETCHING FOR PAGINATION
-        $photos = \App\Models\Photo::where('company_id', $queryCompanyId)
-            ->where('user_id', $queryUserId)
-            ->where('path', 'LIKE', "{$targetPath}/%")
-            ->orderBy('created_at', 'desc')
-            ->get();
+    //     // ✅ REPLICATE DB FETCHING FOR PAGINATION
+    //     $photos = \App\Models\Photo::where('company_id', $queryCompanyId)
+    //         ->where('user_id', $queryUserId)
+    //         ->where('path', 'LIKE', "{$targetPath}/%")
+    //         ->orderBy('created_at', 'desc')
+    //         ->get();
 
-        $dbSubfolders = $photos->map(function ($photo) use ($targetPath) {
-            $relative = str_replace($targetPath . '/', '', $photo->path);
-            $parts = explode('/', $relative);
-            if (count($parts) > 1) {
-                return [
-                    'type' => 'folder',
-                    'name' => $parts[0],
-                    'path' => $targetPath . '/' . $parts[0],
-                    'created_at' => $photo->created_at,
-                    'linked' => false,
-                ];
-            }
-            return null;
-        })->filter()->unique('name')->values()->toArray();
+    //     $dbSubfolders = $photos->map(function ($photo) use ($targetPath) {
+    //         $relative = str_replace($targetPath . '/', '', $photo->path);
+    //         $parts = explode('/', $relative);
+    //         if (count($parts) > 1) {
+    //             return [
+    //                 'type' => 'folder',
+    //                 'name' => $parts[0],
+    //                 'path' => $targetPath . '/' . $parts[0],
+    //                 'created_at' => $photo->created_at,
+    //                 'linked' => false,
+    //             ];
+    //         }
+    //         return null;
+    //     })->filter()->unique('name')->values()->toArray();
 
-        $mountedLinkedFolders = [];
-        if (!$this->selectedSubfolder) {
-            $currentFolder = Folder::where('name', $folderName)->where('user_id', $realOwnerId)->first();
-            if ($currentFolder) {
-                $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
-                        $q->select('target_folder_id')->from('folder_links')->where('source_folder_id', $currentFolder->id);
-                    })->get()->map(function ($f) {
-                        return [
-                            'type' => 'folder',
-                            'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
-                            'name' => $f->name,
-                            'created_at' => $f->created_at->toDateTimeString(),
-                            'linked' => true,
-                            'owner_id' => $f->user_id,
-                        ];
-                    })->toArray();
-            }
-        }
+    //     $mountedLinkedFolders = [];
+    //     if (!$this->selectedSubfolder) {
+    //         $currentFolder = Folder::where('name', $folderName)->where('user_id', $realOwnerId)->first();
+    //         if ($currentFolder) {
+    //             $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
+    //                     $q->select('target_folder_id')->from('folder_links')->where('source_folder_id', $currentFolder->id);
+    //                 })->get()->map(function ($f) {
+    //                     return [
+    //                         'type' => 'folder',
+    //                         'path' => "{$f->company_id}/{$f->user_id}/{$f->name}",
+    //                         'name' => $f->name,
+    //                         'created_at' => $f->created_at->toDateTimeString(),
+    //                         'linked' => true,
+    //                         'owner_id' => $f->user_id,
+    //                     ];
+    //                 })->toArray();
+    //         }
+    //     }
 
-        $allFolders = collect($dbSubfolders)->merge($mountedLinkedFolders)->unique('name')->sortByDesc('created_at')->values()->toArray();
+    //     $allFolders = collect($dbSubfolders)->merge($mountedLinkedFolders)->unique('name')->sortByDesc('created_at')->values()->toArray();
 
-        $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
-            $relative = str_replace($targetPath . '/', '', $photo->path);
-            return count(explode('/', $relative)) === 1;
-        })->map(function ($photo) {
-            return [
-                'type' => $photo->type,
-                'path' => $photo->path,
-                'name' => basename($photo->path),
-                'created_at' => $photo->created_at,
-            ];
-        });
+    //     $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
+    //         $relative = str_replace($targetPath . '/', '', $photo->path);
+    //         return count(explode('/', $relative)) === 1;
+    //     })->map(function ($photo) {
+    //         return [
+    //             'type' => $photo->type,
+    //             'path' => $photo->path,
+    //             'name' => basename($photo->path),
+    //             'created_at' => $photo->created_at,
+    //         ];
+    //     });
 
-        $folderItems = collect($allFolders)->map(fn ($folder) => [
-            'type' => 'folder',
-            'path' => $folder['path'],
-            'name' => $folder['name'],
-            'created_at' => $folder['created_at'],
-            'linked' => $folder['linked'] ?? false,
-        ]);
+    //     $folderItems = collect($allFolders)->map(fn ($folder) => [
+    //         'type' => 'folder',
+    //         'path' => $folder['path'],
+    //         'name' => $folder['name'],
+    //         'created_at' => $folder['created_at'],
+    //         'linked' => $folder['linked'] ?? false,
+    //     ]);
 
-        $combined = $folderItems->merge($mediaAll)->toArray();
-        $grouped = $this->groupByDate($combined);
-        $flat = collect($grouped)->flatten(1)->values();
+    //     $combined = $folderItems->merge($mediaAll)->toArray();
+    //     $grouped = $this->groupByDate($combined);
+    //     $flat = collect($grouped)->flatten(1)->values();
 
-        $paged = $flat->slice(
-            ($this->page - 1) * $this->perPage,
-            $this->perPage
-        )->values();
+    //     $paged = $flat->slice(
+    //         ($this->page - 1) * $this->perPage,
+    //         $this->perPage
+    //     )->values();
 
-        $this->items = $this->groupByDate($paged->toArray());
-    }
+    //     $this->items = $this->groupByDate($paged->toArray());
+    // }
 
     public static function shouldRegisterNavigation(): bool
     {

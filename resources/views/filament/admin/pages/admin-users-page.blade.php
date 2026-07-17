@@ -449,8 +449,25 @@
 
                                         {{-- IMAGE --}}
                                         @if ($item['type'] === 'image')
-                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank" class="block w-full h-full">
-                                                <img loading="lazy" src="{{ asset('storage/' . $item['path']) }}"
+                                            @php
+                                                $onlyImages = collect($items)
+                                                    ->flatMap(function ($group) {
+                                                        return $group;
+                                                    })
+                                                    ->where('type', 'image')
+                                                    ->values();
+
+                                                $currentIndex = $onlyImages->search(function ($img) use ($item) {
+                                                    return $img['path'] === $item['path'];
+                                                });
+                                            @endphp
+
+                                            <a href="{{ route('image.viewer', [
+                                                'images' => base64_encode(json_encode($onlyImages)),
+                                                'index' => $currentIndex
+                                            ]) }}" target="_blank">
+
+                                                <img src="{{ asset('storage/' . $item['path']) }}"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="{{ $item['name'] }}">
                                             </a>
@@ -728,9 +745,27 @@
 
                                         {{-- IMAGE --}}
                                         @if ($item['type'] === 'image')
-                                            <a href="{{ asset('storage/' . $item['path']) }}" target="_blank"
-                                                class="block w-full h-full">
-                                                <img loading="lazy" src="{{ asset('storage/' . $item['path']) }}"
+                                            @php
+                                                $onlyImages = collect($items)
+                                                    ->flatMap(function ($group) {
+                                                        return $group;
+                                                    })
+                                                    ->where('type', 'image')
+                                                    ->values();
+
+                                                $currentIndex = $onlyImages->search(function ($img) use ($item) {
+                                                    return $img['path'] === $item['path'];
+                                                });
+                                            @endphp
+
+                                            <a href="{{ route('image.viewer', [
+                                                'images' => base64_encode(json_encode($onlyImages)),
+                                                'index' => $currentIndex
+                                            ]) }}" target="_blank">
+
+                                                <img
+                                                    loading="lazy"
+                                                    src="{{ asset('storage/' . $item['path']) }}"
                                                     class="w-full h-full object-cover rounded"
                                                     alt="{{ $item['name'] }}">
                                             </a>

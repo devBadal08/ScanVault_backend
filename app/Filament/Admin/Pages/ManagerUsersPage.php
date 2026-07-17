@@ -345,36 +345,35 @@ class ManagerUsersPage extends Page
         // ✅ STEP 1: SEARCH MAIN FOLDERS (STRONG MATCH)
         // =========================================================
 
-        $mainFolders = [];
+        $userMap = $users->keyBy('id');
 
-        foreach ($users as $user) {
-            foreach ($companyIds as $companyId) {
+        $mainFolders = Folder::whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $users->pluck('id'))
+            ->where(function ($q) use ($query) {
 
-                $mainFolders = array_merge(
-                    $mainFolders,
-                    Folder::where('company_id', $companyId)
-                        ->where('user_id', $user->id)
-                        ->where(function ($q) use ($query) {
-                            $cleanQuery = str_replace(' ', '', $query);
+                $cleanQuery = str_replace(' ', '', $query);
 
-                            $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
-                            ->orWhereRaw('REPLACE(LOWER(name), " ", "") LIKE ?', ["%{$cleanQuery}%"]);
-                        })
-                        ->get()
-                        ->map(function ($folder) use ($user) {
-                            return [
-                                'type' => 'folder',
-                                'name' => trim($folder->name),
-                                'user' => $user->name,
-                                'user_id' => $user->id,
-                                'folder' => trim($folder->path),
-                                'subfolder' => null,
-                            ];
-                        })
-                        ->toArray()
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
+                ->orWhereRaw(
+                    'REPLACE(LOWER(name), " ", "") LIKE ?',
+                    ["%{$cleanQuery}%"]
                 );
-            }
-        }
+
+            })
+            ->get()
+            ->map(function ($folder) use ($userMap) {
+
+                return [
+                    'type'      => 'folder',
+                    'name'      => trim($folder->name),
+                    'user'      => $userMap[$folder->user_id]->name ?? '',
+                    'user_id'   => $folder->user_id,
+                    'folder'    => trim($folder->path),
+                    'subfolder' => null,
+                ];
+
+            })
+            ->toArray();
 
         // ✅ If main folder found → RETURN ONLY THAT (better UX)
         if (!empty($mainFolders)) {
@@ -441,18 +440,6 @@ class ManagerUsersPage extends Page
         $this->isSearching = false;
     }
 
-    protected function getUserPhotoCount(int $companyId, int $userId): int
-    {
-        return Photo::query()
-            ->where(function ($q) use ($companyId) {
-                $q->where('company_id', $companyId)
-                ->orWhereNull('company_id');
-            })
-            ->where('user_id', $userId)
-            ->where('type', 'image')
-            ->count();
-    }
-
     public function mount(): void
     {
         $this->page = (int) request()->get('page', 1);
@@ -494,25 +481,50 @@ class ManagerUsersPage extends Page
         }
 
         if ($authUser->role === 'manager') {
-            $this->managerUsers = User::where('role', 'user')
+            $users = User::where('role', 'user')
                 ->where('created_by', $authUser->id)
-                ->get()
-                ->map(function ($user) use ($companyId) {
-                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
-                    return $user;
-                });
+                ->get();
+
+            $photoCounts = Photo::selectRaw('user_id, COUNT(*) as total')
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                    ->orWhereNull('company_id');
+                })
+                ->where('type', 'image')
+                ->groupBy('user_id')
+                ->pluck('total', 'user_id');
+
+            $this->managerUsers = $users->map(function ($user) use ($photoCounts) {
+
+                $user->photo_count = $photoCounts[$user->id] ?? 0;
+
+                return $user;
+            });
         } else {
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
 
-            $this->managerUsers = User::where('role', 'user')
+            $users = User::where('role', 'user')
                 ->whereIn('created_by', $managerIds)
-                ->get()
-                ->map(function ($user) use ($companyId) {
-                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
-                    return $user;
-                });
+                ->get();
+
+            $photoCounts = Photo::selectRaw('user_id, COUNT(*) as total')
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)
+                    ->orWhereNull('company_id');
+                })
+                ->where('type', 'image')
+                ->groupBy('user_id')
+                ->pluck('total', 'user_id');
+
+            $this->managerUsers = $users->map(function ($user) use ($photoCounts) {
+
+                $user->photo_count = $photoCounts[$user->id] ?? 0;
+
+                return $user;
+
+            });
         }
 
         if ($userId) {
@@ -522,35 +534,28 @@ class ManagerUsersPage extends Page
             $baseUserPath = "{$companyId}/{$userId}";
 
             if (!$folder) {
-                $photos = Photo::where('company_id', $companyId)
+
+                $folders = Folder::where('company_id', $companyId)
                     ->where('user_id', $userId)
-                    ->select('path', 'created_at')
+                    ->whereNull('parent_id') // only main folders
+                    ->orderByDesc('created_at')
                     ->get();
 
-                $rawFolders = $photos->map(function ($photo) {
-                    $parts = explode('/', $photo->path);
+                $allFolders = $folders->map(function ($folder) {
 
                     return [
-                        'type' => 'folder',
-                        'name' => $parts[2] ?? null,
-                        'path' => implode('/', array_slice($parts, 0, 3)),
-                        'created_at' => $photo->created_at,
-                        'linked' => false,
+                        'type'       => 'folder',
+                        'name'       => $folder->name,
+                        'path'       => $folder->path,
+                        'created_at' => $folder->created_at,
+                        'linked'     => false,
                     ];
-                })
-                ->filter(fn($f) => $f['name'])
-                ->unique('path')
-                ->values()
-                ->toArray();
 
-                $allFolders = collect($rawFolders)
-                    ->unique('path')
-                    ->sortByDesc(fn ($i) => $i['created_at'])
-                    ->values();
+                })->values()->toArray();
 
-                $grouped = $this->groupByDate($allFolders->toArray());
+                $grouped = $this->groupByDate($allFolders);
+
                 $this->folders = $this->paginateDateGroups($grouped);
-
             } else {
                 $pathParts = explode('/', trim($folder, '/'));
 
@@ -576,8 +581,9 @@ class ManagerUsersPage extends Page
                 $this->selectedFolder = $folder;
                 $this->selectedSubfolder = $subfolderPath;
 
-                $selectedFolderModel = Folder::where('name', $folderName)
+                $selectedFolderModel = Folder::where('company_id', $folderCompanyId)
                     ->where('user_id', $realOwnerId)
+                    ->where('name', $folderName)
                     ->first();
 
                 $isLinkedFolder = false;
@@ -633,7 +639,11 @@ class ManagerUsersPage extends Page
                     ->where('user_id', $realOwnerId)
                     ->where('path', 'LIKE', "{$targetPath}/%")
                     ->orderBy('created_at', 'desc')
-                    ->get();
+                    ->paginate($this->perPage);
+
+                $this->total = $photos->total();
+
+                $photoCollection = $photos->getCollection();
 
                 $rawSubfolders = $photos->map(function ($photo) use ($targetPath) {
 
@@ -710,7 +720,7 @@ class ManagerUsersPage extends Page
                 });
 
                 $mediaAll = $mediaAll->merge($linkedFiles);
-                $this->total = $mediaAll->count();
+                $this->total = $photos->total();
 
                 $folderItems = collect($this->subfolders)->map(fn ($folder) => [
                     'type' => 'folder',
@@ -722,16 +732,8 @@ class ManagerUsersPage extends Page
 
                 $combined = $folderItems->merge($mediaAll)->toArray();
 
-                $grouped = $this->groupByDate($combined);
-                $flat = collect($grouped)->flatten(1)->values();
-
-                $paged = $flat->slice(
-                    ($this->page - 1) * $this->perPage,
-                    $this->perPage
-                )->values();
-
-                $this->items = $this->groupByDate($paged->toArray());
-                $this->images = $paged->toArray();
+                $this->items = $this->groupByDate($combined);
+                $this->images = $mediaAll->values()->toArray();
             }
         }
     }
