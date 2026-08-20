@@ -117,6 +117,7 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::body.end',
                 fn () => '
+
                     <div style="
                         text-align:center;
                         padding:12px;

@@ -138,7 +138,15 @@ class ManagerUsersPage extends Page
                     Storage::disk('public')->deleteDirectory($path);
                 }
 
-                // ✅ Remove folder instantly from UI
+                // Delete folder record
+                Folder::where('path', $path)->delete();
+
+                // Delete all photos inside that folder
+                Photo::where('path', 'LIKE', $path . '/%')->delete();
+
+                Cache::forget("files_{$path}");
+
+                // Remove folder instantly from UI
                 foreach ($this->folders as $group => $folderGroup) {
                     $this->folders[$group] = array_filter($folderGroup, function ($f) use ($path) {
                         return $f['path'] !== $path;
@@ -150,15 +158,14 @@ class ManagerUsersPage extends Page
                 }
 
                 foreach ($this->items as $group => $itemGroup) {
-                    $this->items[$group] = array_filter($itemGroup, function ($i) use ($path) {
+                    $this->items[$group] = array_values(array_filter($itemGroup, function ($i) use ($path) {
                         return $i['path'] !== $path;
-                    });
+                    }));
 
                     if (empty($this->items[$group])) {
                         unset($this->items[$group]);
                     }
                 }
-
             } else {
                 $companyId = auth()->user()->companies()->first()?->id;
 
@@ -190,6 +197,7 @@ class ManagerUsersPage extends Page
                         $company->save();
                     }
 
+                    Folder::where('path', $path)->delete();
                     Photo::where('path', $path)->delete();
                     Storage::disk('public')->delete($path);
 
@@ -199,9 +207,9 @@ class ManagerUsersPage extends Page
 
                 // ✅ Remove file instantly
                 foreach ($this->items as $group => $itemGroup) {
-                    $this->items[$group] = array_filter($itemGroup, function ($i) use ($path) {
+                    $this->items[$group] = array_values(array_filter($itemGroup, function ($i) use ($path) {
                         return $i['path'] !== $path;
-                    });
+                    }));
 
                     if (empty($this->items[$group])) {
                         unset($this->items[$group]);
@@ -288,13 +296,6 @@ class ManagerUsersPage extends Page
         return Carbon::createFromTimestamp(
             Storage::disk('public')->lastModified($folderPath)
         );
-    }
-
-    public function mountedFolderPermissionsCheck($fullPath)
-    {
-        if (is_dir($fullPath)) {
-            @chmod($fullPath, 0755);
-        }
     }
 
     public function searchGlobal(): void
@@ -631,9 +632,6 @@ class ManagerUsersPage extends Page
                         $targetPath = "{$basePath}/{$subfolderPath}";
                     }
                 }
-
-                // ✅ permission fix
-                $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
 
                 $photos = Photo::where('company_id', $folderCompanyId)
                     ->where('user_id', $realOwnerId)

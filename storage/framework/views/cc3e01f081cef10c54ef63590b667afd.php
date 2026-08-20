@@ -63,13 +63,13 @@
                         <a
                             href="?user=<?php echo e($item['user_id']); ?>
 
-&folder=<?php echo e(urlencode($item['folder'])); ?>
+                                &folder=<?php echo e(urlencode($item['folder'])); ?>
 
-<?php if(!empty($item['subfolder'])): ?>
-&subfolder=<?php echo e(urlencode($item['subfolder'])); ?>
+                                <?php if(!empty($item['subfolder'])): ?>
+                                &subfolder=<?php echo e(urlencode($item['subfolder'])); ?>
 
-<?php endif; ?>
-&from_search=1"
+                                <?php endif; ?>
+                                &from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -176,7 +176,27 @@
 <?php endif; ?>
 
                 
-                
+                <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['tag' => 'a','href' => ''.e(url()->current()).'/download-today','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('filament::button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['tag' => 'a','href' => ''.e(url()->current()).'/download-today','color' => 'success','icon' => 'heroicon-o-arrow-down-tray']); ?>
+                    Download Today’s Folders
+                 <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
             </div>
 
             <div class="flex items-center justify-between mb-3">
@@ -204,48 +224,24 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center text-center">
+                                <div class="group relative flex flex-col items-center justify-between p-1 w-28 h-32 hover:-translate-y-0.5 transition-transform duration-200">
 
-                                    <!-- FIXED SIZE CONTAINER -->
-                                    <div class="relative w-24 h-24 flex items-center justify-center">
-
-                                        <!-- Folder Icon (clickable) -->
-                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
-                                        class="w-full h-full flex items-center justify-center z-0">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-folder'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-20 h-20 text-yellow-500','style' => 'color: #facc15;']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-                                        </a>
-
-                                        <!-- Checkbox (top-left) -->
-                                        <input
-                                            type="checkbox"
-                                            class="folder-checkbox absolute top-1 left-1 z-20"
-                                            data-type="folder"
+                                    
+                                    <div class="w-full flex items-center justify-between z-10 px-1">
+                                        
+                                        <input 
+                                            type="checkbox" 
+                                            class="folder-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-500 dark:bg-gray-700 cursor-pointer"
+                                            data-type="folder" 
                                             value="<?php echo e($folder['path']); ?>"
                                         >
 
-                                        <!-- Download (bottom-right) -->
-                                        <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
-                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
-                                            title="Download Folder">
+                                        
+                                        <a 
+                                            href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>" 
+                                            class="p-1 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-orange-400 dark:hover:bg-gray-700/60 transition-colors"
+                                            title="Download Folder"
+                                        >
                                             <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -255,7 +251,7 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-5 h-5 text-gray-700 dark:text-white']); ?>
+<?php $component->withAttributes(['class' => 'w-4 h-4']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
@@ -267,14 +263,42 @@
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
                                         </a>
-
                                     </div>
 
-                                    <!-- Folder Name -->
-                                    <span class="mt-1 text-xs text-black truncate w-24">
-                                        <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
+                                    
+                                    <a 
+                                        href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>" 
+                                        class="flex flex-col items-center justify-center w-full flex-1 my-1 group-hover:scale-105 transition-transform duration-200"
+                                    >
+                                        
+                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
+<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('heroicon-s-folder'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['class' => 'w-16 h-16 text-amber-400 dark:text-amber-500 drop-shadow-sm','style' => 'color: #facc15;']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
 
-                                    </span>
+                                        
+                                        <span class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-200 truncate max-w-[85px] text-center" title="<?php echo e($folder['name']); ?>">
+                                            <?php echo e($folder['name']); ?>
+
+                                        </span>
+                                    </a>
+
                                 </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                         </div>
@@ -1122,7 +1146,7 @@
         });
     });
 
-    function deleteSelected() {
+    async function deleteSelected() {
         if (!confirm('Delete selected items?')) return;
 
         const selected = [
@@ -1139,7 +1163,23 @@
             return;
         }
 
-        Livewire.dispatch('bulkDeleteMedia', { items: selected });
+        await Livewire.first().call('bulkDeleteMedia', selected);
+
+        document.querySelectorAll(
+            '.image-checkbox, .image-checkbox-subfolder, .folder-checkbox'
+        ).forEach(cb => cb.checked = false);
+
+        document.getElementById('selected-count').textContent = '0';
+        document.getElementById('selected-count-main').textContent = '0';
+        document.getElementById('selected-count-subfolder').textContent = '0';
+
+        const selectAll = document.getElementById('select-all');
+        const selectAllMain = document.getElementById('select-all-main');
+        const selectAllSubfolder = document.getElementById('select-all-subfolder');
+
+        if (selectAll) selectAll.checked = false;
+        if (selectAllMain) selectAllMain.checked = false;
+        if (selectAllSubfolder) selectAllSubfolder.checked = false;
     }
     function openPropertiesModal(btn) {
         document.getElementById('prop-name').innerText = btn.dataset.name;
