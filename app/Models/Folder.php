@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Company;
 
 class Folder extends Model
 {
@@ -62,5 +63,28 @@ class Folder extends Model
     public function children()
     {
         return $this->hasMany(Folder::class, 'parent_id');
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (Folder $folder) {
+
+            // Count only root folders
+            if (is_null($folder->parent_id)) {
+
+                Company::where('id', $folder->company_id)
+                    ->increment('total_folders');
+            }
+        });
+
+        static::deleted(function (Folder $folder) {
+
+            // Count only root folders
+            if (is_null($folder->parent_id)) {
+
+                Company::where('id', $folder->company_id)
+                    ->decrement('total_folders');
+            }
+        });
     }
 }

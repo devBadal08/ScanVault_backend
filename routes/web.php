@@ -5,6 +5,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DownloadController;
 use App\Http\Controllers\CompanyDownloadController;
+use App\Http\Controllers\UserPhotoDownloadController;
+use App\Http\Controllers\DateWisePhotoDownloadController;
 
 // Home
 Route::get('/', function () {
@@ -17,6 +19,16 @@ Route::get('/', function () {
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get(
+    '/download-user-photos',
+    [UserPhotoDownloadController::class, 'download']
+)->name('download-user-photos');
+
+Route::get(
+    '/manager/date-wise-photo-download',
+    [DateWisePhotoDownloadController::class, 'download']
+)->name('manager.date-wise-photo-download');
 
 // Profile routes
 Route::middleware('auth')->group(function () {

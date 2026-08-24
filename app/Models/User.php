@@ -131,6 +131,11 @@ class User extends Authenticatable implements FilamentUser
         return (bool) $this->show_total_storage;
     }
 
+    public function canShowTotalFolders(): bool
+    {
+        return (bool) $this->show_total_folders;
+    }
+
     public function canShow($type): bool
     {
         if (!$this->userPermission) {
@@ -144,6 +149,7 @@ class User extends Authenticatable implements FilamentUser
             'total_limit' => (bool) $this->userPermission->show_total_limit,
             'total_storage' => (bool) $this->userPermission->show_total_storage,
             'total_photos' => (bool) $this->userPermission->show_total_photos,
+            'total_folders' => (bool) $this->userPermission->show_total_folders,
             default => false,
         };
     }

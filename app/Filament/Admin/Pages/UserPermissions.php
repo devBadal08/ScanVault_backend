@@ -25,6 +25,7 @@ class UserPermissions extends Page
         'permissions.show_total_limit' => 'boolean',
         'permissions.show_total_storage' => 'boolean',
         'permissions.show_total_photos' => 'boolean',
+        'permissions.show_total_folders' => 'boolean',
     ];
 
     public static function shouldRegisterNavigation(): bool
@@ -64,6 +65,7 @@ class UserPermissions extends Page
             'show_total_limit'    => $record->show_total_limit    ?? false,
             'show_total_storage'  => $record->show_total_storage  ?? false,
             'show_total_photos'   => $record->show_total_photos   ?? false,
+            'show_total_folders'  => $record->show_total_folders  ?? false,
         ];
     }
 
@@ -81,6 +83,7 @@ class UserPermissions extends Page
                 'show_total_limit'    => $this->permissions['show_total_limit'] ?? false,
                 'show_total_storage'  => $this->permissions['show_total_storage'] ?? false,
                 'show_total_photos'   => $this->permissions['show_total_photos'] ?? false,
+                'show_total_folders'  => $this->permissions['show_total_folders'] ?? false,
             ]
         );
 

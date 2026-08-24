@@ -25,6 +25,7 @@ use App\Filament\Widgets\UserStatsWidget;
 use App\Filament\Widgets\PhotoStatsWidget;
 use App\Filament\Widgets\StorageStatsWidget;
 use App\Filament\Widgets\UserPhotoStats;
+use App\Filament\Widgets\FolderStatsWidget;
 use Illuminate\Support\Facades\Auth;
 
 class AdminPanelProvider extends PanelProvider
@@ -150,6 +151,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 //TotalCompanies::class,
                 UserStatsWidget::class,
+                FolderStatsWidget::class,
                 PhotoStatsWidget::class,
                 StorageStatsWidget::class,
                 UsagePieChart::class,

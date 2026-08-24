@@ -86,6 +86,7 @@
                         'show_total_limit'    => 'Show Total Limit',
                         'show_total_storage'  => 'Show Total Storage',
                         'show_total_photos'   => 'Show Total Photos',
+                        'show_total_folders'  => 'Show Total Folders',
                     ];
                 @endphp
                 <div class="grid sm:grid-cols-2 gap-4 bg-white dark:bg-gray-800 p-5 rounded-xl shadow border border-gray-200 dark:border-gray-700">

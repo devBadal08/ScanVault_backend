@@ -40,11 +40,11 @@
                     @foreach($globalResults as $item)
                         <a
                             href="?user={{ $item['user_id'] }}
-                                &folder={{ urlencode($item['folder']) }}
-                                @if(!empty($item['subfolder']))
-                                &subfolder={{ urlencode($item['subfolder']) }}
-                                @endif
-                                &from_search=1"
+&folder={{ urlencode($item['folder']) }}
+@if(!empty($item['subfolder']))
+&subfolder={{ urlencode($item['subfolder']) }}
+@endif
+&from_search=1"
                             class="p-3 rounded-lg border hover:bg-orange-100 dark:hover:bg-orange-900/30 transition"
                         >
                             <div class="text-sm font-semibold">
@@ -103,14 +103,136 @@
                             </div>
 
                             {{-- RIGHT: Photo count --}}
-                            <div class="flex flex-col items-center justify-center ml-auto mr-6 text-center">
+                            {{-- RIGHT: Photo count + 3-dot menu --}}
+                            <div
+                                class="relative flex flex-col items-center justify-center ml-auto mr-2 text-center"
+                                onclick="event.stopPropagation();"
+                            >
+
+                                {{-- Photo Count --}}
                                 <div class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
                                     {{ $user->photo_count ?? 0 }}
                                 </div>
 
-                                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     Total Photos
                                 </div>
+
+                                {{-- 3 DOT BUTTON --}}
+                                <button
+                                    type="button"
+                                    onclick="event.stopPropagation(); toggleUserMenu({{ $user->id }});"
+                                    class="mt-2 w-8 h-8
+                                        flex items-center justify-center
+                                        rounded-lg
+                                        border border-gray-200 dark:border-gray-600
+                                        bg-white dark:bg-gray-800
+                                        text-gray-500 dark:text-gray-300
+                                        hover:bg-gray-50 dark:hover:bg-gray-700
+                                        hover:text-gray-700 dark:hover:text-white
+                                        transition-all duration-150
+                                        focus:outline-none focus:ring-2
+                                        focus:ring-gray-200 dark:focus:ring-gray-600"
+                                    title="More options"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="w-5 h-5"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                    >
+                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                    </svg>
+                                </button>
+
+                                {{-- DROPDOWN MENU --}}
+                                <div
+                                    id="user-menu-{{ $user->id }}"
+                                    class="hidden absolute right-0 top-full mt-1 z-50
+                                        w-40
+                                        bg-white dark:bg-gray-800
+                                        border border-gray-200 dark:border-gray-700
+                                        rounded-xl shadow-lg
+                                        overflow-hidden"
+                                    onclick="event.stopPropagation();"
+                                >
+
+                                    {{-- DOWNLOAD --}}
+                                    @if(($user->photo_count ?? 0) > 0)
+
+                                        <a
+                                            href="{{ route('download-user-photos', ['user' => $user->id]) }}"
+                                            onclick="event.stopPropagation();"
+                                            class="flex items-center gap-3 px-4 py-3
+                                            text-sm text-gray-700 dark:text-gray-200
+                                            hover:bg-gray-300
+                                            dark:hover:bg-gray-700/70
+                                            transition-colors duration-150"
+                                        >
+                                            <x-heroicon-o-arrow-down-tray
+                                                class="w-5 h-5 text-green-600"
+                                            />
+
+                                            <span>Download</span>
+                                        </a>
+
+                                    @else
+
+                                        {{-- Disabled Download --}}
+                                        <div
+                                            class="flex items-center gap-3 px-4 py-3
+                                                text-sm text-gray-400 dark:text-gray-500
+                                                cursor-not-allowed"
+                                        >
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5"/>
+
+                                            <span>Download</span>
+                                        </div>
+
+                                    @endif
+
+
+                                    {{-- DELETE --}}
+                                    @if($this->canDeletePhotos())
+
+                                        @if(($user->photo_count ?? 0) > 0)
+
+                                            <button
+                                                type="button"
+                                                onclick="
+                                                    event.stopPropagation();
+                                                    closeAllUserMenus();
+                                                    deleteUserPhotos({{ $user->id }}, @js($user->name));
+                                                "
+                                                class="w-full flex items-center gap-3 px-4 py-3
+                                                    text-sm text-red-600 dark:text-red-400
+                                                    hover:bg-red-50 dark:hover:bg-red-900/20
+                                                    transition"
+                                            >
+                                                <x-heroicon-o-trash class="w-5 h-5"/>
+
+                                                <span>Delete</span>
+                                            </button>
+
+                                        @else
+
+                                            {{-- Disabled Delete --}}
+                                            <div
+                                                class="flex items-center gap-3 px-4 py-3
+                                                    text-sm text-gray-400 dark:text-gray-500
+                                                    cursor-not-allowed"
+                                            >
+                                                <x-heroicon-o-trash class="w-5 h-5"/>
+
+                                                <span>Delete</span>
+                                            </div>
+
+                                        @endif
+
+                                    @endif
+
+                                </div>
+
                             </div>
                         </div>
                     @endforeach
@@ -133,13 +255,7 @@
                 </x-filament::button>
 
                 {{-- Download Today’s Folders --}}
-                <x-filament::button 
-                    tag="a" 
-                    href="{{ url()->current() }}/download-today" 
-                    color="success" 
-                    icon="heroicon-o-arrow-down-tray">
-                    Download Today’s Folders
-                </x-filament::button>
+                
             </div>
 
             <div class="flex items-center justify-between mb-3">
@@ -167,42 +283,38 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             @foreach ($items as $folder)
-                                <div class="group relative flex flex-col items-center justify-between p-1 w-28 h-32 hover:-translate-y-0.5 transition-transform duration-200">
+                                <div class="flex flex-col items-center text-center">
 
-                                    {{-- Top Action Header (Checkbox + Download Button) --}}
-                                    <div class="w-full flex items-center justify-between z-10 px-1">
-                                        {{-- Checkbox --}}
-                                        <input 
-                                            type="checkbox" 
-                                            class="folder-checkbox h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 focus:ring-orange-500 dark:bg-gray-700 cursor-pointer"
-                                            data-type="folder" 
+                                    <!-- FIXED SIZE CONTAINER -->
+                                    <div class="relative w-24 h-24 flex items-center justify-center">
+
+                                        <!-- Folder Icon (clickable) -->
+                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
+                                        class="w-full h-full flex items-center justify-center z-0">
+                                            <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;"/>
+                                        </a>
+
+                                        <!-- Checkbox (top-left) -->
+                                        <input
+                                            type="checkbox"
+                                            class="folder-checkbox absolute top-1 left-1 z-20"
+                                            data-type="folder"
                                             value="{{ $folder['path'] }}"
                                         >
 
-                                        {{-- Download Button --}}
-                                        <a 
-                                            href="{{ route('download-folder', ['path' => $folder['path']]) }}" 
-                                            class="p-1 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-orange-400 dark:hover:bg-gray-700/60 transition-colors"
-                                            title="Download Folder"
-                                        >
-                                            <x-heroicon-o-arrow-down-tray class="w-4 h-4" />
+                                        <!-- Download (bottom-right) -->
+                                        <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
+                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
+                                            title="Download Folder">
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" />
                                         </a>
+
                                     </div>
 
-                                    {{-- Clickable Center Area (Folder Icon + Title) --}}
-                                    <a 
-                                        href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}" 
-                                        class="flex flex-col items-center justify-center w-full flex-1 my-1 group-hover:scale-105 transition-transform duration-200"
-                                    >
-                                        {{-- Folder Icon --}}
-                                        <x-heroicon-s-folder class="w-16 h-16 text-amber-400 dark:text-amber-500 drop-shadow-sm" style="color: #facc15;"/>
-
-                                        {{-- Folder Name --}}
-                                        <span class="mt-1 text-xs font-medium text-gray-800 dark:text-gray-200 truncate max-w-[85px] text-center" title="{{ $folder['name'] }}">
-                                            {{ $folder['name'] }}
-                                        </span>
-                                    </a>
-
+                                    <!-- Folder Name -->
+                                    <span class="mt-1 text-xs text-black truncate w-24">
+                                        {{ \Illuminate\Support\Str::limit($folder['name'], 10) }}
+                                    </span>
                                 </div>
                             @endforeach
                         </div>
@@ -397,11 +509,12 @@
 
                                             {{-- Checkbox --}}
                                             <input type="checkbox"
-                                                    class="image-checkbox 
-                                                        text-blue-600 dark:text-blue-400 
-                                                        bg-white dark:bg-gray-800 
-                                                        border-gray-300 dark:border-gray-600"
-                                                    value="{{ $item['path'] }}">
+                                                class="image-checkbox 
+                                                    text-blue-600 dark:text-blue-400 
+                                                    bg-white dark:bg-gray-800 
+                                                    border-gray-300 dark:border-gray-600"
+                                                data-type="{{ $item['type'] }}"
+                                                value="{{ $item['path'] }}">
 
                                             <div class="flex items-center gap-1">
 
@@ -679,6 +792,7 @@
                                                         text-blue-600 dark:text-blue-400
                                                         bg-white dark:bg-gray-800
                                                         border-gray-300 dark:border-gray-600"
+                                                    data-type="{{ $item['type'] }}"
                                                     value="{{ $item['path'] }}">
 
                                                 @if(isset($item['linked']) && $item['linked'])
@@ -933,13 +1047,19 @@
     });
 
     async function deleteSelected() {
-        if (!confirm('Delete selected items?')) return;
 
-        const selected = [
-            ...document.querySelectorAll('.image-checkbox:checked'),
-            ...document.querySelectorAll('.image-checkbox-subfolder:checked'),
-            ...document.querySelectorAll('.folder-checkbox:checked')
-        ].map(cb => ({
+        if (!confirm('Delete selected items?')) {
+            return;
+        }
+
+        const checkboxes = document.querySelectorAll(
+            '.image-checkbox:checked, ' +
+            '.image-checkbox-subfolder:checked, ' +
+            '.folder-checkbox:checked, ' +
+            '.folder-checkbox-subfolder:checked'
+        );
+
+        const selected = Array.from(checkboxes).map(cb => ({
             path: cb.value,
             type: cb.dataset.type || 'file'
         }));
@@ -949,24 +1069,25 @@
             return;
         }
 
-        await Livewire.first().call('bulkDeleteMedia', selected);
+        console.log('Deleting:', selected);
 
-        document.querySelectorAll(
-            '.image-checkbox, .image-checkbox-subfolder, .folder-checkbox'
-        ).forEach(cb => cb.checked = false);
+        try {
 
-        document.getElementById('selected-count').textContent = '0';
-        document.getElementById('selected-count-main').textContent = '0';
-        document.getElementById('selected-count-subfolder').textContent = '0';
+            await Livewire.first().call(
+                'bulkDeleteMedia',
+                selected
+            );
 
-        const selectAll = document.getElementById('select-all');
-        const selectAllMain = document.getElementById('select-all-main');
-        const selectAllSubfolder = document.getElementById('select-all-subfolder');
+            window.location.reload();
 
-        if (selectAll) selectAll.checked = false;
-        if (selectAllMain) selectAllMain.checked = false;
-        if (selectAllSubfolder) selectAllSubfolder.checked = false;
+        } catch (error) {
+
+            console.error('Bulk delete error:', error);
+
+            alert('Something went wrong while deleting selected items.');
+        }
     }
+
     function openPropertiesModal(btn) {
         document.getElementById('prop-name').innerText = btn.dataset.name;
         document.getElementById('prop-date').innerText = btn.dataset.date;
@@ -1071,5 +1192,74 @@
         document.getElementById('download-selected-subfolder')?.addEventListener('click', () =>
             download('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder')
         );
+    });
+
+    async function deleteUserPhotos(userId, userName) {
+
+        const confirmed = confirm(
+            `Are you sure you want to delete ALL photos and folders of "${userName}"?\n\n` +
+            `This will permanently delete all photos, videos, PDFs and folders of this user.\n\n` +
+            `This action cannot be undone.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+
+            // Show temporary message
+            alert(`Deleting all photos of "${userName}". Please wait...`);
+
+            await Livewire.first().call(
+                'deleteUserPhotos',
+                userId
+            );
+
+            // Reload page so card count becomes 0
+            window.location.reload();
+
+        } catch (error) {
+
+            console.error(error);
+
+            alert(
+                'Something went wrong while deleting the user photos.'
+            );
+        }
+    }
+
+    function toggleUserMenu(userId) {
+
+        const menu = document.getElementById(`user-menu-${userId}`);
+
+        if (!menu) {
+            return;
+        }
+
+        const isHidden = menu.classList.contains('hidden');
+
+        // Close all menus first
+        closeAllUserMenus();
+
+        // Open selected menu
+        if (isHidden) {
+            menu.classList.remove('hidden');
+        }
+    }
+
+    function closeAllUserMenus() {
+
+        document
+            .querySelectorAll('[id^="user-menu-"]')
+            .forEach(menu => {
+                menu.classList.add('hidden');
+            });
+    }
+
+
+    // Close menu when clicking anywhere outside
+    document.addEventListener('click', function () {
+        closeAllUserMenus();
     });
 </script>

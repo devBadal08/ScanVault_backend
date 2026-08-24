@@ -18,5 +18,6 @@ class UserPermission extends Model
         'show_total_limit',
         'show_total_storage',
         'show_total_photos',
+        'show_total_folders',
     ];
 }
