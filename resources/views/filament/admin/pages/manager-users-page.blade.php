@@ -173,7 +173,7 @@
                                                 class="w-5 h-5 text-green-600"
                                             />
 
-                                            <span>Download</span>
+                                            <span>Download All</span>
                                         </a>
 
                                     @else
