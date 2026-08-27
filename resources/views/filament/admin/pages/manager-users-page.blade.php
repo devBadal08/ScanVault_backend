@@ -102,7 +102,6 @@
                                 </div>
                             </div>
 
-                            {{-- RIGHT: Photo count --}}
                             {{-- RIGHT: Photo count + 3-dot menu --}}
                             <div
                                 class="relative flex flex-col items-center justify-center ml-auto mr-2 text-center"
@@ -1181,11 +1180,10 @@
                     let url;
 
                     if (item.type === 'folder') {
-                        // ✅ call Laravel ZIP route
                         url = `/download-folder?path=${encodeURIComponent(item.path)}`;
                     } else {
-                        // ✅ direct file
-                        url = item.path;
+                        // Direct file from Laravel public storage
+                        url = `/storage/${item.path}`;
                     }
 
                     const a = document.createElement('a');
