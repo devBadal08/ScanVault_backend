@@ -230,9 +230,14 @@ class PhotoController extends Controller
                     $extension = strtolower($file->getClientOriginalExtension());
 
                     if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+
                         DB::table('companies')
                             ->where('id', $companyId)
                             ->increment('total_photos');
+
+                        DB::table('companies')
+                            ->where('id', $companyId)
+                            ->increment('lifetime_total_photos');
                     }
 
                     $uploaded[] = asset('storage/' . $path);

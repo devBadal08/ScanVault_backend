@@ -4,61 +4,128 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
-use App\Services\Stats\PhotoStatsService;
 
 class PhotoStatsWidget extends StatsOverviewWidget
 {
-    public bool $showPhotos = false; // 👈 resets on reload
+    public bool $showPhotos = false;
+    public bool $showLifetimePhotos = false;
 
     protected function getStats(): array
     {
         $user = auth()->user();
 
-        // 1️⃣ HARD PERMISSION GATE
+        if (! $user) {
+            return [];
+        }
+
+        // Permission
         if (! $user->canShow('total_photos')) {
             return [];
         }
 
-        // Eye OFF → masked (NO heavy calculation)
-        if (! $this->showPhotos) {
-            return [
-                Card::make('Total Photos', '•••')
-                    ->description('Click eye icon to reveal')
-                    ->descriptionIcon('heroicon-o-eye')
-                    ->extraAttributes([
-                        'class' => 'cursor-pointer',
-                        'wire:click' => 'togglePhotos',
-                        'wire:loading.class' => 'opacity-50',
-                        'wire:target' => 'togglePhotos',
-                    ]),
-            ];
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | Get values
+        |--------------------------------------------------------------------------
+        */
 
-        // Eye ON → heavy calculation
-        $count = $user->companies()->sum('total_photos');
+        $count = $user->companies()
+            ->sum('total_photos');
+
+        $lifetimeCount = $user->companies()
+            ->sum('lifetime_total_photos');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Total Photos Card
+        |--------------------------------------------------------------------------
+        */
+
+        $totalPhotosCard = Card::make(
+            'Total Photos',
+            $this->showPhotos
+                ? number_format($count)
+                : '•••'
+        )
+            ->description(
+                $this->showPhotos
+                    ? 'Photos currently stored'
+                    : 'Click eye icon to reveal'
+            )
+            ->descriptionIcon(
+                $this->showPhotos
+                    ? 'heroicon-o-eye-slash'
+                    : 'heroicon-o-eye'
+            )
+            ->color('info')
+            ->extraAttributes([
+                'class' => 'cursor-pointer',
+                'wire:click' => 'togglePhotos',
+                'wire:loading.class' => 'opacity-50',
+                'wire:target' => 'togglePhotos',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lifetime Total Photos Card
+        |--------------------------------------------------------------------------
+        */
+
+        $lifetimePhotosCard = Card::make(
+            'Lifetime Total Photos',
+            $this->showLifetimePhotos
+                ? number_format($lifetimeCount)
+                : '•••'
+        )
+            ->description(
+                $this->showLifetimePhotos
+                    ? 'Total photos ever uploaded'
+                    : 'Click eye icon to reveal'
+            )
+            ->descriptionIcon(
+                $this->showLifetimePhotos
+                    ? 'heroicon-o-eye-slash'
+                    : 'heroicon-o-eye'
+            )
+            ->color('success')
+            ->extraAttributes([
+                'class' => 'cursor-pointer',
+                'wire:click' => 'toggleLifetimePhotos',
+                'wire:loading.class' => 'opacity-50',
+                'wire:target' => 'toggleLifetimePhotos',
+            ]);
 
         return [
-            Card::make('Total Photos', number_format($count))
-                ->description('Photos uploaded by your users')
-                ->descriptionIcon('heroicon-o-eye-slash')
-                ->color('info')
-                ->extraAttributes([
-                    'class' => 'cursor-pointer',
-                    'wire:click' => 'togglePhotos',
-                    'wire:loading.class' => 'opacity-50',
-                    'wire:target' => 'togglePhotos',
-                ]),
+            $totalPhotosCard,
+            $lifetimePhotosCard,
         ];
     }
 
-    /** Toggle visibility (local state only) */
+    /*
+    |--------------------------------------------------------------------------
+    | Toggle Current Photos
+    |--------------------------------------------------------------------------
+    */
+
     public function togglePhotos(): void
     {
         $this->showPhotos = ! $this->showPhotos;
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Toggle Lifetime Photos
+    |--------------------------------------------------------------------------
+    */
+
+    public function toggleLifetimePhotos(): void
+    {
+        $this->showLifetimePhotos = ! $this->showLifetimePhotos;
+    }
+
     public static function canView(): bool
     {
-        return auth()->check() && ! auth()->user()->hasRole('Super Admin');
+        return auth()->check()
+            && ! auth()->user()->hasRole('Super Admin');
     }
 }

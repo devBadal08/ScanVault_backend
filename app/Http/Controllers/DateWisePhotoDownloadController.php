@@ -43,6 +43,27 @@ class DateWisePhotoDownloadController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Check whether photos exist in selected date range
+        |--------------------------------------------------------------------------
+        */
+
+        $hasPhotos = Photo::query()
+            ->where('company_id', $companyId)
+            ->whereBetween('created_at', [
+                $startDate,
+                $endDate,
+            ])
+            ->exists();
+
+        if (!$hasPhotos) {
+            return redirect()->back()->with(
+                'error',
+                "No photos or folders are available between {$startDate->format('d-m-Y')} and {$endDate->format('d-m-Y')}."
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | ZIP filename
         |--------------------------------------------------------------------------
         */
@@ -68,7 +89,6 @@ class DateWisePhotoDownloadController extends Controller
         $zip = new ZipStream(
             outputName: $zipFilename,
             sendHttpHeaders: true,
-            defaultEnableZeroHeader: true,
         );
 
         /*

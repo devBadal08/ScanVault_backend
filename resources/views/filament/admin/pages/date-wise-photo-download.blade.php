@@ -1,5 +1,11 @@
 <x-filament-panels::page>
 
+    @if(session('error'))
+        <div class="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+            {{ session('error') }}
+        </div>
+    @endif
+
     @if(!$passwordVerified)
 
         {{-- Password Protection --}}

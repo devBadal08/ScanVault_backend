@@ -4,12 +4,11 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
-use App\Models\Folder;
-use App\Models\User;
 
 class FolderStatsWidget extends StatsOverviewWidget
 {
     public bool $showFolders = false;
+    public bool $showLifetimeFolders = false;
 
     protected function getStats(): array
     {
@@ -37,12 +36,8 @@ class FolderStatsWidget extends StatsOverviewWidget
 
         /*
         |--------------------------------------------------------------------------
-        | HARD PERMISSION GATE
+        | Permission
         |--------------------------------------------------------------------------
-        |
-        | Super Admin must give "total_folders" permission.
-        | Without permission, card will not be displayed.
-        |
         */
 
         if (! $authUser->canShow('total_folders')) {
@@ -51,121 +46,114 @@ class FolderStatsWidget extends StatsOverviewWidget
 
         /*
         |--------------------------------------------------------------------------
-        | Eye OFF
-        |--------------------------------------------------------------------------
-        |
-        | Don't perform the folder count until user clicks eye.
-        |
-        */
-
-        if (! $this->showFolders) {
-
-            return [
-                Card::make('Total Folders', '•••')
-                    ->description('Click eye icon to reveal')
-                    ->descriptionIcon('heroicon-o-eye')
-                    ->extraAttributes([
-                        'class' => 'cursor-pointer',
-                        'wire:click' => 'toggleFolders',
-                        'wire:loading.class' => 'opacity-50',
-                        'wire:target' => 'toggleFolders',
-                    ]),
-            ];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get company IDs
+        | Current Folders
         |--------------------------------------------------------------------------
         */
 
-        $companyIds = $authUser->companies()
-            ->pluck('companies.id');
+        $folderCount = $authUser->companies()
+            ->sum('total_folders');
 
         /*
         |--------------------------------------------------------------------------
-        | MANAGER
-        |--------------------------------------------------------------------------
-        |
-        | Manager sees folders of users created by this manager.
-        |
-        */
-
-        if ($authUser->role === 'manager') {
-
-            $userIds = User::where('role', 'user')
-                ->where('created_by', $authUser->id)
-                ->pluck('id');
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | ADMIN
-        |--------------------------------------------------------------------------
-        |
-        | Admin sees:
-        |
-        | 1. Users created directly by Admin
-        | 2. Users created by Admin's Managers
-        |
-        */
-
-        else {
-
-            $managerIds = User::where('role', 'manager')
-                ->where('created_by', $authUser->id)
-                ->pluck('id');
-
-            $userIds = User::where('role', 'user')
-                ->where(function ($query) use ($authUser, $managerIds) {
-
-                    $query->where('created_by', $authUser->id)
-                        ->orWhereIn('created_by', $managerIds);
-
-                })
-                ->pluck('id');
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Count folders
+        | Lifetime Folders
         |--------------------------------------------------------------------------
         */
 
-        $folderCount = $authUser->companies()->sum('total_folders');
+        $lifetimeFolderCount = $authUser->companies()
+            ->sum('lifetime_total_folders');
 
         /*
         |--------------------------------------------------------------------------
-        | Return Card
+        | Total Folders Card
+        |--------------------------------------------------------------------------
+        */
+
+        $totalFoldersCard = Card::make(
+            'Total Folders',
+            $this->showFolders
+                ? number_format($folderCount)
+                : '•••'
+        )
+            ->description(
+                $this->showFolders
+                    ? 'Folders currently available'
+                    : 'Click eye icon to reveal'
+            )
+            ->descriptionIcon(
+                $this->showFolders
+                    ? 'heroicon-o-eye-slash'
+                    : 'heroicon-o-eye'
+            )
+            ->color('success')
+            ->extraAttributes([
+                'class' => 'cursor-pointer',
+                'wire:click' => 'toggleFolders',
+                'wire:loading.class' => 'opacity-50',
+                'wire:target' => 'toggleFolders',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lifetime Total Folders Card
+        |--------------------------------------------------------------------------
+        */
+
+        $lifetimeFoldersCard = Card::make(
+            'Lifetime Total Folders',
+            $this->showLifetimeFolders
+                ? number_format($lifetimeFolderCount)
+                : '•••'
+        )
+            ->description(
+                $this->showLifetimeFolders
+                    ? 'Total folders ever created'
+                    : 'Click eye icon to reveal'
+            )
+            ->descriptionIcon(
+                $this->showLifetimeFolders
+                    ? 'heroicon-o-eye-slash'
+                    : 'heroicon-o-eye'
+            )
+            ->color('info')
+            ->extraAttributes([
+                'class' => 'cursor-pointer',
+                'wire:click' => 'toggleLifetimeFolders',
+                'wire:loading.class' => 'opacity-50',
+                'wire:target' => 'toggleLifetimeFolders',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return Cards
         |--------------------------------------------------------------------------
         */
 
         return [
-            Card::make(
-                'Total Folders',
-                number_format($folderCount)
-            )
-                ->description('Folders created by your users')
-                ->descriptionIcon('heroicon-o-eye-slash')
-                ->color('success')
-                ->extraAttributes([
-                    'class' => 'cursor-pointer',
-                    'wire:click' => 'toggleFolders',
-                    'wire:loading.class' => 'opacity-50',
-                    'wire:target' => 'toggleFolders',
-                ]),
+            $totalFoldersCard,
+            $lifetimeFoldersCard,
         ];
     }
 
     /*
     |--------------------------------------------------------------------------
-    | Toggle visibility
+    | Toggle Current Folders
     |--------------------------------------------------------------------------
     */
 
     public function toggleFolders(): void
     {
         $this->showFolders = ! $this->showFolders;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Toggle Lifetime Folders
+    |--------------------------------------------------------------------------
+    */
+
+    public function toggleLifetimeFolders(): void
+    {
+        $this->showLifetimeFolders = ! $this->showLifetimeFolders;
     }
 
     /*

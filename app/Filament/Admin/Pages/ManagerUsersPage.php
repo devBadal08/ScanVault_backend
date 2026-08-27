@@ -58,6 +58,26 @@ class ManagerUsersPage extends Page
         return (bool) $user->can_delete_photos;
     }
 
+    public function canDeleteUserPhotos(int $userId): bool
+    {
+        if (!$this->canDeletePhotos()) {
+            return false;
+        }
+
+        $companyId = Auth::user()->companies()->first()?->id;
+
+        if (!$companyId) {
+            return false;
+        }
+
+        // If user has any photo which is NOT backed up,
+        // deletion is not allowed.
+        return !Photo::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->whereNull('backed_up_at')
+            ->exists();
+    }
+
     public function deletePhoto($path)
     {
         if (!$this->canDeletePhotos()) {
@@ -202,6 +222,13 @@ class ManagerUsersPage extends Page
                 | Delete folder database records
                 |--------------------------------------------------------------------------
                 */
+                $folderCount = Folder::where('company_id', $folderCompanyId)
+                    ->where('user_id', $folderUserId)
+                    ->where(function ($query) use ($path) {
+                        $query->where('path', $path)
+                            ->orWhere('path', 'LIKE', $path . '/%');
+                    })
+                    ->count();
 
                 Folder::where('company_id', $folderCompanyId)
                     ->where('user_id', $folderUserId)
@@ -231,9 +258,13 @@ class ManagerUsersPage extends Page
                         $company->total_photos - $folderPhotoCount
                     );
 
+                    $company->total_folders = max(
+                        0,
+                        $company->total_folders - $folderCount
+                    );
+
                     $company->save();
                 }
-
                 /*
                 |--------------------------------------------------------------------------
                 | Clear cache
@@ -602,6 +633,30 @@ class ManagerUsersPage extends Page
 
         /*
         |--------------------------------------------------------------------------
+        | IMPORTANT: Check backup status
+        |--------------------------------------------------------------------------
+        */
+
+        $unbackedPhotos = Photo::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->whereNull('backed_up_at')
+            ->count();
+
+        if ($unbackedPhotos > 0) {
+
+            \Filament\Notifications\Notification::make()
+                ->title('Backup Required')
+                ->body(
+                    "Cannot delete {$user->name}. {$unbackedPhotos} photo(s) have not been backed up yet."
+                )
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Get ALL photos of this user
         |--------------------------------------------------------------------------
         */
@@ -611,7 +666,7 @@ class ManagerUsersPage extends Page
             ->get(['id', 'path']);
 
         $totalSizeMB = 0;
-        $deletedPhotos = 0;
+        $deletedPhotos = $photos->count();
 
         foreach ($photos as $photo) {
 
@@ -641,8 +696,6 @@ class ManagerUsersPage extends Page
                 */
 
                 Storage::disk('public')->delete($photo->path);
-
-                $deletedPhotos++;
             }
         }
 
@@ -655,6 +708,8 @@ class ManagerUsersPage extends Page
         $folders = Folder::where('company_id', $companyId)
             ->where('user_id', $userId)
             ->get(['id', 'path']);
+
+        $deletedFolders = $folders->count();
 
         foreach ($folders as $folder) {
 
@@ -702,6 +757,11 @@ class ManagerUsersPage extends Page
                 $company->total_photos - $deletedPhotos
             );
 
+            $company->total_folders = max(
+                0,
+                $company->total_folders - $deletedFolders
+            );
+
             $company->save();
         }
 
@@ -726,7 +786,7 @@ class ManagerUsersPage extends Page
 
     public function mount(): void
     {
-        $this->page = (int) request()->get('page', 1);
+        $this->page = max(1, (int) request()->get('page', 1));
 
         if ($this->isSearching) {
             return;
@@ -738,9 +798,18 @@ class ManagerUsersPage extends Page
         $companyId = request()->get('company_id')
             ?? $authUser->companies()->first()?->id;
 
+        /*
+        |--------------------------------------------------------------------------
+        | Validate selected user
+        |--------------------------------------------------------------------------
+        */
+
         if ($userId) {
             $this->selectedUser = User::find($userId);
-            if (!$this->selectedUser) return;
+
+            if (!$this->selectedUser) {
+                return;
+            }
 
             if (!$companyId) {
                 abort(403, 'Company not found');
@@ -750,9 +819,25 @@ class ManagerUsersPage extends Page
         $folder = request()->get('folder');
         $subfolder = request()->get('subfolder');
 
-        // ✅ RESET STATE FIRST
+        /*
+        |--------------------------------------------------------------------------
+        | Reset state
+        |--------------------------------------------------------------------------
+        */
+
         $this->selectedFolder = null;
         $this->selectedSubfolder = null;
+        $this->folders = [];
+        $this->subfolders = [];
+        $this->items = [];
+        $this->images = [];
+        $this->total = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Permission
+        |--------------------------------------------------------------------------
+        */
 
         if (!in_array($authUser->role, ['manager', 'admin'])) {
             abort(403, 'Unauthorized');
@@ -764,15 +849,28 @@ class ManagerUsersPage extends Page
             abort(403, 'Company not found for this user');
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Load manager users
+        |--------------------------------------------------------------------------
+        */
+
         if ($authUser->role === 'manager') {
+
             $this->managerUsers = User::where('role', 'user')
                 ->where('created_by', $authUser->id)
                 ->get()
                 ->map(function ($user) use ($companyId) {
-                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
+                    $user->photo_count = $this->getUserPhotoCount(
+                        $companyId,
+                        $user->id
+                    );
+
                     return $user;
                 });
+
         } else {
+
             $managerIds = User::where('role', 'manager')
                 ->where('created_by', $authUser->id)
                 ->pluck('id');
@@ -781,231 +879,562 @@ class ManagerUsersPage extends Page
                 ->whereIn('created_by', $managerIds)
                 ->get()
                 ->map(function ($user) use ($companyId) {
-                    $user->photo_count = $this->getUserPhotoCount($companyId, $user->id);
+                    $user->photo_count = $this->getUserPhotoCount(
+                        $companyId,
+                        $user->id
+                    );
+
                     return $user;
                 });
         }
 
-        if ($userId) {
-            $this->selectedUser = User::find($userId);
-            if (!$this->selectedUser) return;
+        /*
+        |--------------------------------------------------------------------------
+        | No selected user
+        |--------------------------------------------------------------------------
+        */
 
-            $baseUserPath = "{$companyId}/{$userId}";
+        if (!$userId) {
+            return;
+        }
 
-            if (!$folder) {
-                $photos = Photo::where('company_id', $companyId)
-                    ->where('user_id', $userId)
-                    ->select('path', 'created_at')
-                    ->get();
+        /*
+        |--------------------------------------------------------------------------
+        | Make sure selected user is available
+        |--------------------------------------------------------------------------
+        */
 
-                $rawFolders = $photos->map(function ($photo) {
-                    $parts = explode('/', $photo->path);
+        $this->selectedUser = User::find($userId);
+
+        if (!$this->selectedUser) {
+            return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | USER ROOT LEVEL
+        |
+        | IMPORTANT:
+        | Do NOT load all photos.
+        |
+        | Before:
+        |     Photo::...->get()
+        |
+        | User 24 has 92,992 photos, which caused the 128 MB
+        | PHP memory limit to be exhausted.
+        |
+        | Instead, MySQL returns only one row per main folder.
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$folder) {
+
+            $folderRows = Photo::query()
+                ->where('company_id', $companyId)
+                ->where('user_id', $userId)
+                ->selectRaw("
+                    SUBSTRING_INDEX(path, '/', 3) AS folder_path,
+                    MAX(created_at) AS created_at
+                ")
+                ->whereNotNull('path')
+                ->where('path', '<>', '')
+                ->groupByRaw("SUBSTRING_INDEX(path, '/', 3)")
+                ->orderByDesc('created_at')
+                ->get();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Convert folder rows into existing UI structure
+            |--------------------------------------------------------------------------
+            */
+
+            $rawFolders = $folderRows
+                ->map(function ($folderRow) {
+
+                    $folderPath = trim($folderRow->folder_path);
+
+                    $parts = explode('/', $folderPath);
 
                     return [
                         'type' => 'folder',
                         'name' => $parts[2] ?? null,
-                        'path' => implode('/', array_slice($parts, 0, 3)),
-                        'created_at' => $photo->created_at,
+                        'path' => $folderPath,
+                        'created_at' => $folderRow->created_at,
                         'linked' => false,
                     ];
                 })
-                ->filter(fn($f) => $f['name'])
+                ->filter(fn ($folder) => !empty($folder['name']))
                 ->unique('path')
                 ->values()
                 ->toArray();
 
-                $allFolders = collect($rawFolders)
-                    ->unique('path')
-                    ->sortByDesc(fn ($i) => $i['created_at'])
-                    ->values();
+            /*
+            |--------------------------------------------------------------------------
+            | Group folders by date
+            |--------------------------------------------------------------------------
+            */
 
-                $grouped = $this->groupByDate($allFolders->toArray());
-                $this->folders = $this->paginateDateGroups($grouped);
+            $grouped = $this->groupByDate($rawFolders);
 
-            } else {
-                $pathParts = explode('/', trim($folder, '/'));
+            /*
+            |--------------------------------------------------------------------------
+            | Date pagination
+            |--------------------------------------------------------------------------
+            */
 
-                $folderCompanyId = (int) ($pathParts[0] ?? $companyId);
-                $realOwnerId     = (int) ($pathParts[1] ?? $userId);
-                $folderName      = $pathParts[2] ?? null;
+            $this->folders = $this->paginateDateGroups($grouped);
 
-                $extraPath = array_slice($pathParts, 3);
-                $fromSearch = request()->get('from_search');
+            return;
+        }
 
-                if ($fromSearch && !$subfolder && !empty($extraPath)) {
-                    $subfolder = implode('/', $extraPath);
-                }
+        /*
+        |--------------------------------------------------------------------------
+        | OPEN FOLDER
+        |--------------------------------------------------------------------------
+        */
 
-                $subfolderPath = null;
-                if ($subfolder) {
-                    $subfolderPath = trim($subfolder, '/');
-                    if (!str_starts_with($subfolderPath, $folderName)) {
-                        $subfolderPath = $subfolderPath;
-                    }
-                }
+        $pathParts = explode('/', trim($folder, '/'));
 
-                $this->selectedFolder = $folder;
-                $this->selectedSubfolder = $subfolderPath;
+        $folderCompanyId = (int) ($pathParts[0] ?? $companyId);
+        $realOwnerId = (int) ($pathParts[1] ?? $userId);
+        $folderName = $pathParts[2] ?? null;
 
-                $selectedFolderModel = Folder::where('path', $folder)
-                    ->where('company_id', $folderCompanyId)
-                    ->where('user_id', $realOwnerId)
+        $extraPath = array_slice($pathParts, 3);
+
+        $fromSearch = request()->get('from_search');
+
+        if ($fromSearch && !$subfolder && !empty($extraPath)) {
+            $subfolder = implode('/', $extraPath);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Resolve subfolder
+        |--------------------------------------------------------------------------
+        */
+
+        $subfolderPath = null;
+
+        if ($subfolder) {
+            $subfolderPath = trim($subfolder, '/');
+        }
+
+        $this->selectedFolder = $folder;
+        $this->selectedSubfolder = $subfolderPath;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get selected folder model
+        |--------------------------------------------------------------------------
+        */
+
+        $selectedFolderModel = Folder::where('path', $folder)
+            ->where('company_id', $folderCompanyId)
+            ->where('user_id', $realOwnerId)
+            ->first();
+
+        $isLinkedFolder = false;
+
+        if ($selectedFolderModel) {
+
+            $isLinkedFolder = DB::table('folder_links')
+                ->where('target_folder_id', $selectedFolderModel->id)
+                ->exists();
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Resolve true target path for linked folders
+        |--------------------------------------------------------------------------
+        */
+
+        $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
+        $targetPath = $basePath;
+
+        if ($subfolderPath) {
+
+            $subfolderParts = explode('/', $subfolderPath);
+            $firstSubfolderPart = $subfolderParts[0];
+
+            $isLinked = false;
+
+            if ($selectedFolderModel) {
+
+                $linkedSubfolderModel = Folder::where(
+                        'name',
+                        $firstSubfolderPart
+                    )
+                    ->whereIn('id', function ($q) use ($selectedFolderModel) {
+                        $q->select('target_folder_id')
+                            ->from('folder_links')
+                            ->where(
+                                'source_folder_id',
+                                $selectedFolderModel->id
+                            );
+                    })
                     ->first();
 
-                $isLinkedFolder = false;
-                if ($selectedFolderModel) {
-                    $isLinkedFolder = \DB::table('folder_links')
-                        ->where('target_folder_id', $selectedFolderModel->id)
-                        ->exists();
-                }
+                if ($linkedSubfolderModel) {
 
-                // ========================================================
-                // ✅ RESOLVE TRUE TARGET PATH FOR LINKED SUBFOLDERS
-                // ========================================================
-                $basePath = "{$folderCompanyId}/{$realOwnerId}/{$folderName}";
-                $targetPath = $basePath;
+                    $isLinked = true;
 
-                if ($subfolderPath) {
-                    $subfolderParts = explode('/', $subfolderPath);
-                    $firstSubfolderPart = $subfolderParts[0];
+                    $linkedBasePath =
+                        "{$linkedSubfolderModel->company_id}/" .
+                        "{$linkedSubfolderModel->user_id}/" .
+                        "{$linkedSubfolderModel->name}";
 
-                    $isLinked = false;
-                    
-                    if ($selectedFolderModel) {
-                        $linkedSubfolderModel = Folder::where('name', $firstSubfolderPart)
-                            ->whereIn('id', function($q) use ($selectedFolderModel) {
-                                $q->select('target_folder_id')
-                                  ->from('folder_links')
-                                  ->where('source_folder_id', $selectedFolderModel->id);
-                            })->first();
+                    if (count($subfolderParts) > 1) {
 
-                        if ($linkedSubfolderModel) {
-                            $isLinked = true;
-                            // Map to true physical location of the linked folder
-                            $linkedBasePath = "{$linkedSubfolderModel->company_id}/{$linkedSubfolderModel->user_id}/{$linkedSubfolderModel->name}";
+                        $remainingPath = implode(
+                            '/',
+                            array_slice($subfolderParts, 1)
+                        );
 
-                            if (count($subfolderParts) > 1) {
-                                $remainingPath = implode('/', array_slice($subfolderParts, 1));
-                                $targetPath = "{$linkedBasePath}/{$remainingPath}";
-                            } else {
-                                $targetPath = $linkedBasePath;
-                            }
-                        }
-                    }
+                        $targetPath =
+                            "{$linkedBasePath}/{$remainingPath}";
 
-                    if (!$isLinked) {
-                        $targetPath = "{$basePath}/{$subfolderPath}";
+                    } else {
+
+                        $targetPath = $linkedBasePath;
                     }
                 }
+            }
 
-                // ✅ permission fix
-                $this->mountedFolderPermissionsCheck(storage_path("app/public/{$targetPath}"));
-
-                $photos = Photo::where('company_id', $folderCompanyId)
-                    ->where('user_id', $realOwnerId)
-                    ->where('path', 'LIKE', "{$targetPath}/%")
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-
-                $rawSubfolders = $photos->map(function ($photo) use ($targetPath) {
-
-                    $relative = str_replace($targetPath . '/', '', $photo->path);
-                    $parts = explode('/', $relative);
-
-                    if (count($parts) > 1) {
-                        return [
-                            'type' => 'folder',
-                            'name' => $parts[0],
-                            'path' => $targetPath.'/'.$parts[0],
-                            'created_at' => $photo->created_at,
-                            'linked' => false,
-                        ];
-                    }
-
-                    return null;
-                })
-                ->filter()
-                ->unique('name')
-                ->values()
-                ->toArray();
-
-                $this->subfolders = $rawSubfolders;
-
-                $mountedLinkedFolders = [];
-                $linkedFiles = [];
-                $linkedSubfolders = [];
-
-                $currentFolder = Folder::where('path', $folder)
-                    ->where('company_id', $folderCompanyId)
-                    ->where('user_id', $realOwnerId)
-                    ->first();
-
-                // Do NOT mount links inside linked folders
-                if (!$isLinkedFolder && !$subfolder) {
-                    if ($currentFolder) {
-                        $mountedLinkedFolders = Folder::whereIn('id', function ($q) use ($currentFolder) {
-                                $q->select('target_folder_id')
-                                ->from('folder_links')
-                                ->where('source_folder_id', $currentFolder->id);
-                            })
-                            ->get()
-                            ->map(function ($folder) {
-                                return [
-                                    'type' => 'folder',
-                                    'path' => "{$folder->company_id}/{$folder->user_id}/{$folder->name}",
-                                    'name' => $folder->name,
-                                    'created_at' => $folder->created_at?->toDateTimeString(),
-                                    'linked' => true,
-                                    'owner_id' => $folder->user_id,
-                                ];
-                            })
-                            ->toArray();
-                    }
-                }
-
-                $mediaAll = $photos->filter(function ($photo) use ($targetPath) {
-
-                    $relative = str_replace($targetPath . '/', '', $photo->path);
-
-                    return count(explode('/', $relative)) === 1;
-
-                })->map(function ($photo) {
-
-                    return [
-                        'type' => $photo->type,
-                        'path' => $photo->path,
-                        'name' => basename($photo->path),
-                        'created_at' => $photo->created_at,
-                        'linked' => false,
-                    ];
-
-                });
-
-                $mediaAll = $mediaAll->merge($linkedFiles);
-                $this->total = $mediaAll->count();
-
-                $folderItems = collect($this->subfolders)->map(fn ($folder) => [
-                    'type' => 'folder',
-                    'path' => $folder['path'],
-                    'name' => $folder['name'],
-                    'created_at' => $folder['created_at'],
-                    'linked' => $folder['linked'] ?? false,
-                ]);
-
-                $combined = $folderItems->merge($mediaAll)->toArray();
-
-                $grouped = $this->groupByDate($combined);
-                $flat = collect($grouped)->flatten(1)->values();
-
-                $paged = $flat->slice(
-                    ($this->page - 1) * $this->perPage,
-                    $this->perPage
-                )->values();
-
-                $this->items = $this->groupByDate($paged->toArray());
-                $this->images = $paged->toArray();
+            if (!$isLinked) {
+                $targetPath = "{$basePath}/{$subfolderPath}";
             }
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Permission fix
+        |--------------------------------------------------------------------------
+        */
+
+        $this->mountedFolderPermissionsCheck(
+            storage_path("app/public/{$targetPath}")
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT MEMORY OPTIMIZATION
+        |
+        | Do NOT do:
+        |
+        |     Photo::...->get()
+        |
+        | because a folder can contain thousands of photos.
+        |
+        | We separately query:
+        |
+        | 1. Immediate subfolders
+        | 2. Direct files
+        |--------------------------------------------------------------------------
+        */
+
+        $targetPath = trim($targetPath, '/');
+        $pathPrefix = $targetPath . '/';
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate path depth
+        |--------------------------------------------------------------------------
+        */
+
+        $targetDepth = substr_count($targetPath, '/') + 1;
+        $childDepth = $targetDepth + 1;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get immediate subfolders only
+        |--------------------------------------------------------------------------
+        |
+        | Example:
+        |
+        | target:
+        | 3/24/PK26030070 MES PIPING
+        |
+        | We only need:
+        |
+        | 3/24/PK26030070 MES PIPING/GT26020550
+        |
+        | Not every photo inside that subfolder.
+        |--------------------------------------------------------------------------
+        */
+
+        $subfolderExpression =
+            "SUBSTRING_INDEX(path, '/', {$childDepth})";
+
+        $subfolderRows = Photo::query()
+            ->where('company_id', $folderCompanyId)
+            ->where('user_id', $realOwnerId)
+            ->where('path', 'LIKE', $pathPrefix . '%')
+            ->whereRaw(
+                "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) > ?",
+                [$targetDepth]
+            )
+            ->selectRaw("
+                {$subfolderExpression} AS subfolder_path,
+                MAX(created_at) AS created_at
+            ")
+            ->groupByRaw($subfolderExpression)
+            ->orderByDesc('created_at')
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convert subfolders
+        |--------------------------------------------------------------------------
+        */
+
+        $rawSubfolders = $subfolderRows
+            ->map(function ($row) use ($targetPath) {
+
+                $fullPath = trim($row->subfolder_path, '/');
+
+                $parts = explode('/', $fullPath);
+
+                return [
+                    'type' => 'folder',
+                    'name' => end($parts),
+                    'path' => $fullPath,
+                    'created_at' => $row->created_at,
+                    'linked' => false,
+                ];
+            })
+            ->filter(fn ($folder) => !empty($folder['name']))
+            ->unique('path')
+            ->values()
+            ->toArray();
+
+        $this->subfolders = $rawSubfolders;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Linked folders
+        |--------------------------------------------------------------------------
+        */
+
+        $mountedLinkedFolders = [];
+        $linkedFiles = [];
+        $linkedSubfolders = [];
+
+        $currentFolder = Folder::where('path', $folder)
+            ->where('company_id', $folderCompanyId)
+            ->where('user_id', $realOwnerId)
+            ->first();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Mount linked folders
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$isLinkedFolder && !$subfolder) {
+
+            if ($currentFolder) {
+
+                $mountedLinkedFolders = Folder::whereIn(
+                    'id',
+                    function ($q) use ($currentFolder) {
+
+                        $q->select('target_folder_id')
+                            ->from('folder_links')
+                            ->where(
+                                'source_folder_id',
+                                $currentFolder->id
+                            );
+                    }
+                )
+                    ->get()
+                    ->map(function ($folder) {
+
+                        return [
+                            'type' => 'folder',
+                            'path' =>
+                                "{$folder->company_id}/" .
+                                "{$folder->user_id}/" .
+                                "{$folder->name}",
+                            'name' => $folder->name,
+                            'created_at' =>
+                                $folder->created_at?->toDateTimeString(),
+                            'linked' => true,
+                            'owner_id' => $folder->user_id,
+                        ];
+                    })
+                    ->toArray();
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get DIRECT files
+        |--------------------------------------------------------------------------
+        |
+        | We need enough direct files for the current combined page.
+        | We do NOT use SQL offset here because folders and files
+        | must be paginated together.
+        |--------------------------------------------------------------------------
+        */
+
+        $requiredDirectFiles = $this->page * $this->perPage;
+
+        $directFiles = Photo::query()
+            ->where('company_id', $folderCompanyId)
+            ->where('user_id', $realOwnerId)
+            ->where('path', 'LIKE', $pathPrefix . '%')
+            ->whereRaw(
+                "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) = ?",
+                [$targetDepth]
+            )
+            ->orderByDesc('created_at')
+            ->select([
+                'id',
+                'type',
+                'path',
+                'created_at',
+            ])
+            ->limit($requiredDirectFiles)
+            ->get();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convert direct files
+        |--------------------------------------------------------------------------
+        */
+
+        $mediaAll = $directFiles
+            ->map(function ($photo) {
+                return [
+                    'type' => $photo->type,
+                    'path' => $photo->path,
+                    'name' => basename($photo->path),
+                    'created_at' => $photo->created_at,
+                    'linked' => false,
+                ];
+            })
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Add linked files if any
+        |--------------------------------------------------------------------------
+        */
+
+        $mediaAll = $mediaAll->merge($linkedFiles);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Total direct media count
+        |--------------------------------------------------------------------------
+        */
+
+        $directMediaTotal = Photo::query()
+            ->where('company_id', $folderCompanyId)
+            ->where('user_id', $realOwnerId)
+            ->where('path', 'LIKE', $pathPrefix . '%')
+            ->whereRaw(
+                "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) = ?",
+                [$targetDepth]
+            )
+            ->count();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Combine normal folders
+        |--------------------------------------------------------------------------
+        */
+
+        $folderItems = collect($this->subfolders)
+            ->map(fn ($folder) => [
+                'type' => 'folder',
+                'path' => $folder['path'],
+                'name' => $folder['name'],
+                'created_at' => $folder['created_at'],
+                'linked' => $folder['linked'] ?? false,
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Add mounted linked folders
+        |--------------------------------------------------------------------------
+        */
+
+        if (!empty($mountedLinkedFolders)) {
+            $folderItems = $folderItems->merge(
+                collect($mountedLinkedFolders)
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Combine folders + files
+        |--------------------------------------------------------------------------
+        */
+
+        $combined = $folderItems
+            ->merge($mediaAll)
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Sort ALL items by created_at
+        |--------------------------------------------------------------------------
+        |
+        | This is important because folders and files now share
+        | the same pagination.
+        |--------------------------------------------------------------------------
+        */
+
+        $combined = $combined
+            ->filter(fn ($item) => !empty($item['created_at']))
+            ->sortByDesc(function ($item) {
+                return Carbon::parse($item['created_at'])->timestamp;
+            })
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL ITEMS
+        |--------------------------------------------------------------------------
+        |
+        | Pagination now represents:
+        |
+        |   normal subfolders
+        | + linked folders
+        | + direct files
+        |--------------------------------------------------------------------------
+        */
+
+        $this->total =
+            count($this->subfolders)
+            + count($mountedLinkedFolders)
+            + $directMediaTotal;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Apply pagination to COMBINED items
+        |--------------------------------------------------------------------------
+        */
+
+        $paged = $combined
+            ->slice(
+                ($this->page - 1) * $this->perPage,
+                $this->perPage
+            )
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Final Livewire state
+        |--------------------------------------------------------------------------
+        */
+
+        $this->items = $this->groupByDate(
+            $paged->toArray()
+        );
+
+        $this->images = $paged->toArray();
     }
 
     // public function updatedPage()

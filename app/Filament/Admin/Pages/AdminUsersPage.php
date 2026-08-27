@@ -203,6 +203,7 @@ class AdminUsersPage extends Page
         return \App\Models\Photo::where('company_id', $companyId)
             ->where('user_id', $userId)
             ->where('type', 'image')
+            ->whereNotNull('backed_up_at')
             ->count();
     }
 

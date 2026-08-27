@@ -18,6 +18,8 @@ class Company extends Model
         'used_storage_mb',
         'total_photos',
         'total_folders',
+        'lifetime_total_photos',
+        'lifetime_total_folders',
     ];
 
     // public function users()

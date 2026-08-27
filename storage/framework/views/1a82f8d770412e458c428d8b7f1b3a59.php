@@ -9,6 +9,13 @@
 <?php endif; ?>
 <?php $component->withAttributes([]); ?>
 
+    <!--[if BLOCK]><![endif]--><?php if(session('error')): ?>
+        <div class="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+            <?php echo e(session('error')); ?>
+
+        </div>
+    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
     <!--[if BLOCK]><![endif]--><?php if(!$passwordVerified): ?>
 
         

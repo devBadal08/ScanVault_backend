@@ -69,22 +69,17 @@ class Folder extends Model
     {
         static::created(function (Folder $folder) {
 
-            // Count only root folders
-            if (is_null($folder->parent_id)) {
+            Company::where('id', $folder->company_id)
+                ->increment('total_folders');
 
-                Company::where('id', $folder->company_id)
-                    ->increment('total_folders');
-            }
+            Company::where('id', $folder->company_id)
+                ->increment('lifetime_total_folders');
         });
 
         static::deleted(function (Folder $folder) {
 
-            // Count only root folders
-            if (is_null($folder->parent_id)) {
-
-                Company::where('id', $folder->company_id)
-                    ->decrement('total_folders');
-            }
+            Company::where('id', $folder->company_id)
+                ->decrement('total_folders');
         });
     }
 }

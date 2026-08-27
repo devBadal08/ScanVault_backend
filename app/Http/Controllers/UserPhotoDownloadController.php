@@ -8,7 +8,7 @@ use App\Models\Photo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use ZipArchive;
+use ZipStream\ZipStream;
 
 class UserPhotoDownloadController extends Controller
 {
@@ -31,47 +31,73 @@ class UserPhotoDownloadController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Get ALL photos
+        | Check whether photos exist
         |--------------------------------------------------------------------------
         */
 
-        $photos = Photo::where('company_id', $companyId)
+        $hasPhotos = Photo::where('company_id', $companyId)
             ->where('user_id', $userId)
-            ->orderBy('path')
-            ->get();
+            ->exists();
 
-        if ($photos->isEmpty()) {
+        if (!$hasPhotos) {
             abort(404, 'No photos found for this user.');
         }
 
         /*
         |--------------------------------------------------------------------------
-        | Temporary ZIP
+        | Get photos using cursor
+        |--------------------------------------------------------------------------
+        |
+        | cursor() keeps only one Photo model in memory at a time.
+        |
+        */
+
+        $photos = Photo::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->orderBy('id')
+            ->cursor();
+
+        /*
+        |--------------------------------------------------------------------------
+        | ZIP filename
         |--------------------------------------------------------------------------
         */
 
-        $zipName = 'user_' . $userId . '_' . time() . '.zip';
+        $fileName = $user->name . '_photos.zip';
 
-        $zipPath = storage_path(
-            'app/temp/' . $zipName
+        /*
+        |--------------------------------------------------------------------------
+        | Start ZipStream
+        |--------------------------------------------------------------------------
+        |
+        | No temporary ZIP file is created.
+        | ZIP is streamed directly to the browser.
+        |
+        */
+
+        $zip = new ZipStream(
+            outputName: $fileName,
+            sendHttpHeaders: true,
         );
 
-        if (!is_dir(dirname($zipPath))) {
-            mkdir(dirname($zipPath), 0755, true);
-        }
-
-        $zip = new ZipArchive();
-
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            abort(500, 'Unable to create ZIP file.');
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | Add photos one by one
+        |--------------------------------------------------------------------------
+        */
 
         foreach ($photos as $photo) {
 
+            /*
+             * Skip missing files.
+             */
             if (!Storage::disk('public')->exists($photo->path)) {
                 continue;
             }
 
+            /*
+             * Get absolute file path.
+             */
             $absolutePath = Storage::disk('public')
                 ->path($photo->path);
 
@@ -79,6 +105,7 @@ class UserPhotoDownloadController extends Controller
              * Keep folder structure.
              *
              * Example:
+             *
              * 9/61/FolderA/Subfolder/photo.jpg
              *
              * becomes:
@@ -93,23 +120,33 @@ class UserPhotoDownloadController extends Controller
                 array_slice($parts, 2)
             );
 
-            $zip->addFile(
-                $absolutePath,
-                $relativePath
+            /*
+             * Add file directly to ZIP stream.
+             */
+            $zip->addFileFromPath(
+                $relativePath,
+                $absolutePath
             );
-
-            $photo->update([
-                'backed_up_at' => now(),
-            ]);
         }
 
-        $zip->close();
+        /*
+        |--------------------------------------------------------------------------
+        | Finish ZIP
+        |--------------------------------------------------------------------------
+        */
 
-        return response()
-            ->download(
-                $zipPath,
-                $user->name . '_photos.zip'
-            )
-            ->deleteFileAfterSend(true);
+        $zip->finish();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update backup timestamp
+        |--------------------------------------------------------------------------
+        */
+
+        Photo::where('company_id', $companyId)
+            ->where('user_id', $userId)
+            ->update([
+                'backed_up_at' => now(),
+            ]);
     }
 }

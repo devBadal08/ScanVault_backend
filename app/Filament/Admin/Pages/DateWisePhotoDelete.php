@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Pages;
 
 use Filament\Pages\Page;
 use App\Models\Photo;
+use App\Models\Company;
+use App\Models\Folder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -181,11 +183,35 @@ class DateWisePhotoDelete extends Page
 
         /*
         |--------------------------------------------------------------------------
-        | Find matching photos
+        | Counters
         |--------------------------------------------------------------------------
         */
 
         $deletedCount = 0;
+        $deletedSizeMB = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Store folders affected by deleted photos
+        |--------------------------------------------------------------------------
+        |
+        | Example photo:
+        |
+        | 26/125/test_22-8/photo.jpg
+        |
+        | Folder:
+        |
+        | 26/125/test_22-8
+        |
+        */
+
+        $affectedFolders = [];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Delete matching photos
+        |--------------------------------------------------------------------------
+        */
 
         Photo::query()
             ->where('company_id', $companyId)
@@ -195,23 +221,205 @@ class DateWisePhotoDelete extends Page
                 $endDate,
             ])
             ->orderBy('id')
-            ->chunkById(500, function ($photos) use (&$deletedCount) {
+            ->chunkById(500, function ($photos) use (
+                &$deletedCount,
+                &$deletedSizeMB,
+                &$affectedFolders
+            ) {
 
                 foreach ($photos as $photo) {
 
-                    // Delete physical file
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Find folder path before deleting photo
+                    |--------------------------------------------------------------------------
+                    */
+
                     if ($photo->path) {
-                        if (Storage::disk('public')->exists($photo->path)) {
-                            Storage::disk('public')->delete($photo->path);
+
+                        $parts = explode(
+                            '/',
+                            trim($photo->path, '/')
+                        );
+
+                        if (count($parts) >= 3) {
+
+                            $folderPath = implode(
+                                '/',
+                                array_slice($parts, 0, -1)
+                            );
+
+                            $affectedFolders[$folderPath] = true;
                         }
                     }
 
-                    // Delete database record
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Delete physical file
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if ($photo->path) {
+
+                        try {
+
+                            if (Storage::disk('public')->exists($photo->path)) {
+
+                                $sizeBytes = Storage::disk('public')
+                                    ->size($photo->path);
+
+                                $deletedSizeMB +=
+                                    $sizeBytes / (1024 * 1024);
+
+                                Storage::disk('public')
+                                    ->delete($photo->path);
+                            }
+
+                        } catch (\Throwable $e) {
+
+                            \Log::warning(
+                                'Unable to delete photo file.',
+                                [
+                                    'photo_id' => $photo->id,
+                                    'path' => $photo->path,
+                                    'error' => $e->getMessage(),
+                                ]
+                            );
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Delete photo database record
+                    |--------------------------------------------------------------------------
+                    */
+
                     $photo->delete();
 
                     $deletedCount++;
                 }
             });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remove empty folders
+        |--------------------------------------------------------------------------
+        */
+
+        $deletedFolderCount = 0;
+
+        foreach (array_keys($affectedFolders) as $folderPath) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Check this folder and its parents
+            |--------------------------------------------------------------------------
+            */
+
+            $currentPath = trim($folderPath, '/');
+
+            while ($currentPath) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Check whether any photo remains inside this folder
+                |--------------------------------------------------------------------------
+                */
+
+                $hasRemainingPhotos = Photo::query()
+                    ->where('company_id', $companyId)
+                    ->where('path', 'LIKE', $currentPath . '/%')
+                    ->exists();
+
+                /*
+                |--------------------------------------------------------------------------
+                | If photos still exist, this folder must remain
+                |--------------------------------------------------------------------------
+                */
+
+                if ($hasRemainingPhotos) {
+                    break;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Find folder
+                |--------------------------------------------------------------------------
+                */
+
+                $folder = Folder::query()
+                    ->where('company_id', $companyId)
+                    ->where('path', $currentPath)
+                    ->first();
+
+                /*
+                |--------------------------------------------------------------------------
+                | Delete folder
+                |--------------------------------------------------------------------------
+                */
+
+                if ($folder) {
+
+                    $folder->delete();
+
+                    $deletedFolderCount++;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Delete physical directory
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (Storage::disk('public')->exists($currentPath)) {
+                        Storage::disk('public')
+                            ->deleteDirectory($currentPath);
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Move to parent folder
+                |--------------------------------------------------------------------------
+                */
+
+                $parentPath = dirname($currentPath);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Stop when we reach company/user root
+                |--------------------------------------------------------------------------
+                */
+
+                if ($parentPath === '.' || substr_count($parentPath, '/') < 2) {
+                    break;
+                }
+
+                $currentPath = $parentPath;
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update company statistics
+        |--------------------------------------------------------------------------
+        */
+
+        $company = Company::find($companyId);
+
+        if ($company) {
+
+            $company->total_photos = max(
+                0,
+                $company->total_photos - $deletedCount
+            );
+
+            $company->used_storage_mb = max(
+                0,
+                $company->used_storage_mb - $deletedSizeMB
+            );
+
+            $company->save();
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -224,14 +432,17 @@ class DateWisePhotoDelete extends Page
 
         /*
         |--------------------------------------------------------------------------
-        | Success message
+        | Success notification
         |--------------------------------------------------------------------------
         */
 
         \Filament\Notifications\Notification::make()
             ->title('Photos Deleted')
             ->body(
-                $deletedCount . ' photos were permanently deleted.'
+                $deletedCount .
+                ' photos and ' .
+                $deletedFolderCount .
+                ' empty folders were permanently deleted.'
             )
             ->success()
             ->send();

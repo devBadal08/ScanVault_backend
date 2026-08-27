@@ -193,7 +193,7 @@
 
 
                                     {{-- DELETE --}}
-                                    @if($this->canDeletePhotos())
+                                    @if($this->canDeleteUserPhotos($user->id))
 
                                         @if(($user->photo_count ?? 0) > 0)
 
@@ -216,7 +216,6 @@
 
                                         @else
 
-                                            {{-- Disabled Delete --}}
                                             <div
                                                 class="flex items-center gap-3 px-4 py-3
                                                     text-sm text-gray-400 dark:text-gray-500
@@ -228,6 +227,20 @@
                                             </div>
 
                                         @endif
+
+                                    @else
+
+                                        {{-- At least one photo is not backed up --}}
+                                        <div
+                                            class="flex items-center gap-3 px-4 py-3
+                                                text-sm text-gray-400 dark:text-gray-500
+                                                cursor-not-allowed"
+                                            title="Backup all photos before deleting"
+                                        >
+                                            <x-heroicon-o-trash class="w-5 h-5"/>
+
+                                            <span>Delete</span>
+                                        </div>
 
                                     @endif
 

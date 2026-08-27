@@ -20,7 +20,6 @@ use App\Filament\Widgets\TotalCompanies;
 use App\Filament\Admin\Widgets\UsagePieChart;
 use App\Filament\Widgets\ManagerUsageList;
 use App\Models\User;
-use App\Filament\Widgets\AdminBackupWidget;
 use App\Filament\Widgets\UserStatsWidget;
 use App\Filament\Widgets\PhotoStatsWidget;
 use App\Filament\Widgets\StorageStatsWidget;
@@ -157,7 +156,6 @@ class AdminPanelProvider extends PanelProvider
                 UsagePieChart::class,
                 ManagerUsageList::class,
                 UserPhotoStats::class,
-                //AdminBackupWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
