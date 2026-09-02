@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use App\Models\User;
 
 class StorageStatsWidget extends StatsOverviewWidget
 {
@@ -36,7 +37,17 @@ class StorageStatsWidget extends StatsOverviewWidget
         // ✅ Get storage directly from DB
         $companies = $user->companies();
 
-        $usedMB = $companies->sum('used_storage_mb');
+        if ($user->role === 'manager') {
+
+            $usedMB = User::where('role', 'user')
+                ->where('created_by', $user->id)
+                ->sum('used_storage_mb');
+
+        } else {
+
+            $usedMB = $user->companies()
+                ->sum('used_storage_mb');
+        }
 
         // 👉 If you have max per user
         $maxMB = $user->max_storage ?? 0;

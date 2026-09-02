@@ -74,11 +74,21 @@ class Folder extends Model
 
             Company::where('id', $folder->company_id)
                 ->increment('lifetime_total_folders');
+
+            // User counter
+            User::where('id', $folder->user_id)
+                ->increment('total_folders');
         });
 
         static::deleted(function (Folder $folder) {
 
             Company::where('id', $folder->company_id)
+                ->where('total_folders', '>', 0)
+                ->decrement('total_folders');
+
+            // User current folders
+            User::where('id', $folder->user_id)
+                ->where('total_folders', '>', 0)
                 ->decrement('total_folders');
         });
     }

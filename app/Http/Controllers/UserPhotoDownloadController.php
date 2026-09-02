@@ -75,6 +75,8 @@ class UserPhotoDownloadController extends Controller
         |
         */
 
+        header('X-Accel-Buffering: no');
+
         $zip = new ZipStream(
             outputName: $fileName,
             sendHttpHeaders: true,
@@ -137,12 +139,7 @@ class UserPhotoDownloadController extends Controller
 
         $zip->finish();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Update backup timestamp
-        |--------------------------------------------------------------------------
-        */
-
+        // ONLY AFTER successful finish, mark photos as backed up
         Photo::where('company_id', $companyId)
             ->where('user_id', $userId)
             ->update([

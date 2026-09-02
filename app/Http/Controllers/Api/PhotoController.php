@@ -44,7 +44,6 @@ class PhotoController extends Controller
             'parent_id'  => 'nullable|integer|exists:folders,id',
         ]);
 
-        $userId    = Auth::id();
         $companyId = $request->company_id;
 
         // Check existing folder
@@ -163,11 +162,6 @@ class PhotoController extends Controller
                 ->where('company_id', $companyId)
                 ->firstOrFail();
 
-            // 🔐 WRITE PERMISSION CHECK
-            if (!FolderPermissionService::canWrite($folder)) {
-                throw new \Exception('No write permission for this folder');
-            }
-
             return [$folder, $folder->path];
         };
 
@@ -201,29 +195,264 @@ class PhotoController extends Controller
 
                         $count++;
                     } while (Storage::disk('public')->exists($pathCheck));
-                    $path = $file->storeAs($storagePath, $filename, 'public');
 
                     $extension = strtolower($file->getClientOriginalExtension());
 
                     $type = match ($extension) {
-                        'mp4' => 'video',
+                        'mp4', 'mov', 'avi' => 'video',
                         'pdf' => 'pdf',
                         default => 'image'
                     };
 
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Get actual capture date from EXIF
+                    |--------------------------------------------------------------------------
+                    */
+                    $capturedAt = null;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PHOTO DATE FROM EXIF
+                    |--------------------------------------------------------------------------
+                    */
+                    if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+                        try {
+                            $exif = @exif_read_data($file->getRealPath());
+
+                            if (!empty($exif['DateTimeOriginal'])) {
+                                $capturedAt = \Carbon\Carbon::createFromFormat(
+                                    'Y:m:d H:i:s',
+                                    trim($exif['DateTimeOriginal'])
+                                );
+                            }
+
+                            if (!$capturedAt && !empty($exif['DateTimeDigitized'])) {
+                                $capturedAt = \Carbon\Carbon::createFromFormat(
+                                    'Y:m:d H:i:s',
+                                    trim($exif['DateTimeDigitized'])
+                                );
+                            }
+
+                            if (!$capturedAt && !empty($exif['DateTime'])) {
+                                $capturedAt = \Carbon\Carbon::createFromFormat(
+                                    'Y:m:d H:i:s',
+                                    trim($exif['DateTime'])
+                                );
+                            }
+
+                        } catch (\Throwable $e) {
+                            $capturedAt = null;
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | VIDEO DATE FROM METADATA
+                    |--------------------------------------------------------------------------
+                    */
+                    if (in_array($extension, ['mp4', 'mov', 'avi'])) {
+                        try {
+                            $videoPath = $file->getRealPath();
+
+                            $command = 'ffprobe -v quiet -print_format json -show_entries format_tags=creation_time '
+                                . escapeshellarg($videoPath);
+
+                            $output = shell_exec($command);
+
+                            if ($output) {
+                                $metadata = json_decode($output, true);
+
+                                $creationTime = $metadata['format']['tags']['creation_time'] ?? null;
+
+                                if ($creationTime) {
+                                    $capturedAt = \Carbon\Carbon::parse($creationTime);
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            $capturedAt = null;
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PDF DATE FROM METADATA
+                    |--------------------------------------------------------------------------
+                    */
+                    if ($extension === 'pdf') {
+                        try {
+                            $pdfPath = $file->getRealPath();
+
+                            $command = 'pdfinfo ' . escapeshellarg($pdfPath) . ' 2>/dev/null';
+
+                            $output = shell_exec($command);
+
+                            if ($output) {
+                                if (preg_match('/^CreationDate:\s*(.+)$/mi', $output, $matches)) {
+                                    $creationDate = trim($matches[1]);
+
+                                    // Example:
+                                    // D:20260831153000+05'30'
+
+                                    $creationDate = preg_replace(
+                                        '/^D:/',
+                                        '',
+                                        $creationDate
+                                    );
+
+                                    if (preg_match(
+                                        '/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/',
+                                        $creationDate,
+                                        $m
+                                    )) {
+                                        $capturedAt = \Carbon\Carbon::create(
+                                            (int) $m[1],
+                                            (int) $m[2],
+                                            (int) $m[3],
+                                            (int) $m[4],
+                                            (int) $m[5],
+                                            (int) $m[6]
+                                        );
+                                    }
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            $capturedAt = null;
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FALLBACK CAPTURE DATE FROM FILENAME
+                    |--------------------------------------------------------------------------
+                    |
+                    | Filename example:
+                    | 1788178125609.jpg
+                    |
+                    | 13-digit value = Unix timestamp in milliseconds
+                    |
+                    */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Validate EXIF / metadata date
+                    |--------------------------------------------------------------------------
+                    */
+
+                    // Don't accept future capture dates
+                    if ($capturedAt && $capturedAt->greaterThan(now())) {
+                        $capturedAt = null;
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FALLBACK CAPTURE DATE FROM FILENAME
+                    |--------------------------------------------------------------------------
+                    |
+                    | Example:
+                    | 20260901_153010_2024581845.jpg
+                    |
+                    | First 8 digits  = YYYYMMDD
+                    | Next 6 digits   = HHMMSS
+                    |
+                    */
+
+                    if (!$capturedAt) {
+
+                        $filenameWithoutExtension = pathinfo(
+                            $file->getClientOriginalName(),
+                            PATHINFO_FILENAME
+                        );
+
+                        if (preg_match(
+                            '/(\d{8})_(\d{6})/',
+                            $filenameWithoutExtension,
+                            $matches
+                        )) {
+
+                            try {
+
+                                $capturedAt = \Carbon\Carbon::createFromFormat(
+                                    'Ymd_His',
+                                    $matches[1] . '_' . $matches[2]
+                                );
+
+                            } catch (\Throwable $e) {
+                                $capturedAt = null;
+                            }
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 13-digit Unix timestamp fallback
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (!$capturedAt) {
+
+                        if (preg_match(
+                            '/(\d{13})/',
+                            $filenameWithoutExtension,
+                            $matches
+                        )) {
+
+                            try {
+
+                                $capturedAt = \Carbon\Carbon::createFromTimestampMs(
+                                    (int) $matches[1]
+                                );
+
+                            } catch (\Throwable $e) {
+                                $capturedAt = null;
+                            }
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FINAL FALLBACK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $capturedAt ??= now();
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Store file
+                    |--------------------------------------------------------------------------
+                    */
+                    $path = $file->storeAs(
+                        $storagePath,
+                        $filename,
+                        'public'
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Save photo record
+                    |--------------------------------------------------------------------------
+                    */
                     Photo::create([
-                        'path'       => $path,
-                        'user_id'    => $userId,
-                        'folder_id'  => $folder->id,
-                        'type'       => $type,
-                        'company_id' => $folder->company_id,
-                        'uploaded_by'=> $userId,
+                        'path'        => $path,
+                        'user_id'     => $userId,
+                        'folder_id'   => $folder->id,
+                        'type'        => $type,
+                        'company_id'  => $folder->company_id,
+                        'uploaded_by' => $userId,
+                        'captured_at' => $capturedAt,
                     ]);
 
                     // Increment company storage
                     $sizeMB = round($file->getSize() / (1024 ** 2), 2);
+
+                    // Company storage
                     DB::table('companies')
                         ->where('id', $companyId)
+                        ->increment('used_storage_mb', $sizeMB);
+
+                    // User storage
+                    DB::table('users')
+                        ->where('id', $userId)
                         ->increment('used_storage_mb', $sizeMB);
 
                     // Count only jpg, jpeg, png as photos
@@ -238,12 +467,25 @@ class PhotoController extends Controller
                         DB::table('companies')
                             ->where('id', $companyId)
                             ->increment('lifetime_total_photos');
+
+                        // User current photos
+                        DB::table('users')
+                            ->where('id', $userId)
+                            ->increment('total_photos');
                     }
 
                     $uploaded[] = asset('storage/' . $path);
                     $folderIds[] = $folder->id;
 
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
+
+                    \Log::error('UPLOAD FILE FAILED', [
+                        'file' => $file->getClientOriginalName(),
+                        'message' => $e->getMessage(),
+                        'line' => $e->getLine(),
+                        'file_path' => $e->getFile(),
+                    ]);
+
                     $failed[] = $file->getClientOriginalName();
                 }
             }
@@ -262,15 +504,26 @@ class PhotoController extends Controller
         }
 
         if (empty($uploaded) && empty($failed)) {
-            return response()->json(['error' => 'No files uploaded'], 400);
+            return response()->json([
+                'error' => 'No files uploaded'
+            ], 400);
+        }
+
+        if (!empty($failed)) {
+            return response()->json([
+                'message'    => 'Some files failed to upload',
+                'uploaded'   => $uploaded,
+                'failed'     => $failed,
+                'folder_ids' => array_values(array_unique($folderIds)),
+            ], 422);
         }
 
         return response()->json([
             'message'    => 'Upload completed successfully',
             'uploaded'   => $uploaded,
-            'failed'     => $failed,
+            'failed'     => [],
             'folder_ids' => array_values(array_unique($folderIds)),
-        ]);
+        ], 200);
     }
 
     /**

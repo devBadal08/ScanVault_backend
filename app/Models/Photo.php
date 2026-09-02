@@ -9,7 +9,11 @@ use Illuminate\Support\Facades\Storage;
 class Photo extends Model
 {
     use HasFactory;
-    protected $fillable = ['path', 'type', 'user_id', 'folder_id', 'uploaded_by', 'company_id', 'backed_up_at'];
+    protected $fillable = ['path', 'type', 'user_id', 'folder_id', 'uploaded_by', 'company_id', 'backed_up_at', 'captured_at'];
+
+    protected $casts = [
+        'captured_at' => 'datetime',
+    ];
 
     public function getUrlAttribute()
     {

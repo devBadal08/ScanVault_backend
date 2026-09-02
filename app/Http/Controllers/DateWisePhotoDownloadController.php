@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use ZipStream\ZipStream;
+use App\Models\User;
+use App\Models\Company;
 
 class DateWisePhotoDownloadController extends Controller
 {
@@ -34,6 +36,50 @@ class DateWisePhotoDownloadController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Admin company + child companies
+        |--------------------------------------------------------------------------
+        */
+
+        $companyIds = collect([
+            $companyId,
+        ])
+            ->merge(
+                Company::where('parent_id', $companyId)->pluck('id')
+            )
+            ->filter()
+            ->unique()
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get managers created by this admin
+        |--------------------------------------------------------------------------
+        */
+
+        $managerIds = User::where('role', 'manager')
+            ->where('created_by', $authUser->id)
+            ->pluck('id');
+
+        $backupUserIds = User::where(function ($query) use ($authUser, $managerIds) {
+
+            $query->where('id', $authUser->id) // admin itself, if needed
+                ->orWhere(function ($q) use ($authUser) {
+                    $q->where('role', 'user')
+                    ->where('created_by', $authUser->id);
+                })
+                ->orWhere(function ($q) use ($managerIds) {
+                    $q->where('role', 'manager')
+                    ->whereIn('id', $managerIds);
+                })
+                ->orWhere(function ($q) use ($managerIds) {
+                    $q->where('role', 'user')
+                    ->whereIn('created_by', $managerIds);
+                });
+
+        })->pluck('id');
+
+        /*
+        |--------------------------------------------------------------------------
         | Date range
         |--------------------------------------------------------------------------
         */
@@ -48,7 +94,8 @@ class DateWisePhotoDownloadController extends Controller
         */
 
         $hasPhotos = Photo::query()
-            ->where('company_id', $companyId)
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
             ->whereBetween('created_at', [
                 $startDate,
                 $endDate,
@@ -85,11 +132,16 @@ class DateWisePhotoDownloadController extends Controller
         | ZipStream sends it directly to the browser.
         |
         */
+        header('X-Accel-Buffering: no');
 
         $zip = new ZipStream(
             outputName: $zipFilename,
             sendHttpHeaders: true,
         );
+
+        // $photo->update([
+        //     'backed_up_at' => now(),
+        // ]);
 
         /*
         |--------------------------------------------------------------------------
@@ -98,7 +150,8 @@ class DateWisePhotoDownloadController extends Controller
         */
 
         $userIds = Photo::query()
-            ->where('company_id', $companyId)
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
             ->whereBetween('created_at', [
                 $startDate,
                 $endDate,
@@ -149,7 +202,7 @@ class DateWisePhotoDownloadController extends Controller
             */
 
             $photos = Photo::query()
-                ->where('company_id', $companyId)
+                ->whereIn('company_id', $companyIds)
                 ->where('user_id', $userId)
                 ->whereBetween('created_at', [
                     $startDate,
@@ -232,9 +285,7 @@ class DateWisePhotoDownloadController extends Controller
                     path: $fullPath,
                 );
 
-                $photo->update([
-                    'backed_up_at' => now(),
-                ]);
+                
             }
         }
 
@@ -245,5 +296,16 @@ class DateWisePhotoDownloadController extends Controller
         */
 
         $zip->finish();
+
+        // ONLY AFTER successful finish, mark photos as backed up
+        Photo::whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
+            ->whereBetween('created_at', [
+                $startDate,
+                $endDate,
+            ])
+            ->update([
+                'backed_up_at' => now(),
+            ]);
     }
 }

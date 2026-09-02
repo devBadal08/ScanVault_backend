@@ -114,6 +114,18 @@ class ManagerUsersPage extends Page
                 );
 
                 $company->save();
+
+                // Update user counter
+                $user = User::find($userId);
+
+                if ($user) {
+                    $user->total_photos = max(
+                        0,
+                        $user->total_photos - 1
+                    );
+
+                    $user->save();
+                }
             }
 
             // ✅ Delete from DB
@@ -265,6 +277,30 @@ class ManagerUsersPage extends Page
 
                     $company->save();
                 }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Update user folder counter
+                |--------------------------------------------------------------------------
+                */
+
+                // Update user counters
+                $user = User::find($folderUserId);
+
+                if ($user) {
+
+                    $user->total_photos = max(
+                        0,
+                        $user->total_photos - $folderPhotoCount
+                    );
+
+                    $user->total_folders = max(
+                        0,
+                        $user->total_folders - $folderCount
+                    );
+
+                    $user->save();
+                }
                 /*
                 |--------------------------------------------------------------------------
                 | Clear cache
@@ -346,6 +382,17 @@ class ManagerUsersPage extends Page
                         );
 
                         $company->save();
+
+                        $user = User::find($userId);
+
+                    if ($user) {
+                        $user->total_photos = max(
+                            0,
+                            $user->total_photos - 1
+                        );
+
+                        $user->save();
+                    }
                     }
 
                     Photo::where('path', $path)->delete();
@@ -765,6 +812,19 @@ class ManagerUsersPage extends Page
             $company->save();
         }
 
+        // Update user counters
+        $user->total_photos = max(
+            0,
+            $user->total_photos - $deletedPhotos
+        );
+
+        $user->total_folders = max(
+            0,
+            $user->total_folders - $deletedFolders
+        );
+
+        $user->save();
+
         /*
         |--------------------------------------------------------------------------
         | Update user card count immediately
@@ -934,7 +994,7 @@ class ManagerUsersPage extends Page
                 ->where('user_id', $userId)
                 ->selectRaw("
                     SUBSTRING_INDEX(path, '/', 3) AS folder_path,
-                    MAX(created_at) AS created_at
+                    MAX(COALESCE(captured_at, created_at)) AS created_at
                 ")
                 ->whereNotNull('path')
                 ->where('path', '<>', '')
@@ -1175,7 +1235,7 @@ class ManagerUsersPage extends Page
             )
             ->selectRaw("
                 {$subfolderExpression} AS subfolder_path,
-                MAX(created_at) AS created_at
+                MAX(COALESCE(captured_at, created_at)) AS created_at
             ")
             ->groupByRaw($subfolderExpression)
             ->orderByDesc('created_at')
@@ -1249,15 +1309,22 @@ class ManagerUsersPage extends Page
                     ->get()
                     ->map(function ($folder) {
 
+                        $folderPath =
+                            "{$folder->company_id}/" .
+                            "{$folder->user_id}/" .
+                            "{$folder->name}";
+
+                        $latestDate = Photo::where('company_id', $folder->company_id)
+                            ->where('user_id', $folder->user_id)
+                            ->where('path', 'LIKE', $folderPath . '/%')
+                            ->selectRaw('MAX(COALESCE(captured_at, created_at)) as latest_date')
+                            ->value('latest_date');
+
                         return [
                             'type' => 'folder',
-                            'path' =>
-                                "{$folder->company_id}/" .
-                                "{$folder->user_id}/" .
-                                "{$folder->name}",
+                            'path' => $folderPath,
                             'name' => $folder->name,
-                            'created_at' =>
-                                $folder->created_at?->toDateTimeString(),
+                            'created_at' => $latestDate,
                             'linked' => true,
                             'owner_id' => $folder->user_id,
                         ];
@@ -1287,12 +1354,13 @@ class ManagerUsersPage extends Page
                 "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) = ?",
                 [$targetDepth]
             )
-            ->orderByDesc('created_at')
+            ->orderByRaw('COALESCE(captured_at, created_at) DESC')
             ->select([
                 'id',
                 'type',
                 'path',
                 'created_at',
+                'captured_at',
             ])
             ->limit($requiredDirectFiles)
             ->get();
@@ -1309,7 +1377,7 @@ class ManagerUsersPage extends Page
                     'type' => $photo->type,
                     'path' => $photo->path,
                     'name' => basename($photo->path),
-                    'created_at' => $photo->created_at,
+                    'created_at' => $photo->captured_at ?? $photo->created_at,
                     'linked' => false,
                 ];
             })

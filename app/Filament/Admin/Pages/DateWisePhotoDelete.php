@@ -6,6 +6,7 @@ use Filament\Pages\Page;
 use App\Models\Photo;
 use App\Models\Company;
 use App\Models\Folder;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -172,11 +173,60 @@ class DateWisePhotoDelete extends Page
         |--------------------------------------------------------------------------
         */
 
-        $companyId = $authUser->companies()->first()?->id;
+        $adminCompanyId = $authUser->companies()->first()?->id;
 
-        if (!$companyId) {
+        if (!$adminCompanyId) {
             abort(403, 'Company not found.');
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Admin company + child companies
+        |--------------------------------------------------------------------------
+        */
+
+        $companyIds = collect([
+            $adminCompanyId,
+        ])
+            ->merge(
+                Company::where('parent_id', $adminCompanyId)->pluck('id')
+            )
+            ->filter()
+            ->unique()
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Users created directly by admin
+        |--------------------------------------------------------------------------
+        */
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get managers created by this admin
+        |--------------------------------------------------------------------------
+        */
+
+        $managerIds = User::where('role', 'manager')
+            ->where('created_by', $authUser->id)
+            ->pluck('id');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get all users created by:
+        | 1. Admin directly
+        | 2. Managers created by this admin
+        |--------------------------------------------------------------------------
+        */
+
+        $backupUserIds = User::where('role', 'user')
+            ->where(function ($query) use ($authUser, $managerIds) {
+
+                $query->where('created_by', $authUser->id)
+                    ->orWhereIn('created_by', $managerIds);
+
+            })
+            ->pluck('id');
 
         $startDate = Carbon::parse($this->startDate)->startOfDay();
         $endDate   = Carbon::parse($this->endDate)->endOfDay();
@@ -207,6 +257,9 @@ class DateWisePhotoDelete extends Page
 
         $affectedFolders = [];
 
+        $deletedPhotosByUser = [];
+        $deletedFoldersByUser = [];
+
         /*
         |--------------------------------------------------------------------------
         | Delete matching photos
@@ -214,7 +267,8 @@ class DateWisePhotoDelete extends Page
         */
 
         Photo::query()
-            ->where('company_id', $companyId)
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
             ->whereNotNull('backed_up_at')
             ->whereBetween('created_at', [
                 $startDate,
@@ -297,6 +351,9 @@ class DateWisePhotoDelete extends Page
                     $photo->delete();
 
                     $deletedCount++;
+
+                    $deletedPhotosByUser[$photo->user_id] =
+                        ($deletedPhotosByUser[$photo->user_id] ?? 0) + 1;
                 }
             });
 
@@ -327,7 +384,8 @@ class DateWisePhotoDelete extends Page
                 */
 
                 $hasRemainingPhotos = Photo::query()
-                    ->where('company_id', $companyId)
+                    ->whereIn('company_id', $companyIds)
+                    ->whereIn('user_id', $backupUserIds)
                     ->where('path', 'LIKE', $currentPath . '/%')
                     ->exists();
 
@@ -348,7 +406,8 @@ class DateWisePhotoDelete extends Page
                 */
 
                 $folder = Folder::query()
-                    ->where('company_id', $companyId)
+                    ->whereIn('company_id', $companyIds)
+                    ->whereIn('user_id', $backupUserIds)
                     ->where('path', $currentPath)
                     ->first();
 
@@ -363,6 +422,9 @@ class DateWisePhotoDelete extends Page
                     $folder->delete();
 
                     $deletedFolderCount++;
+
+                    $deletedFoldersByUser[$folder->user_id] =
+                        ($deletedFoldersByUser[$folder->user_id] ?? 0) + 1;
 
                     /*
                     |--------------------------------------------------------------------------
@@ -404,7 +466,7 @@ class DateWisePhotoDelete extends Page
         |--------------------------------------------------------------------------
         */
 
-        $company = Company::find($companyId);
+        $company = Company::find($adminCompanyId);
 
         if ($company) {
 
@@ -419,6 +481,35 @@ class DateWisePhotoDelete extends Page
             );
 
             $company->save();
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update user statistics
+        |--------------------------------------------------------------------------
+        */
+
+        $affectedUserIds = array_unique(array_merge(
+            array_keys($deletedPhotosByUser),
+            array_keys($deletedFoldersByUser)
+        ));
+
+        foreach ($affectedUserIds as $userId) {
+
+            $user = User::find($userId);
+
+            if (!$user) {
+                continue;
+            }
+
+            $user->total_photos = Photo::where('user_id', $userId)
+                ->where('type', 'image')
+                ->count();
+
+            $user->total_folders = Folder::where('user_id', $userId)
+                ->count();
+
+            $user->save();
         }
 
         /*

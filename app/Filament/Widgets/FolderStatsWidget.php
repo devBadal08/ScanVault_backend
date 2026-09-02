@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use App\Models\User;
 
 class FolderStatsWidget extends StatsOverviewWidget
 {
@@ -50,8 +51,17 @@ class FolderStatsWidget extends StatsOverviewWidget
         |--------------------------------------------------------------------------
         */
 
-        $folderCount = $authUser->companies()
-            ->sum('total_folders');
+        if ($authUser->role === 'manager') {
+
+            $folderCount = User::where('role', 'user')
+                ->where('created_by', $authUser->id)
+                ->sum('total_folders');
+
+        } else {
+
+            $folderCount = $authUser->companies()
+                ->sum('total_folders');
+        }
 
         /*
         |--------------------------------------------------------------------------

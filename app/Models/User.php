@@ -39,6 +39,9 @@ class User extends Authenticatable implements FilamentUser
         'show_total_photos',
         'show_total_storage',
         'can_delete_photos',
+        'total_photos',
+        'total_folders',
+        'used_storage_mb',
     ];
 
     /**

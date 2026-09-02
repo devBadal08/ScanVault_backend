@@ -294,7 +294,7 @@ class AdminUsersPage extends Page
                 $photos = \App\Models\Photo::where('company_id', $activeCompanyId)
                     ->where('user_id', $userId)
                     ->orderBy('created_at', 'desc')
-                    ->select('path', 'created_at')
+                    ->select('path', 'created_at', 'captured_at')
                     ->get();
 
                 $dbFolders = $photos->map(function ($photo) {
@@ -304,7 +304,7 @@ class AdminUsersPage extends Page
                         'type' => 'folder',
                         'name' => $parts[2] ?? null,
                         'path' => implode('/', array_slice($parts, 0, 3)),
-                        'created_at' => $photo->created_at,
+                        'created_at' => $photo->captured_at ?? $photo->created_at,
                         'linked' => false,
                     ];
                 })
@@ -388,7 +388,7 @@ class AdminUsersPage extends Page
                 $photos = \App\Models\Photo::where('company_id', $queryCompanyId)
                     ->where('user_id', $queryUserId)
                     ->where('path', 'LIKE', "{$targetPath}/%")
-                    ->orderBy('created_at', 'desc')
+                    ->orderByRaw('COALESCE(captured_at, created_at) DESC')
                     ->paginate($this->perPage);
 
                 $this->total = $photos->total();
@@ -405,7 +405,7 @@ class AdminUsersPage extends Page
                             'type' => 'folder',
                             'name' => $parts[0],
                             'path' => $targetPath . '/' . $parts[0],
-                            'created_at' => $photo->created_at,
+                            'created_at' => $photo->captured_at ?? $photo->created_at,
                             'linked' => false,
                         ];
                     }
@@ -462,7 +462,7 @@ class AdminUsersPage extends Page
                         'type' => $photo->type,
                         'path' => $photo->path,
                         'name' => basename($photo->path),
-                        'created_at' => $photo->created_at,
+                        'created_at' => $photo->captured_at ?? $photo->created_at,
                     ];
                 });
 

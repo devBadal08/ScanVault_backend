@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Card;
+use App\Models\User;
 
 class PhotoStatsWidget extends StatsOverviewWidget
 {
@@ -29,8 +30,17 @@ class PhotoStatsWidget extends StatsOverviewWidget
         |--------------------------------------------------------------------------
         */
 
-        $count = $user->companies()
-            ->sum('total_photos');
+        if ($user->role === 'manager') {
+
+            $count = User::where('role', 'user')
+                ->where('created_by', $user->id)
+                ->sum('total_photos');
+
+        } else {
+
+            $count = $user->companies()
+                ->sum('total_photos');
+        }
 
         $lifetimeCount = $user->companies()
             ->sum('lifetime_total_photos');
