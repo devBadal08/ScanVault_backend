@@ -2,18 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Photo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use ZipStream\ZipStream;
+use ZipStream\CompressionMethod;
 
 class UserPhotoDownloadController extends Controller
 {
     public function download(Request $request)
     {
+        set_time_limit(0);
+
         $authUser = Auth::user();
 
         abort_unless(
@@ -31,31 +33,17 @@ class UserPhotoDownloadController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Check whether photos exist
+        | Get photos
         |--------------------------------------------------------------------------
         */
 
-        $hasPhotos = Photo::where('company_id', $companyId)
+        $photosQuery = Photo::where('company_id', $companyId)
             ->where('user_id', $userId)
-            ->exists();
+            ->orderBy('id');
 
-        if (!$hasPhotos) {
+        if (!$photosQuery->exists()) {
             abort(404, 'No photos found for this user.');
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Get photos using cursor
-        |--------------------------------------------------------------------------
-        |
-        | cursor() keeps only one Photo model in memory at a time.
-        |
-        */
-
-        $photos = Photo::where('company_id', $companyId)
-            ->where('user_id', $userId)
-            ->orderBy('id')
-            ->cursor();
 
         /*
         |--------------------------------------------------------------------------
@@ -67,83 +55,145 @@ class UserPhotoDownloadController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Start ZipStream
+        | Stream ZIP through Laravel
         |--------------------------------------------------------------------------
-        |
-        | No temporary ZIP file is created.
-        | ZIP is streamed directly to the browser.
-        |
         */
 
-        header('X-Accel-Buffering: no');
+        return response()->streamDownload(
+            function () use ($photosQuery, $fileName, $companyId, $userId) {
 
-        $zip = new ZipStream(
-            outputName: $fileName,
-            sendHttpHeaders: true,
+                /*
+                |--------------------------------------------------------------------------
+                | Remove any previous output
+                |--------------------------------------------------------------------------
+                */
+
+                while (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Create ZipStream
+                |--------------------------------------------------------------------------
+                */
+
+                $zip = new ZipStream(
+                    outputName: $fileName,
+                    defaultCompressionMethod: CompressionMethod::STORE,
+                    defaultEnableZeroHeader: true,
+                    enableZip64: true,
+                    sendHttpHeaders: false,
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | Add files
+                |--------------------------------------------------------------------------
+                */
+                $count = 0;
+
+                foreach ($photosQuery->cursor() as $photo) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Skip missing physical files
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (!Storage::disk('public')->exists($photo->path)) {
+                        continue;
+                    }
+
+                    $absolutePath = Storage::disk('public')
+                        ->path($photo->path);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Make ZIP path
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $parts = explode('/', trim($photo->path, '/'));
+
+                    if (count($parts) < 3) {
+                        continue;
+                    }
+
+                    $relativePath = implode(
+                        '/',
+                        array_slice($parts, 2)
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Add file
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $zip->addFileFromPath(
+                        fileName: $relativePath,
+                        path: $absolutePath,
+                    );
+
+                    $count++;
+
+                    if ($count % 500 === 0) {
+                        \Log::info('ZIP download progress', [
+                            'user_id' => $userId,
+                            'files_added' => $count,
+                        ]);
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | VERY IMPORTANT
+                |--------------------------------------------------------------------------
+                |
+                | This writes the ZIP central directory and EOF records.
+                |
+                */
+                if ($count === 0) {
+                    \Log::warning('ZIP contains no files', [
+                        'user_id' => $userId,
+                    ]);
+
+                    abort(404, 'No valid files found for this user.');
+                }
+
+                \Log::info('ZIP finish START', [
+                    'user_id' => $userId,
+                    'files_added' => $count,
+                ]);
+
+                $zip->finish();
+
+                \Log::info('ZIP finish COMPLETED', [
+                    'user_id' => $userId,
+                    'files_added' => $count,
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Only after ZIP successfully finishes
+                |--------------------------------------------------------------------------
+                */
+
+                Photo::where('company_id', $companyId)
+                    ->where('user_id', $userId)
+                    ->update([
+                        'backed_up_at' => now(),
+                    ]);
+            },
+            $fileName,
+            [
+                'Content-Type' => 'application/zip',
+                'Cache-Control' => 'no-cache, no-store, must-revalidate',
+                'Pragma' => 'no-cache',
+                'Expires' => '0',
+                'X-Accel-Buffering' => 'no',
+            ]
         );
-
-        /*
-        |--------------------------------------------------------------------------
-        | Add photos one by one
-        |--------------------------------------------------------------------------
-        */
-
-        foreach ($photos as $photo) {
-
-            /*
-             * Skip missing files.
-             */
-            if (!Storage::disk('public')->exists($photo->path)) {
-                continue;
-            }
-
-            /*
-             * Get absolute file path.
-             */
-            $absolutePath = Storage::disk('public')
-                ->path($photo->path);
-
-            /*
-             * Keep folder structure.
-             *
-             * Example:
-             *
-             * 9/61/FolderA/Subfolder/photo.jpg
-             *
-             * becomes:
-             *
-             * FolderA/Subfolder/photo.jpg
-             */
-
-            $parts = explode('/', $photo->path);
-
-            $relativePath = implode(
-                '/',
-                array_slice($parts, 2)
-            );
-
-            /*
-             * Add file directly to ZIP stream.
-             */
-            $zip->addFileFromPath(
-                $relativePath,
-                $absolutePath
-            );
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Finish ZIP
-        |--------------------------------------------------------------------------
-        */
-
-        $zip->finish();
-
-        // ONLY AFTER successful finish, mark photos as backed up
-        Photo::where('company_id', $companyId)
-            ->where('user_id', $userId)
-            ->update([
-                'backed_up_at' => now(),
-            ]);
     }
 }
