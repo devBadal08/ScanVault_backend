@@ -181,7 +181,8 @@
 
                         <input
                             type="date"
-                            wire:model="startDate"
+                            wire:model.live="startDate"
+                            max="{{ now()->format('Y-m-d') }}"
                             class="w-full rounded-lg border-gray-300
                                    dark:border-gray-600
                                    dark:bg-gray-700
@@ -201,7 +202,8 @@
 
                         <input
                             type="date"
-                            wire:model="endDate"
+                            wire:model.live="endDate"
+                            max="{{ now()->format('Y-m-d') }}"
                             class="w-full rounded-lg border-gray-300
                                    dark:border-gray-600
                                    dark:bg-gray-700
@@ -214,45 +216,28 @@
 
 
                 {{-- ACTION BUTTONS --}}
-
-                <div class="mt-6 flex justify-end gap-3">
+                <div style="margin-top: 24px; padding: 12px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; box-sizing: border-box; width: 100%;">
 
                     {{-- CANCEL --}}
-
                     <button
                         type="button"
                         wire:click="$set('startDate', null); $set('endDate', null)"
-                        class="px-5 py-2.5 rounded-lg
-                               bg-gray-200 hover:bg-gray-300
-                               dark:bg-gray-700 dark:hover:bg-gray-600
-                               text-gray-800 dark:text-white
-                               font-medium"
+                        style="padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; border: 1px solid #d1d5db; background-color: #e5e7eb; color: #1f2937;"
                     >
                         Cancel
                     </button>
 
-
                     {{-- DELETE PERMANENTLY --}}
-
                     <button
                         type="button"
                         wire:click="deletePermanently"
                         wire:loading.attr="disabled"
                         wire:confirm="Are you absolutely sure you want to permanently delete all photos within the selected date range? This action cannot be undone."
-                        style="
-                            background-color: #dc2626;
-                            color: #ffffff;
-                            border: none;
-                        "
-                        class="px-5 py-2.5 rounded-lg
-                            font-medium
-                            hover:opacity-90
-                            disabled:opacity-50"
+                        style="padding: 10px 20px; border-radius: 8px; font-weight: 500; cursor: pointer; border: none; background-color: #dc2626; color: #ffffff;"
                     >
                         <span wire:loading.remove wire:target="deletePermanently">
                             Delete Permanently
                         </span>
-
                         <span wire:loading wire:target="deletePermanently">
                             Deleting...
                         </span>

@@ -30,6 +30,11 @@ Route::get(
     [DateWisePhotoDownloadController::class, 'download']
 )->name('manager.date-wise-photo-download');
 
+Route::get(
+    '/manager/check-date-wise-photos',
+    [DateWisePhotoDownloadController::class, 'checkPhotos']
+)->name('manager.check-date-wise-photos');
+
 // Profile routes
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

@@ -115,20 +115,21 @@ class AdminPanelProvider extends PanelProvider
                 </style>'
             )
             ->renderHook(
-                'panels::body.end',
+                'panels::footer',
                 fn () => '
-
-                    <div style="
-                        text-align:center;
-                        padding:12px;
-                        font-size:14px;
-                        color:#6B7280;
-                    ">
-                        Developed by 
-                        <a href="https://techstrota.com" target="_blank" style="font-weight:bold; text-decoration:none; color:#3B82F6;">
-                            Techstrota
-                        </a>
-                    </div>
+                    <footer class="w-full py-4 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-2 px-4">
+                            <div>
+                                &copy; ' . date('Y') . ' ScanVault. All rights reserved.
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span>Developed by</span>
+                                <a href="https://techstrota.com" target="_blank" rel="noopener noreferrer" class="font-semibold text-primary-600 hover:text-primary-500 dark:text-primary-400 transition-colors">
+                                    Techstrota
+                                </a>
+                            </div>
+                        </div>
+                    </footer>
                 '
             )
             ->colors([

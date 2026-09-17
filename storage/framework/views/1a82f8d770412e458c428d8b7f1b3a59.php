@@ -10,10 +10,9 @@
 <?php $component->withAttributes([]); ?>
 
     <!--[if BLOCK]><![endif]--><?php if(session('error')): ?>
-        <div class="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-            <?php echo e(session('error')); ?>
-
-        </div>
+        <script>
+            alert(<?php echo json_encode(session('error'), 15, 512) ?>);
+        </script>
     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
     <!--[if BLOCK]><![endif]--><?php if(!$passwordVerified): ?>
@@ -183,7 +182,7 @@
         
         
 
-        <div class="space-y-6">
+        <div class="max-w-3xl mx-auto space-y-6">
 
             <div>
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -195,55 +194,71 @@
                 </p>
             </div>
 
+            
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+                    
                     <div>
-
-                        <label class="block text-sm font-medium mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Start Date
                         </label>
 
                         <input
                             type="date"
                             id="start_date"
+                            max="<?php echo e(now()->format('Y-m-d')); ?>"
                             class="w-full rounded-lg border-gray-300
-                                   dark:border-gray-600
-                                   dark:bg-gray-700"
+                                dark:border-gray-600
+                                dark:bg-gray-700
+                                dark:text-white"
                         >
-
                     </div>
 
+                    
                     <div>
-
-                        <label class="block text-sm font-medium mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             End Date
                         </label>
 
                         <input
                             type="date"
                             id="end_date"
+                            max="<?php echo e(now()->format('Y-m-d')); ?>"
                             class="w-full rounded-lg border-gray-300
-                                   dark:border-gray-600
-                                   dark:bg-gray-700"
+                                dark:border-gray-600
+                                dark:bg-gray-700
+                                dark:text-white"
                         >
-
                     </div>
 
                 </div>
 
-                <div class="mt-6">
-
-                    <button
-                        type="button"
-                        onclick="startDateWiseDownload()"
-                        class="px-5 py-3 rounded-lg
-                               bg-primary-600 hover:bg-primary-700
-                               text-white font-medium"
-                    >
+                
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    
+                    <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['type' => 'button','color' => 'primary','icon' => 'heroicon-m-arrow-down-tray','onclick' => 'startDateWiseDownload()']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('filament::button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'button','color' => 'primary','icon' => 'heroicon-m-arrow-down-tray','onclick' => 'startDateWiseDownload()']); ?>
                         Download Photos
-                    </button>
+                     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
+<?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
+<?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
+<?php endif; ?>
 
                 </div>
 
@@ -254,7 +269,7 @@
     <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
     <script>
-        function startDateWiseDownload() {
+        async function startDateWiseDownload() {
 
             const startDate = document.getElementById('start_date')?.value;
             const endDate = document.getElementById('end_date')?.value;
@@ -269,19 +284,61 @@
                 return;
             }
 
+            // Prevent future dates
+            const today = new Date().toISOString().split('T')[0];
+
+            if (startDate > today) {
+                alert('Start date cannot be in the future.');
+                return;
+            }
+
+            if (endDate > today) {
+                alert('End date cannot be in the future.');
+                return;
+            }
+
             if (startDate > endDate) {
                 alert('End date cannot be before start date.');
                 return;
             }
 
-            const url =
-                "<?php echo e(route('manager.date-wise-photo-download')); ?>" +
-                "?start_date=" + encodeURIComponent(startDate) +
-                "&end_date=" + encodeURIComponent(endDate);
+            try {
 
-            console.log('Starting download:', url);
+                const checkUrl =
+                    "<?php echo e(route('manager.check-date-wise-photos')); ?>" +
+                    "?start_date=" + encodeURIComponent(startDate) +
+                    "&end_date=" + encodeURIComponent(endDate);
 
-            window.location.href = url;
+                const response = await fetch(checkUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!data.exists) {
+                    alert(data.message || 'No photos are available for the selected date range.');
+                    return;
+                }
+
+                // Photos exist → start actual download
+                const downloadUrl =
+                    "<?php echo e(route('manager.date-wise-photo-download')); ?>" +
+                    "?start_date=" + encodeURIComponent(startDate) +
+                    "&end_date=" + encodeURIComponent(endDate);
+
+                console.log('Starting download:', downloadUrl);
+
+                window.location.href = downloadUrl;
+
+            } catch (error) {
+
+                console.error('Photo check failed:', error);
+
+                alert('Unable to check photos. Please try again.');
+            }
         }
 
         function toggleBackupPassword() {

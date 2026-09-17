@@ -14,6 +14,79 @@ use ZipStream\CompressionMethod;
 
 class DateWisePhotoDownloadController extends Controller
 {
+    public function checkPhotos(Request $request)
+    {
+        $request->validate([
+            'start_date' => ['required', 'date'],
+            'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+        ]);
+
+        $authUser = Auth::user();
+
+        $companyId = $authUser->companies()->first()?->id;
+
+        if (!$companyId) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Company not found.',
+            ], 403);
+        }
+
+        $companyIds = collect([
+            $companyId,
+        ])
+            ->merge(
+                Company::where('parent_id', $companyId)->pluck('id')
+            )
+            ->filter()
+            ->unique()
+            ->values();
+
+        $managerIds = User::where('role', 'manager')
+            ->where('created_by', $authUser->id)
+            ->pluck('id');
+
+        $backupUserIds = User::where(function ($query) use ($authUser, $managerIds) {
+
+            $query->where('id', $authUser->id)
+
+                ->orWhere(function ($q) use ($authUser) {
+                    $q->where('role', 'user')
+                        ->where('created_by', $authUser->id);
+                })
+
+                ->orWhere(function ($q) use ($managerIds) {
+                    $q->where('role', 'manager')
+                        ->whereIn('id', $managerIds);
+                })
+
+                ->orWhere(function ($q) use ($managerIds) {
+                    $q->where('role', 'user')
+                        ->whereIn('created_by', $managerIds);
+                });
+
+        })->pluck('id');
+
+        $startDate = Carbon::parse($request->start_date)->startOfDay();
+        $endDate   = Carbon::parse($request->end_date)->endOfDay();
+
+        $hasPhotos = Photo::query()
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
+            ->whereBetween('created_at', [
+                $startDate,
+                $endDate,
+            ])
+            ->exists();
+
+        return response()->json([
+            'exists' => $hasPhotos,
+            'message' => $hasPhotos
+                ? null
+                : "No photos or folders are available between {$startDate->format('d-m-Y')} and {$endDate->format('d-m-Y')}.",
+        ]);
+    }
+
     public function download(Request $request)
     {
         set_time_limit(0);
@@ -329,19 +402,6 @@ class DateWisePhotoDownloadController extends Controller
                         );
 
                         $count++;
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | Progress logging every 500 files
-                        |--------------------------------------------------------------------------
-                        */
-
-                        if ($count % 500 === 0) {
-
-                            \Log::info('DATEWISE ZIP download progress', [
-                                'files_added' => $count,
-                            ]);
-                        }
                     }
                 }
 
@@ -352,27 +412,10 @@ class DateWisePhotoDownloadController extends Controller
                 */
 
                 if ($count === 0) {
-
-                    \Log::warning('DATEWISE ZIP contains no valid files');
-
                     abort(404, 'No valid files found for the selected date range.');
                 }
 
-                /*
-                |--------------------------------------------------------------------------
-                | Finish ZIP
-                |--------------------------------------------------------------------------
-                */
-
-                \Log::info('DATEWISE ZIP finish START', [
-                    'files_added' => $count,
-                ]);
-
                 $zip->finish();
-
-                \Log::info('DATEWISE ZIP finish COMPLETED', [
-                    'files_added' => $count,
-                ]);
 
                 /*
                 |--------------------------------------------------------------------------

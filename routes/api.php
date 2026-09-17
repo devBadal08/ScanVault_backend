@@ -21,7 +21,6 @@ Route::middleware('auth:sanctum')->delete('/users/{id}', [UserController::class,
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/photos/create-folder', [PhotoController::class, 'createFolder']);
-    Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);
     Route::post('/photos/uploadAll', [PhotoController::class, 'uploadAll']);
     //Route::get('/user/photos', [PhotoController::class, 'getUserPhotos']);
     Route::post('/photos', [PhotoController::class, 'store']);
@@ -44,5 +43,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/remove-profile-photo', [UserController::class, 'removeProfilePhoto']);
     Route::put('/folders/{id}/rename', [PhotoController::class, 'renameFolder']);
     Route::post('/photos/rename-file', [PhotoController::class, 'renameFile']);
+    Route::get('/photos/my-photos', [
+        PhotoController::class,
+        'getMyPhotos'
+    ]);
+    // Other photo routes
+    Route::get('/photos/{folder}', [PhotoController::class, 'getImagesByFolder']);
+    Route::post('/photos/check-pending', [PhotoController::class, 'checkPendingFiles']);
+    Route::post('/photos/verify-folder', [PhotoController::class, 'verifyFolder']);
 });
 

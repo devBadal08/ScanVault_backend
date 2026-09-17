@@ -48,11 +48,25 @@ class CompanyDashboard extends Page
 
     public function refreshCounts()
     {
-        $this->totalAdmins = $this->company->users()->where('role', 'admin')->count();
-        $this->totalManagers = $this->company->users()->where('role', 'manager')->count();
-        $this->totalUsers = $this->company->users()->where('role', 'user')->count();
-        $this->totalStorageUsed = $this->calculateCompanyStorage();
-        $this->totalPhotos = $this->calculateCompanyPhotos();
+        $this->totalAdmins = $this->company->users()
+            ->where('role', 'admin')
+            ->count();
+
+        $this->totalManagers = $this->company->users()
+            ->where('role', 'manager')
+            ->count();
+
+        $this->totalUsers = $this->company->users()
+            ->where('role', 'user')
+            ->count();
+
+        // Get directly from companies table
+        $this->totalStorageUsed = round(
+            ($this->company->used_storage_mb ?? 0) / 1024,
+            2
+        ) . ' GB';
+
+        $this->totalPhotos = $this->company->total_photos ?? 0;
     }
 
     private function calculateCompanyStorage(): string
@@ -86,7 +100,14 @@ class CompanyDashboard extends Page
 
     public function refreshStorageUsage()
     {
-        $this->totalStorageUsed = $this->calculateCompanyStorage();
+        $this->company->refresh();
+
+        $this->totalStorageUsed = round(
+            ($this->company->used_storage_mb ?? 0) / 1024,
+            2
+        ) . ' GB';
+
+        $this->totalPhotos = $this->company->total_photos ?? 0;
     }
 
     private function calculateCompanyPhotos(): int

@@ -231,6 +231,28 @@ class DateWisePhotoDelete extends Page
         $startDate = Carbon::parse($this->startDate)->startOfDay();
         $endDate   = Carbon::parse($this->endDate)->endOfDay();
 
+        // Check whether any photos exist in the selected date range
+        $photosExist = Photo::query()
+            ->whereIn('company_id', $companyIds)
+            ->whereIn('user_id', $backupUserIds)
+            ->whereNotNull('backed_up_at')
+            ->whereBetween('created_at', [
+                $startDate,
+                $endDate,
+            ])
+            ->exists();
+
+        if (!$photosExist) {
+
+            \Filament\Notifications\Notification::make()
+                ->title('No Photos Found')
+                ->body('There are no photos available for the selected date range.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Counters
@@ -470,14 +492,55 @@ class DateWisePhotoDelete extends Page
 
         if ($company) {
 
-            $company->total_photos = max(
-                0,
-                $company->total_photos - $deletedCount
-            );
+            // Actual remaining photos
+            $remainingPhotos = Photo::whereIn('company_id', $companyIds)
+                ->count();
 
-            $company->used_storage_mb = max(
-                0,
-                $company->used_storage_mb - $deletedSizeMB
+            // Actual remaining folders
+            $remainingFolders = Folder::whereIn('company_id', $companyIds)
+                ->count();
+
+            // Calculate actual remaining storage
+            $remainingStorageMB = 0;
+
+            Photo::whereIn('company_id', $companyIds)
+                ->whereNotNull('path')
+                ->chunkById(500, function ($photos) use (&$remainingStorageMB) {
+
+                    foreach ($photos as $photo) {
+
+                        try {
+
+                            if (Storage::disk('public')->exists($photo->path)) {
+
+                                $sizeBytes = Storage::disk('public')
+                                    ->size($photo->path);
+
+                                $remainingStorageMB +=
+                                    $sizeBytes / (1024 * 1024);
+                            }
+
+                        } catch (\Throwable $e) {
+
+                            \Log::warning(
+                                'Unable to calculate remaining photo size.',
+                                [
+                                    'photo_id' => $photo->id,
+                                    'path' => $photo->path,
+                                    'error' => $e->getMessage(),
+                                ]
+                            );
+                        }
+                    }
+                });
+
+            $company->total_photos = $remainingPhotos;
+
+            $company->total_folders = $remainingFolders;
+
+            $company->used_storage_mb = round(
+                $remainingStorageMB,
+                2
             );
 
             $company->save();

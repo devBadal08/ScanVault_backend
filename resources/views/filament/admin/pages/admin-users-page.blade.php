@@ -65,7 +65,7 @@
         
         {{-- Step 1: Show Admin Users + Managers --}}
         @if (!$selectedUser)
-            <div wire:ignore>
+            <div>
                 <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                     Select User
                 </h2>
@@ -105,14 +105,131 @@
                                 </div>
                             </div>
 
-                            {{-- RIGHT: Photo count --}}
-                            <div class="flex flex-col items-center justify-center text-center">
-                                <div class="text-4xl font-bold leading-none">
+                            {{-- RIGHT: Photo count + 3-dot menu --}}
+                            <div
+                                class="relative flex flex-col items-center justify-center ml-auto mr-2 text-center"
+                                onclick="event.stopPropagation();"
+                            >
+
+                                {{-- Photo Count --}}
+                                <div class="text-4xl font-bold text-gray-900 dark:text-white leading-none">
                                     {{ $user->photo_count ?? 0 }}
                                 </div>
-                                <div class="text-sm text-gray-500 mt-1">
+
+                                <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     Total Photos
                                 </div>
+
+                                {{-- 3 DOT BUTTON --}}
+                                <button
+                                    type="button"
+                                    onclick="event.stopPropagation(); toggleUserMenu({{ $user->id }});"
+                                    class="mt-2 w-8 h-8
+                                        flex items-center justify-center
+                                        rounded-lg
+                                        border border-gray-200 dark:border-gray-600
+                                        bg-white dark:bg-gray-800
+                                        text-gray-500 dark:text-gray-300
+                                        hover:bg-gray-50 dark:hover:bg-gray-700
+                                        hover:text-gray-700 dark:hover:text-white
+                                        transition-all duration-150
+                                        focus:outline-none focus:ring-2
+                                        focus:ring-gray-200 dark:focus:ring-gray-600"
+                                    title="More options"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="w-5 h-5"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                    >
+                                        <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                    </svg>
+                                </button>
+
+                                {{-- DROPDOWN MENU --}}
+                                <div
+                                    id="user-menu-{{ $user->id }}"
+                                    class="hidden absolute right-0 top-full mt-1 z-50
+                                        w-40
+                                        bg-white dark:bg-gray-800
+                                        border border-gray-200 dark:border-gray-700
+                                        rounded-xl shadow-lg
+                                        overflow-hidden"
+                                    onclick="event.stopPropagation();"
+                                >
+
+                                    {{-- DOWNLOAD ALL --}}
+                                    @if(($user->photo_count ?? 0) > 0)
+
+                                        <a
+                                            href="{{ route('download-user-photos', ['user' => $user->id]) }}"
+                                            onclick="event.stopPropagation();"
+                                            class="flex items-center gap-3 px-4 py-3
+                                            text-sm text-gray-700 dark:text-gray-200
+                                            hover:bg-gray-300
+                                            dark:hover:bg-gray-700/70
+                                            transition-colors duration-150"
+                                        >
+                                            <x-heroicon-o-arrow-down-tray
+                                                class="w-5 h-5 text-green-600"
+                                            />
+
+                                            <span>Download All</span>
+                                        </a>
+
+                                    @else
+
+                                        {{-- Disabled Download --}}
+                                        <div
+                                            class="flex items-center gap-3 px-4 py-3
+                                                text-sm text-gray-400 dark:text-gray-500
+                                                cursor-not-allowed"
+                                        >
+                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5"/>
+
+                                            <span>Download</span>
+                                        </div>
+
+                                    @endif
+
+                                    {{-- DELETE ALL --}}
+                                    @if($this->canDeleteUserPhotos($user->id))
+
+                                        <button
+                                            type="button"
+                                            onclick="
+                                                event.stopPropagation();
+                                                closeAllUserMenus();
+                                                deleteUserPhotos({{ $user->id }}, @js($user->name));
+                                            "
+                                            class="w-full flex items-center gap-3 px-4 py-3
+                                                text-sm text-red-600 dark:text-red-400
+                                                hover:bg-red-50 dark:hover:bg-red-900/20
+                                                transition"
+                                        >
+                                            <x-heroicon-o-trash class="w-5 h-5"/>
+
+                                            <span>Delete All</span>
+                                        </button>
+
+                                    @else
+
+                                        <div
+                                            class="flex items-center gap-3 px-4 py-3
+                                                text-sm text-gray-400 dark:text-gray-500
+                                                cursor-not-allowed"
+                                            title="Backup all photos before deleting"
+                                        >
+                                            <x-heroicon-o-trash class="w-5 h-5"/>
+
+                                            <span>Delete All</span>
+                                        </div>
+
+                                    @endif
+
+                                </div>
+
                             </div>
                         </div>
                     @endforeach
@@ -134,17 +251,6 @@
             <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-gray-100">
                 Folders of {{ $selectedUser->name }}
             </h2>
-
-            <div class="mb-4 flex justify-end">
-                <x-filament::button
-                    tag="a"
-                    href="{{ route('download-today-folders') }}"
-                    color="success"
-                    icon="heroicon-o-arrow-down-tray"
-                >
-                    Download Today’s Folders
-                </x-filament::button>
-            </div>
 
             @foreach ($folders as $group => $items)
                 <div class="mb-2 border rounded 
@@ -1024,5 +1130,63 @@
         document.getElementById('download-selected-subfolder')?.addEventListener('click', () =>
             download('.image-checkbox-subfolder, .folder-checkbox, .folder-checkbox-subfolder')
         );
+    });
+
+    async function deleteUserPhotos(userId, userName) {
+        const confirmed = confirm(
+            `Are you sure you want to delete ALL photos and folders of "${userName}"?\n\n` +
+            `This will permanently delete all photos, videos, PDFs and folders of this user.\n\n` +
+            `This action cannot be undone.`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            alert(`Deleting all photos of "${userName}". Please wait...`);
+
+            await Livewire.first().call(
+                'deleteUserPhotos',
+                userId
+            );
+
+            window.location.reload();
+        } catch (error) {
+            console.error(error);
+
+            alert(
+                'Something went wrong while deleting the user photos.'
+            );
+        }
+    }
+
+    function toggleUserMenu(userId) {
+        const menu = document.getElementById(`user-menu-${userId}`);
+        if (!menu) {
+            return;
+        }
+
+        const isHidden = menu.classList.contains('hidden');
+
+        closeAllUserMenus();
+
+        if (isHidden) {
+            menu.classList.remove('hidden');
+        }
+    }
+
+    function closeAllUserMenus() {
+        document
+            .querySelectorAll('[id^="user-menu-"]')
+            .forEach(menu => {
+                menu.classList.add('hidden');
+            });
+    }
+
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function () {
+        closeAllUserMenus();
     });
 </script>

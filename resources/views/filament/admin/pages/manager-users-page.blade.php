@@ -295,37 +295,58 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             @foreach ($items as $folder)
-                                <div class="flex flex-col items-center text-center">
+                                <!-- Folder Card Container (Row/Grid compatible, no flex-col parent wrapper) -->
+                                <div class="relative w-28 h-32 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-visible flex flex-col items-center p-2">
 
-                                    <!-- FIXED SIZE CONTAINER -->
-                                    <div class="relative w-24 h-24 flex items-center justify-center">
-
-                                        <!-- Folder Icon (clickable) -->
-                                        <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
-                                        class="w-full h-full flex items-center justify-center z-0">
-                                            <x-heroicon-s-folder class="w-20 h-20 text-yellow-500" style="color: #facc15;"/>
-                                        </a>
-
-                                        <!-- Checkbox (top-left) -->
+                                    <!-- Top Row: Checkbox (Left) & 3-Dot Menu (Right) -->
+                                    <div class="w-full flex justify-between items-center z-20 mb-1">
+                                        <!-- Checkbox -->
                                         <input
                                             type="checkbox"
-                                            class="folder-checkbox absolute top-1 left-1 z-20"
+                                            class="folder-checkbox rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                                             data-type="folder"
                                             value="{{ $folder['path'] }}"
+                                            style="transform: scale(1.1);"
                                         >
 
-                                        <!-- Download (bottom-right) -->
-                                        <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
-                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
-                                            title="Download Folder">
-                                            <x-heroicon-o-arrow-down-tray class="w-5 h-5 text-gray-700 dark:text-white" />
-                                        </a>
+                                        <!-- 3-Dot Menu Button -->
+                                        <div class="relative" onclick="event.stopPropagation();">
+                                            <button
+                                                type="button"
+                                                onclick="event.stopPropagation(); toggleFolderMenu('folder-{{ md5($folder['path']) }}');"
+                                                class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition"
+                                                title="More options"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                </svg>
+                                            </button>
 
+                                            <!-- Dropdown Menu -->
+                                            <div
+                                                id="folder-menu-folder-{{ md5($folder['path']) }}"
+                                                class="hidden absolute right-0 top-full mt-1 z-50 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden text-left"
+                                                onclick="event.stopPropagation();"
+                                            >
+                                                <a href="{{ route('download-folder', ['path' => $folder['path']]) }}"
+                                                onclick="event.stopPropagation(); closeAllFolderMenus();"
+                                                class="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                                    <x-heroicon-o-arrow-down-tray class="w-4 h-4 text-green-600"/>
+                                                    <span>Download</span>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </div>
 
+                                    <!-- Folder Icon (Clickable Center) -->
+                                    <a href="?user={{ $selectedUser->id }}&folder={{ urlencode($folder['path']) }}"
+                                    class="flex-1 flex items-center justify-center w-full z-0">
+                                        <x-heroicon-s-folder class="w-16 h-16 text-yellow-500" style="color: #facc15;"/>
+                                    </a>
+
                                     <!-- Folder Name -->
-                                    <span class="mt-1 text-xs text-black truncate w-24">
-                                        {{ \Illuminate\Support\Str::limit($folder['name'], 10) }}
+                                    <span class="mt-1 text-xs text-gray-800 dark:text-gray-200 truncate w-full text-center" title="{{ $folder['name'] }}">
+                                        {{ \Illuminate\Support\Str::limit($folder['name'], 12) }}
                                     </span>
                                 </div>
                             @endforeach
@@ -1272,5 +1293,29 @@
     // Close menu when clicking anywhere outside
     document.addEventListener('click', function () {
         closeAllUserMenus();
+    });
+
+    function toggleFolderMenu(folderId) {
+        const menu = document.getElementById(`folder-menu-${folderId}`);
+        if (!menu) return;
+
+        const isHidden = menu.classList.contains('hidden');
+        closeAllFolderMenus();
+
+        if (isHidden) {
+            menu.classList.remove('hidden');
+        }
+    }
+
+    function closeAllFolderMenus() {
+        document.querySelectorAll('[id^="folder-menu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+
+    // Update your global click listener to also close folder menus
+    document.addEventListener('click', function () {
+        closeAllUserMenus();
+        closeAllFolderMenus();
     });
 </script>

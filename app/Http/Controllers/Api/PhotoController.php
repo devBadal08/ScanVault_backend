@@ -184,17 +184,53 @@ class PhotoController extends Controller
                     $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                     $extension = $file->getClientOriginalExtension();
 
-                    $count = 0;
+                    $originalFilename = $originalName . '.' . $extension;
 
-                    do {
-                        $filename = $count === 0 
-                            ? $originalName . '.' . $extension 
-                            : $originalName . $count . '.' . $extension;
+                    $expectedPath = $storagePath . '/' . $originalFilename;
 
-                        $pathCheck = $storagePath . '/' . $filename;
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Pending upload recovery
+                    |--------------------------------------------------------------------------
+                    | If a Photo DB record already exists but the physical file is missing,
+                    | restore the file using the SAME filename/path.
+                    */
 
-                        $count++;
-                    } while (Storage::disk('public')->exists($pathCheck));
+                    $existingPhoto = Photo::where('company_id', $companyId)
+                        ->where('user_id', $userId)
+                        ->where('folder_id', $folder->id)
+                        ->where('path', $expectedPath)
+                        ->first();
+
+                    $isRecovery = $existingPhoto &&
+                        !Storage::disk('public')->exists($expectedPath);
+
+                    if ($isRecovery) {
+
+                        // Keep the original filename/path
+                        $filename = $originalFilename;
+
+                        \Log::info('♻️ Recovering missing physical file', [
+                            'photo_id' => $existingPhoto->id,
+                            'path' => $expectedPath,
+                            'folder_id' => $folder->id,
+                        ]);
+
+                    } else {
+
+                        // Normal upload - handle duplicate filename
+                        $count = 0;
+
+                        do {
+                            $filename = $count === 0
+                                ? $originalFilename
+                                : $originalName . $count . '.' . $extension;
+
+                            $pathCheck = $storagePath . '/' . $filename;
+
+                            $count++;
+                        } while (Storage::disk('public')->exists($pathCheck));
+                    }
 
                     $extension = strtolower($file->getClientOriginalExtension());
 
@@ -432,46 +468,69 @@ class PhotoController extends Controller
                     | Save photo record
                     |--------------------------------------------------------------------------
                     */
-                    Photo::create([
-                        'path'        => $path,
-                        'user_id'     => $userId,
-                        'folder_id'   => $folder->id,
-                        'type'        => $type,
-                        'company_id'  => $folder->company_id,
-                        'uploaded_by' => $userId,
-                        'captured_at' => $capturedAt,
-                    ]);
+                    if ($isRecovery) {
+                        // Existing DB record → only restore/update it
+                        $existingPhoto->update([
+                            'path'        => $path,
+                            'type'        => $type,
+                            'uploaded_by' => $userId,
+                            'captured_at' => $capturedAt,
+                        ]);
 
-                    // Increment company storage
-                    $sizeMB = round($file->getSize() / (1024 ** 2), 2);
+                        \Log::info('✅ Existing Photo record restored', [
+                            'photo_id' => $existingPhoto->id,
+                            'path' => $path,
+                        ]);
 
-                    // Company storage
-                    DB::table('companies')
-                        ->where('id', $companyId)
-                        ->increment('used_storage_mb', $sizeMB);
+                    } else {
 
-                    // User storage
-                    DB::table('users')
-                        ->where('id', $userId)
-                        ->increment('used_storage_mb', $sizeMB);
+                        // Normal upload → create a new Photo record
+                        Photo::create([
+                            'path'        => $path,
+                            'user_id'     => $userId,
+                            'folder_id'   => $folder->id,
+                            'type'        => $type,
+                            'company_id'  => $folder->company_id,
+                            'uploaded_by' => $userId,
+                            'captured_at' => $capturedAt,
+                        ]);
+                    }
 
-                    // Count only jpg, jpeg, png as photos
-                    $extension = strtolower($file->getClientOriginalExtension());
+                    if (!$isRecovery) {
+                        $sizeMB = round(
+                            $file->getSize() / (1024 ** 2),
+                            2
+                        );
 
-                    if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
-
+                        // Company storage
                         DB::table('companies')
                             ->where('id', $companyId)
-                            ->increment('total_photos');
+                            ->increment('used_storage_mb', $sizeMB);
 
-                        DB::table('companies')
-                            ->where('id', $companyId)
-                            ->increment('lifetime_total_photos');
-
-                        // User current photos
+                        // User storage
                         DB::table('users')
                             ->where('id', $userId)
-                            ->increment('total_photos');
+                            ->increment('used_storage_mb', $sizeMB);
+
+                        // Count only jpg, jpeg, png as photos
+                        $extension = strtolower(
+                            $file->getClientOriginalExtension()
+                        );
+
+                        if (in_array($extension, ['jpg', 'jpeg', 'png'])) {
+
+                            DB::table('companies')
+                                ->where('id', $companyId)
+                                ->increment('total_photos');
+
+                            DB::table('companies')
+                                ->where('id', $companyId)
+                                ->increment('lifetime_total_photos');
+
+                            DB::table('users')
+                                ->where('id', $userId)
+                                ->increment('total_photos');
+                        }
                     }
 
                     $uploaded[] = asset('storage/' . $path);
@@ -486,7 +545,10 @@ class PhotoController extends Controller
                         'file_path' => $e->getFile(),
                     ]);
 
-                    $failed[] = $file->getClientOriginalName();
+                    $failed[] = [
+                        'filename' => $file->getClientOriginalName(),
+                        'error' => $e->getMessage(),
+                    ];
                 }
             }
         };
@@ -598,5 +660,255 @@ class PhotoController extends Controller
             'success' => true,
             'new_path' => $newPath
         ]);
+    }
+
+    /**
+     * Check which local files are actually available on server.
+     *
+     * Optimized for large batches.
+     * Client sends files in batches of max 500.
+     */
+    public function checkPendingFiles(Request $request)
+    {
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return response()->json([
+                'error' => 'Unauthorized'
+            ], 401);
+        }
+
+        $companyId = $request->input('company_id');
+
+        if (!$companyId) {
+            return response()->json([
+                'error' => 'company_id is required'
+            ], 422);
+        }
+
+        // Company access check
+        if (!Auth::user()
+            ->companies()
+            ->where('companies.id', $companyId)
+            ->exists()) {
+
+            return response()->json([
+                'error' => 'You do not have access to this company'
+            ], 403);
+        }
+
+        $files = $request->input('files');
+
+        if (!is_array($files)) {
+            return response()->json([
+                'error' => 'Files array required'
+            ], 422);
+        }
+
+        // Client should normally send 500.
+        // Allow up to 1000 for safety.
+        if (count($files) > 1000) {
+            return response()->json([
+                'error' => 'Maximum 1000 files allowed per request'
+            ], 422);
+        }
+
+        if (empty($files)) {
+            return response()->json([
+                'success' => true,
+                'missing' => [],
+                'missing_count' => 0,
+            ], 200);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get all required folder IDs first
+        |--------------------------------------------------------------------------
+        */
+
+        $folderIds = collect($files)
+            ->pluck('folder_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Load all folders in ONE query
+        |--------------------------------------------------------------------------
+        */
+
+        $folders = Folder::where('company_id', $companyId)
+            ->whereIn('id', $folderIds)
+            ->get()
+            ->keyBy('id');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Group files by folder
+        |--------------------------------------------------------------------------
+        */
+
+        $filesByFolder = [];
+
+        foreach ($files as $item) {
+
+            $folderId = $item['folder_id'] ?? null;
+            $filename = $item['filename'] ?? null;
+
+            if (!$folderId || !$filename) {
+                continue;
+            }
+
+            $filesByFolder[$folderId][] = $filename;
+        }
+
+        $missing = [];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check each folder
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($filesByFolder as $folderId => $filenames) {
+
+            $folder = $folders->get($folderId);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Folder doesn't exist
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$folder) {
+
+                foreach ($filenames as $filename) {
+                    $missing[] = [
+                        'folder_id' => $folderId,
+                        'filename' => $filename,
+                        'reason' => 'Folder not found',
+                    ];
+                }
+
+                continue;
+            }
+
+            try {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Get files from this folder ONCE
+                |--------------------------------------------------------------------------
+                */
+
+                $serverFiles = Storage::disk('public')
+                    ->files($folder->path);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Convert server filenames into lookup map
+                |--------------------------------------------------------------------------
+                */
+
+                $serverFileNames = [];
+
+                foreach ($serverFiles as $serverFile) {
+                    $serverFileNames[basename($serverFile)] = true;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Compare requested files with server files
+                |--------------------------------------------------------------------------
+                */
+
+                foreach ($filenames as $filename) {
+
+                    if (!isset($serverFileNames[$filename])) {
+
+                        $missing[] = [
+                            'folder_id' => $folderId,
+                            'filename' => $filename,
+                        ];
+                    }
+                }
+
+            } catch (\Throwable $e) {
+
+                \Log::error('PENDING FILE CHECK FAILED', [
+                    'user_id' => $userId,
+                    'company_id' => $companyId,
+                    'folder_id' => $folderId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                /*
+                |--------------------------------------------------------------------------
+                | If folder check itself fails, mark these files as missing
+                |--------------------------------------------------------------------------
+                */
+
+                foreach ($filenames as $filename) {
+
+                    $missing[] = [
+                        'folder_id' => $folderId,
+                        'filename' => $filename,
+                        'reason' => 'Check failed',
+                    ];
+                }
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'missing' => $missing,
+            'missing_count' => count($missing),
+        ], 200);
+    }
+
+    public function verifyFolder(Request $request)
+    {
+        $userId = Auth::id();
+
+        if (!$userId) {
+            return response()->json([
+                'error' => 'Unauthorized'
+            ], 401);
+        }
+
+        $request->validate([
+            'folder_id' => 'required|integer',
+            'company_id' => 'required|integer',
+        ]);
+
+        $companyId = $request->company_id;
+        $folderId = $request->folder_id;
+
+        // Company access check
+        if (!Auth::user()->companies()->where('companies.id', $companyId)->exists()) {
+            return response()->json([
+                'error' => 'You do not have access to this company'
+            ], 403);
+        }
+
+        $folder = Folder::where('id', $folderId)
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (!$folder) {
+            return response()->json([
+                'exists' => false,
+                'folder_id' => $folderId,
+            ], 200);
+        }
+
+        return response()->json([
+            'exists' => true,
+            'folder_id' => $folder->id,
+            'path' => $folder->path,
+            'name' => $folder->name,
+        ], 200);
     }
 }

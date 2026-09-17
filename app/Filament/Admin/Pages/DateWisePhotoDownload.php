@@ -42,16 +42,12 @@ class DateWisePhotoDownload extends Page
         $this->passwordError = null;
 
         if ($this->backupPassword !== self::BACKUP_PASSWORD) {
-
             $this->passwordError = 'Incorrect password.';
-
             $this->backupPassword = '';
-
             return;
         }
 
         $this->passwordVerified = true;
-
         $this->backupPassword = '';
     }
 }

@@ -78,7 +78,7 @@ class SyncPhotos extends Command
             $extension = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
 
             $type = match ($extension) {
-                'mp4', 'avi', 'mov' => 'video',
+                'mp4' => 'video',
                 'pdf' => 'pdf',
                 default => 'image',
             };

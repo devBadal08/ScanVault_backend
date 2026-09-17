@@ -55,27 +55,49 @@ class ManagerUsersPage extends Page
     {
         $user = Auth::user();
 
-        return (bool) $user->can_delete_photos;
+        return $user->role === 'admin'
+            || (bool) $user->can_delete_photos;
     }
 
     public function canDeleteUserPhotos(int $userId): bool
     {
+        // Logged-in admin/manager must have delete permission
         if (!$this->canDeletePhotos()) {
             return false;
         }
 
-        $companyId = Auth::user()->companies()->first()?->id;
+        // Find the target user
+        $targetUser = User::find($userId);
 
-        if (!$companyId) {
+        if (!$targetUser) {
             return false;
         }
 
-        // If user has any photo which is NOT backed up,
-        // deletion is not allowed.
-        return !Photo::where('company_id', $companyId)
+        /*
+        |--------------------------------------------------------------------------
+        | Find the company that owns this user's files
+        |--------------------------------------------------------------------------
+        */
+
+        $companyIds = $targetUser->companies()->pluck('companies.id');
+
+        if ($companyIds->isEmpty()) {
+            return false;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Delete is allowed only when ALL files are backed up
+        | Images + Videos + PDFs
+        |--------------------------------------------------------------------------
+        */
+
+        $hasUnbackedFiles = Photo::whereIn('company_id', $companyIds)
             ->where('user_id', $userId)
             ->whereNull('backed_up_at')
             ->exists();
+
+        return !$hasUnbackedFiles;
     }
 
     public function deletePhoto($path)
@@ -90,7 +112,10 @@ class ManagerUsersPage extends Page
         if (Storage::disk('public')->exists($path)) {
 
             // ✅ Get file size BEFORE delete
-            $fileSizeMB = Storage::disk('public')->size($path) / (1024 * 1024);
+            $fileSizeMB = round(
+                Storage::disk('public')->size($path) / (1024 * 1024),
+                2
+            );
 
             PhotoDeleteHistory::create([
                 'deleted_by' => auth()->id(),
@@ -119,6 +144,11 @@ class ManagerUsersPage extends Page
                 $user = User::find($userId);
 
                 if ($user) {
+                    $user->used_storage_mb = max(
+                        0,
+                        $user->used_storage_mb - $fileSizeMB
+                    );
+
                     $user->total_photos = max(
                         0,
                         $user->total_photos - 1
@@ -207,6 +237,7 @@ class ManagerUsersPage extends Page
                             / (1024 * 1024);
                     }
                 }
+                $folderSizeMB = round($folderSizeMB, 2);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -289,6 +320,11 @@ class ManagerUsersPage extends Page
 
                 if ($user) {
 
+                    $user->used_storage_mb = max(
+                        0,
+                        $user->used_storage_mb - $folderSizeMB
+                    );
+
                     $user->total_photos = max(
                         0,
                         $user->total_photos - $folderPhotoCount
@@ -358,7 +394,10 @@ class ManagerUsersPage extends Page
 
                 if (Storage::disk('public')->exists($path)) {
 
-                    $fileSizeMB = Storage::disk('public')->size($path) / (1024 * 1024);
+                    $fileSizeMB = round(
+                        Storage::disk('public')->size($path) / (1024 * 1024),
+                        2
+                    );
 
                     PhotoDeleteHistory::create([
                         'deleted_by' => auth()->id(),
@@ -385,14 +424,19 @@ class ManagerUsersPage extends Page
 
                         $user = User::find($userId);
 
-                    if ($user) {
-                        $user->total_photos = max(
-                            0,
-                            $user->total_photos - 1
-                        );
+                        if ($user) {
+                            $user->used_storage_mb = max(
+                                0,
+                                $user->used_storage_mb - $fileSizeMB
+                            );
 
-                        $user->save();
-                    }
+                            $user->total_photos = max(
+                                0,
+                                $user->total_photos - 1
+                            );
+
+                            $user->save();
+                        }
                     }
 
                     Photo::where('path', $path)->delete();
@@ -745,6 +789,7 @@ class ManagerUsersPage extends Page
                 Storage::disk('public')->delete($photo->path);
             }
         }
+        $totalSizeMB = round($totalSizeMB, 2);
 
         /*
         |--------------------------------------------------------------------------
@@ -811,6 +856,11 @@ class ManagerUsersPage extends Page
 
             $company->save();
         }
+
+        $user->used_storage_mb = max(
+            0,
+            $user->used_storage_mb - $totalSizeMB
+        );
 
         // Update user counters
         $user->total_photos = max(
@@ -1195,6 +1245,11 @@ class ManagerUsersPage extends Page
         $targetPath = trim($targetPath, '/');
         $pathPrefix = $targetPath . '/';
 
+        // This is important when opening a subfolder.
+        $targetFolderModel = Folder::where('path', $targetPath)
+            ->where('company_id', $folderCompanyId)
+            ->first();
+
         /*
         |--------------------------------------------------------------------------
         | Calculate path depth
@@ -1348,7 +1403,7 @@ class ManagerUsersPage extends Page
 
         $directFiles = Photo::query()
             ->where('company_id', $folderCompanyId)
-            ->where('user_id', $realOwnerId)
+            ->where('folder_id', $targetFolderModel?->id)
             ->where('path', 'LIKE', $pathPrefix . '%')
             ->whereRaw(
                 "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) = ?",
@@ -1361,6 +1416,9 @@ class ManagerUsersPage extends Page
                 'path',
                 'created_at',
                 'captured_at',
+                'user_id',
+                'uploaded_by',
+                'folder_id',
             ])
             ->limit($requiredDirectFiles)
             ->get();
@@ -1399,10 +1457,10 @@ class ManagerUsersPage extends Page
 
         $directMediaTotal = Photo::query()
             ->where('company_id', $folderCompanyId)
-            ->where('user_id', $realOwnerId)
+            ->where('folder_id', $targetFolderModel?->id)
             ->where('path', 'LIKE', $pathPrefix . '%')
             ->whereRaw(
-                "LENGTH(path) - LENGTH(REPLACE(path, '/', '')) = ?",
+                'LENGTH(path) - LENGTH(REPLACE(path, "/", "")) = ?',
                 [$targetDepth]
             )
             ->count();

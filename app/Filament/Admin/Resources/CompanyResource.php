@@ -43,7 +43,7 @@ class CompanyResource extends Resource
                     ->columns(1)
                     ->directory('company-logos') // optional: folder to store logos
                     ->preserveFilenames()
-                    ->maxSize(512)
+                    ->maxSize(5120)
                     ->visibility('public')
                     ->downloadable()               // allow download
                     ->openable()                   // allow opening

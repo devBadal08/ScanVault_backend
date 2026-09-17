@@ -6,9 +6,11 @@ use Filament\Pages\Page;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
-use Carbon\Carbon;
-use App\Models\Company;
+use App\Models\Photo;
 use App\Models\Folder;
+use App\Models\Company;
+use App\Models\PhotoDeleteHistory;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
@@ -87,6 +89,206 @@ class AdminUsersPage extends Page
         });
 
         return $groups;
+    }
+
+    public function canDeletePhotos(): bool
+    {
+        $user = Auth::user();
+
+        return $user->role === 'admin'
+            || (bool) $user->can_delete_photos;
+    }
+
+    public function canDeleteUserPhotos(int $userId): bool
+    {
+        // Admin must have delete permission
+        if (!$this->canDeletePhotos()) {
+            return false;
+        }
+
+        $authUser = Auth::user();
+
+        // Admin company + child companies
+        $companyIds = collect([
+            $authUser->companies()->first()?->id,
+        ])
+        ->merge(
+            Company::where(
+                'parent_id',
+                $authUser->companies()->first()?->id
+            )->pluck('id')
+        )
+        ->filter()
+        ->values();
+
+        if ($companyIds->isEmpty()) {
+            return false;
+        }
+
+        // Get all files of this user
+        $files = Photo::whereIn('company_id', $companyIds)
+            ->where('user_id', $userId)
+            ->get();
+
+        // No files = Delete disabled
+        if ($files->isEmpty()) {
+            return false;
+        }
+
+        // Every image/video/PDF must be backed up
+        $hasUnbackedFiles = $files->contains(function ($file) {
+            return is_null($file->backed_up_at);
+        });
+
+        return !$hasUnbackedFiles;
+    }
+
+    public function deleteUserPhotos(int $userId): void
+    {
+        // 1. Check delete permission
+        if (!$this->canDeletePhotos()) {
+            abort(403, 'You do not have permission to delete photos.');
+        }
+
+        $authUser = Auth::user();
+
+        // 2. Get admin company + child companies
+        $companyIds = collect([
+            $authUser->companies()->first()?->id,
+        ])
+        ->merge(
+            Company::where(
+                'parent_id',
+                $authUser->companies()->first()?->id
+            )->pluck('id')
+        )
+        ->filter()
+        ->values();
+
+        if ($companyIds->isEmpty()) {
+            abort(403, 'No company access.');
+        }
+
+        // 3. Get all photos of this user
+        $photos = Photo::whereIn('company_id', $companyIds)
+            ->where('user_id', $userId)
+            ->get();
+
+        if ($photos->isEmpty()) {
+            return;
+        }
+
+        // 4. IMPORTANT:
+        // Do not allow deletion until ALL files are backed up.
+        $hasUnbackedPhotos = $photos->contains(function ($photo) {
+            return is_null($photo->backed_up_at);
+        });
+
+        if ($hasUnbackedPhotos) {
+            abort(
+                403,
+                'Cannot delete photos. Please backup all photos first.'
+            );
+        }
+
+        DB::transaction(function () use ($photos, $userId) {
+
+            foreach ($photos as $photo) {
+
+                /*
+                * Get file size before deleting
+                */
+                $fileSizeMB = 0;
+
+                if (
+                    $photo->path &&
+                    Storage::disk('public')->exists($photo->path)
+                ) {
+                    $fileSizeMB = Storage::disk('public')->size(
+                        $photo->path
+                    ) / (1024 * 1024);
+                }
+
+                /*
+                * Save delete history
+                */
+                PhotoDeleteHistory::create([
+                    'deleted_by' => Auth::id(),
+                    'user_id'    => $userId,
+                    'company_id' => $photo->company_id,
+                    'photo_path' => $photo->path,
+                ]);
+
+                /*
+                * Update company storage
+                */
+                $company = Company::find($photo->company_id);
+
+                if ($company) {
+
+                    $company->used_storage_mb = max(
+                        0,
+                        $company->used_storage_mb - $fileSizeMB
+                    );
+
+                    if ($photo->type === 'image') {
+                        $company->total_photos = max(
+                            0,
+                            $company->total_photos - 1
+                        );
+                    }
+
+                    $company->save();
+                }
+
+                /*
+                * Update user's photo count
+                */
+                if ($photo->type === 'image') {
+
+                    $user = User::find($userId);
+
+                    if ($user) {
+                        $user->total_photos = max(
+                            0,
+                            $user->total_photos - 1
+                        );
+
+                        $user->save();
+                    }
+                }
+
+                /*
+                * Delete database record
+                */
+                $photo->delete();
+
+                /*
+                * Delete physical file
+                */
+                if (
+                    $photo->path &&
+                    Storage::disk('public')->exists($photo->path)
+                ) {
+                    Storage::disk('public')->delete($photo->path);
+                }
+            }
+
+            /*
+            * Delete user's folders from database
+            */
+            Folder::where('user_id', $userId)
+                ->delete();
+        });
+
+        /*
+        * Clear cached photo count
+        */
+        $activeCompanyId = $authUser->companies()->first()?->id;
+
+        if ($activeCompanyId) {
+            Cache::forget("photo_counts_{$activeCompanyId}");
+        }
     }
 
     protected function paginateDateGroups(array $grouped): array

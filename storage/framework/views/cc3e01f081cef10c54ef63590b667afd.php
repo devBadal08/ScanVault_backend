@@ -431,49 +431,43 @@
                     <div class="accordion-content px-4 py-2">
                         <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));">
                             <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $folder): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="flex flex-col items-center text-center">
+                                <!-- Folder Card Container (Row/Grid compatible, no flex-col parent wrapper) -->
+                                <div class="relative w-28 h-32 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white text-xs font-medium overflow-visible flex flex-col items-center p-2">
 
-                                    <!-- FIXED SIZE CONTAINER -->
-                                    <div class="relative w-24 h-24 flex items-center justify-center">
-
-                                        <!-- Folder Icon (clickable) -->
-                                        <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
-                                        class="w-full h-full flex items-center justify-center z-0">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
-<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('heroicon-s-folder'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-20 h-20 text-yellow-500','style' => 'color: #facc15;']); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
-<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
-<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
-<?php endif; ?>
-                                        </a>
-
-                                        <!-- Checkbox (top-left) -->
+                                    <!-- Top Row: Checkbox (Left) & 3-Dot Menu (Right) -->
+                                    <div class="w-full flex justify-between items-center z-20 mb-1">
+                                        <!-- Checkbox -->
                                         <input
                                             type="checkbox"
-                                            class="folder-checkbox absolute top-1 left-1 z-20"
+                                            class="folder-checkbox rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                                             data-type="folder"
                                             value="<?php echo e($folder['path']); ?>"
+                                            style="transform: scale(1.1);"
                                         >
 
-                                        <!-- Download (bottom-right) -->
-                                        <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
-                                            class="absolute bottom-2 right-2 z-50 p-1 rounded-full bg-white shadow hover:bg-gray-200"
-                                            title="Download Folder">
-                                            <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+                                        <!-- 3-Dot Menu Button -->
+                                        <div class="relative" onclick="event.stopPropagation();">
+                                            <button
+                                                type="button"
+                                                onclick="event.stopPropagation(); toggleFolderMenu('folder-<?php echo e(md5($folder['path'])); ?>');"
+                                                class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300 transition"
+                                                title="More options"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z"/>
+                                                </svg>
+                                            </button>
+
+                                            <!-- Dropdown Menu -->
+                                            <div
+                                                id="folder-menu-folder-<?php echo e(md5($folder['path'])); ?>"
+                                                class="hidden absolute right-0 top-full mt-1 z-50 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden text-left"
+                                                onclick="event.stopPropagation();"
+                                            >
+                                                <a href="<?php echo e(route('download-folder', ['path' => $folder['path']])); ?>"
+                                                onclick="event.stopPropagation(); closeAllFolderMenus();"
+                                                class="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                                    <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
 <?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('heroicon-o-arrow-down-tray'); ?>
@@ -482,7 +476,7 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['class' => 'w-5 h-5 text-gray-700 dark:text-white']); ?>
+<?php $component->withAttributes(['class' => 'w-4 h-4 text-green-600']); ?>
 <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
@@ -493,13 +487,40 @@
 <?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
 <?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
 <?php endif; ?>
-                                        </a>
-
+                                                    <span>Download</span>
+                                                </a>
+                                            </div>
+                                        </div>
                                     </div>
 
+                                    <!-- Folder Icon (Clickable Center) -->
+                                    <a href="?user=<?php echo e($selectedUser->id); ?>&folder=<?php echo e(urlencode($folder['path'])); ?>"
+                                    class="flex-1 flex items-center justify-center w-full z-0">
+                                        <?php if (isset($component)) { $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c = $attributes; } ?>
+<?php $component = BladeUI\Icons\Components\Svg::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('heroicon-s-folder'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\BladeUI\Icons\Components\Svg::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['class' => 'w-16 h-16 text-yellow-500','style' => 'color: #facc15;']); ?>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $attributes = $__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__attributesOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c)): ?>
+<?php $component = $__componentOriginal643fe1b47aec0b76658e1a0200b34b2c; ?>
+<?php unset($__componentOriginal643fe1b47aec0b76658e1a0200b34b2c); ?>
+<?php endif; ?>
+                                    </a>
+
                                     <!-- Folder Name -->
-                                    <span class="mt-1 text-xs text-black truncate w-24">
-                                        <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 10)); ?>
+                                    <span class="mt-1 text-xs text-gray-800 dark:text-gray-200 truncate w-full text-center" title="<?php echo e($folder['name']); ?>">
+                                        <?php echo e(\Illuminate\Support\Str::limit($folder['name'], 12)); ?>
 
                                     </span>
                                 </div>
@@ -1565,5 +1586,29 @@
     // Close menu when clicking anywhere outside
     document.addEventListener('click', function () {
         closeAllUserMenus();
+    });
+
+    function toggleFolderMenu(folderId) {
+        const menu = document.getElementById(`folder-menu-${folderId}`);
+        if (!menu) return;
+
+        const isHidden = menu.classList.contains('hidden');
+        closeAllFolderMenus();
+
+        if (isHidden) {
+            menu.classList.remove('hidden');
+        }
+    }
+
+    function closeAllFolderMenus() {
+        document.querySelectorAll('[id^="folder-menu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+
+    // Update your global click listener to also close folder menus
+    document.addEventListener('click', function () {
+        closeAllUserMenus();
+        closeAllFolderMenus();
     });
 </script><?php /**PATH D:\Vidhi\All Projects\ScanVault_backend-main\resources\views/filament/admin/pages/manager-users-page.blade.php ENDPATH**/ ?>

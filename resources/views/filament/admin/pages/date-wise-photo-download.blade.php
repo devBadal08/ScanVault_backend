@@ -1,9 +1,9 @@
 <x-filament-panels::page>
 
     @if(session('error'))
-        <div class="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-            {{ session('error') }}
-        </div>
+        <script>
+            alert(@json(session('error')));
+        </script>
     @endif
 
     @if(!$passwordVerified)
@@ -152,10 +152,10 @@
     @else
 
         {{-- ========================================================= --}}
-        {{-- YOUR EXISTING BACKUP PAGE --}}
+        {{-- BACKUP PAGE (MATCHING DELETE PHOTOS CARD UI) --}}
         {{-- ========================================================= --}}
 
-        <div class="space-y-6">
+        <div class="max-w-3xl mx-auto space-y-6">
 
             <div>
                 <h2 class="text-xl font-bold text-gray-900 dark:text-white">
@@ -167,55 +167,58 @@
                 </p>
             </div>
 
+            {{-- DATE SELECTION CARD --}}
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+                    {{-- START DATE --}}
                     <div>
-
-                        <label class="block text-sm font-medium mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Start Date
                         </label>
 
                         <input
                             type="date"
                             id="start_date"
+                            max="{{ now()->format('Y-m-d') }}"
                             class="w-full rounded-lg border-gray-300
-                                   dark:border-gray-600
-                                   dark:bg-gray-700"
+                                dark:border-gray-600
+                                dark:bg-gray-700
+                                dark:text-white"
                         >
-
                     </div>
 
+                    {{-- END DATE --}}
                     <div>
-
-                        <label class="block text-sm font-medium mb-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             End Date
                         </label>
 
                         <input
                             type="date"
                             id="end_date"
+                            max="{{ now()->format('Y-m-d') }}"
                             class="w-full rounded-lg border-gray-300
-                                   dark:border-gray-600
-                                   dark:bg-gray-700"
+                                dark:border-gray-600
+                                dark:bg-gray-700
+                                dark:text-white"
                         >
-
                     </div>
 
                 </div>
 
-                <div class="mt-6">
-
-                    <button
+                {{-- ACTION BUTTONS --}}
+                <div class="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    {{-- DOWNLOAD PHOTOS --}}
+                    <x-filament::button
                         type="button"
+                        color="primary"
+                        icon="heroicon-m-arrow-down-tray"
                         onclick="startDateWiseDownload()"
-                        class="px-5 py-3 rounded-lg
-                               bg-primary-600 hover:bg-primary-700
-                               text-white font-medium"
                     >
                         Download Photos
-                    </button>
+                    </x-filament::button>
 
                 </div>
 
@@ -226,7 +229,7 @@
     @endif
 
     <script>
-        function startDateWiseDownload() {
+        async function startDateWiseDownload() {
 
             const startDate = document.getElementById('start_date')?.value;
             const endDate = document.getElementById('end_date')?.value;
@@ -241,19 +244,61 @@
                 return;
             }
 
+            // Prevent future dates
+            const today = new Date().toISOString().split('T')[0];
+
+            if (startDate > today) {
+                alert('Start date cannot be in the future.');
+                return;
+            }
+
+            if (endDate > today) {
+                alert('End date cannot be in the future.');
+                return;
+            }
+
             if (startDate > endDate) {
                 alert('End date cannot be before start date.');
                 return;
             }
 
-            const url =
-                "{{ route('manager.date-wise-photo-download') }}" +
-                "?start_date=" + encodeURIComponent(startDate) +
-                "&end_date=" + encodeURIComponent(endDate);
+            try {
 
-            console.log('Starting download:', url);
+                const checkUrl =
+                    "{{ route('manager.check-date-wise-photos') }}" +
+                    "?start_date=" + encodeURIComponent(startDate) +
+                    "&end_date=" + encodeURIComponent(endDate);
 
-            window.location.href = url;
+                const response = await fetch(checkUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!data.exists) {
+                    alert(data.message || 'No photos are available for the selected date range.');
+                    return;
+                }
+
+                // Photos exist → start actual download
+                const downloadUrl =
+                    "{{ route('manager.date-wise-photo-download') }}" +
+                    "?start_date=" + encodeURIComponent(startDate) +
+                    "&end_date=" + encodeURIComponent(endDate);
+
+                console.log('Starting download:', downloadUrl);
+
+                window.location.href = downloadUrl;
+
+            } catch (error) {
+
+                console.error('Photo check failed:', error);
+
+                alert('Unable to check photos. Please try again.');
+            }
         }
 
         function toggleBackupPassword() {

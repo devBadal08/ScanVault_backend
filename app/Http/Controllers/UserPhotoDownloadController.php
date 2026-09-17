@@ -137,13 +137,6 @@ class UserPhotoDownloadController extends Controller
                     );
 
                     $count++;
-
-                    if ($count % 500 === 0) {
-                        \Log::info('ZIP download progress', [
-                            'user_id' => $userId,
-                            'files_added' => $count,
-                        ]);
-                    }
                 }
 
                 /*
@@ -155,24 +148,10 @@ class UserPhotoDownloadController extends Controller
                 |
                 */
                 if ($count === 0) {
-                    \Log::warning('ZIP contains no files', [
-                        'user_id' => $userId,
-                    ]);
-
                     abort(404, 'No valid files found for this user.');
                 }
 
-                \Log::info('ZIP finish START', [
-                    'user_id' => $userId,
-                    'files_added' => $count,
-                ]);
-
                 $zip->finish();
-
-                \Log::info('ZIP finish COMPLETED', [
-                    'user_id' => $userId,
-                    'files_added' => $count,
-                ]);
 
                 /*
                 |--------------------------------------------------------------------------
